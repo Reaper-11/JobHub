@@ -6,9 +6,13 @@ if (!isset($_GET['id'])) {
     exit;
 }
 $job_id = (int) $_GET['id'];
-$jobRes = $conn->query("SELECT * FROM jobs WHERE id=$job_id AND is_approved=1");
+$jobRes = $conn->query(
+    "SELECT j.* FROM jobs j
+     LEFT JOIN companies c ON c.id = j.company_id
+     WHERE j.id=$job_id AND (j.company_id IS NULL OR c.is_approved = 1)"
+);
 if ($jobRes->num_rows == 0) {
-    die("Job not found or not approved.");
+    die("Job not found.");
 }
 $job = $jobRes->fetch_assoc();
 
@@ -18,8 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
 
     if (isset($_POST['apply'])) {
         $cover = trim($_POST['cover_letter']);
-        $stmt = $conn->prepare("INSERT INTO applications (user_id, job_id, cover_letter) VALUES (?, ?, ?)");
-        $stmt->bind_param("iis", $uid, $job_id, $cover);
+        $companyId = isset($job['company_id']) ? (int) $job['company_id'] : null;
+        $stmt = $conn->prepare(
+            "INSERT INTO applications (user_id, job_id, company_id, cover_letter) VALUES (?, ?, ?, ?)"
+        );
+        $stmt->bind_param("iiis", $uid, $job_id, $companyId, $cover);
         if ($stmt->execute()) {
             $msg = "Application submitted successfully.";
         } else {

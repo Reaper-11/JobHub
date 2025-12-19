@@ -73,7 +73,6 @@ $jobs = $conn->query("SELECT * FROM jobs ORDER BY created_at DESC");
             <th>Title</th>
             <th>Company</th>
             <th>Location</th>
-            <th>Approved</th>
             <th>Actions</th>
         </tr>
         <?php while ($j = $jobs->fetch_assoc()): ?>
@@ -82,12 +81,8 @@ $jobs = $conn->query("SELECT * FROM jobs ORDER BY created_at DESC");
                 <td><?php echo htmlspecialchars($j['title']); ?></td>
                 <td><?php echo htmlspecialchars($j['company']); ?></td>
                 <td><?php echo htmlspecialchars($j['location']); ?></td>
-                <td><?php echo $j['is_approved'] ? 'Yes' : 'No'; ?></td>
                 <td>
                     <a class="btn btn-small btn-secondary" href="admin-edit-job.php?id=<?php echo $j['id']; ?>">Edit</a>
-                    <?php if (!$j['is_approved']): ?>
-                        <a class="btn btn-small" href="admin-approve-job.php?id=<?php echo $j['id']; ?>">Approve</a>
-                    <?php endif; ?>
                     <a class="btn btn-danger btn-small"
                        href="admin-delete.php?table=jobs&id=<?php echo $j['id']; ?>&return=admin-jobs.php"
                        onclick="return confirm('Delete this job?')">Delete</a>

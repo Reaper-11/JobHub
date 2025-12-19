@@ -4,7 +4,9 @@ require 'header.php';
 
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
 
-$sql = "SELECT * FROM jobs WHERE is_approved = 1";
+$sql = "SELECT j.* FROM jobs j
+        LEFT JOIN companies c ON c.id = j.company_id
+        WHERE (j.company_id IS NULL OR c.is_approved = 1)";
 if ($keyword !== '') {
     $k = "%" . $conn->real_escape_string($keyword) . "%";
     $sql .= " AND (title LIKE '$k' OR company LIKE '$k' OR location LIKE '$k')";
@@ -15,6 +17,9 @@ $jobs = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $popularJobs = array_slice($jobs, 0, 3);
 $latestJobs = $jobs;
 ?>
+<style>
+body{background:#ddd;}
+</style>
 <h1>Let's find you a job.</h1>
 
 <form method="get" class="form-card">

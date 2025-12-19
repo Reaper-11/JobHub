@@ -23,6 +23,8 @@ require 'header.php';
         <th>Location</th>
         <th>Status</th>
         <th>Applied At</th>
+        <th>Action</th>
+        <th>Cancel</th>
     </tr>
     <?php while ($row = $res->fetch_assoc()): ?>
         <tr>
@@ -32,6 +34,13 @@ require 'header.php';
             <td><?php echo htmlspecialchars($row['location']); ?></td>
             <td><?php echo htmlspecialchars(ucfirst($row['status'] ?? 'pending')); ?></td>
             <td><?php echo htmlspecialchars($row['applied_at']); ?></td>
+            <td><a class="btn btn-small" href="my-application-edit.php?id=<?php echo $row['id']; ?>">Edit</a></td>
+            <td>
+                <form method="post" action="my-application-cancel.php" class="inline-form">
+                    <input type="hidden" name="app_id" value="<?php echo $row['id']; ?>">
+                    <button type="submit" class="btn btn-small btn-danger">Cancel</button>
+                </form>
+            </td>
         </tr>
     <?php endwhile; ?>
 </table>

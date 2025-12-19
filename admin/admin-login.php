@@ -12,7 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $row = $res->fetch_assoc();
         $_SESSION['admin_id'] = $row['id'];
         $_SESSION['admin_username'] = $user;
-        header("Location: admin-dashboard.php");
+        $adminPage = 'admin-page-' . $row['id'] . '.php';
+        if (file_exists(__DIR__ . DIRECTORY_SEPARATOR . $adminPage)) {
+            header("Location: " . $adminPage);
+        } else {
+            header("Location: admin-dashboard.php");
+        }
         exit;
     } else {
         $msg = "Invalid admin credentials.";

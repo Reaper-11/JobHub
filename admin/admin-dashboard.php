@@ -7,6 +7,7 @@ if (!isset($_SESSION['admin_id'])) {
 $jobsCount = $conn->query("SELECT COUNT(*) c FROM jobs")->fetch_assoc()['c'];
 $usersCount = $conn->query("SELECT COUNT(*) c FROM users")->fetch_assoc()['c'];
 $appCount  = $conn->query("SELECT COUNT(*) c FROM applications")->fetch_assoc()['c'];
+$companyCount = $conn->query("SELECT COUNT(*) c FROM companies")->fetch_assoc()['c'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -25,6 +26,7 @@ $appCount  = $conn->query("SELECT COUNT(*) c FROM applications")->fetch_assoc()[
         <div class="card"><h3>Total Jobs</h3><p><?php echo $jobsCount; ?></p></div>
         <div class="card"><h3>Total Users</h3><p><?php echo $usersCount; ?></p></div>
         <div class="card"><h3>Total Applications</h3><p><?php echo $appCount; ?></p></div>
+        <div class="card"><h3>Total Companies</h3><p><?php echo $companyCount; ?></p></div>
     </div>
 
     <div class="card">

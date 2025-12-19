@@ -15,4 +15,39 @@ $colCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'status'");
 if ($colCheck && $colCheck->num_rows === 0) {
     $conn->query("ALTER TABLE applications ADD COLUMN status VARCHAR(20) DEFAULT 'pending'");
 }
+
+// Ensure applications.company_id exists for company views.
+$companyColCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'company_id'");
+if ($companyColCheck && $companyColCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE applications ADD COLUMN company_id INT NULL");
+}
+
+// Ensure companies table exists for company panel.
+$companiesCheck = $conn->query("SHOW TABLES LIKE 'companies'");
+if ($companiesCheck && $companiesCheck->num_rows === 0) {
+    $conn->query(
+        "CREATE TABLE companies (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(150) NOT NULL,
+            email VARCHAR(150) NOT NULL UNIQUE,
+            password VARCHAR(255) NOT NULL,
+            website VARCHAR(200),
+            location VARCHAR(150),
+            is_approved TINYINT(1) DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )"
+    );
+}
+
+// Ensure companies.is_approved exists for approval workflow.
+$companyApprovedCol = $conn->query("SHOW COLUMNS FROM companies LIKE 'is_approved'");
+if ($companyApprovedCol && $companyApprovedCol->num_rows === 0) {
+    $conn->query("ALTER TABLE companies ADD COLUMN is_approved TINYINT(1) DEFAULT 0");
+}
+
+// Ensure jobs.company_id exists for company job posts.
+$companyCol = $conn->query("SHOW COLUMNS FROM jobs LIKE 'company_id'");
+if ($companyCol && $companyCol->num_rows === 0) {
+    $conn->query("ALTER TABLE jobs ADD COLUMN company_id INT NULL");
+}
 ?>
