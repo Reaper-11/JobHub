@@ -16,11 +16,12 @@ $isLoggedIn = isset($_SESSION['user_id']);
         <nav>
             <a href="index.php">Home</a>
             <?php if ($isLoggedIn): ?>
+                <a href="user-account.php">Account</a>
                 <a href="my-bookmarks.php">My Bookmarks</a>
                 <a href="my-applications.php">My Applications</a>
                 <a href="logout.php">Logout</a>
             <?php else: ?>
-                <a href="register.php">Register</a>
+                <a href="register-choice.php">Register</a>
                 <a href="login.php">Login</a>
             <?php endif; ?>
             <a href="admin/admin-login.php" class="admin-link">Admin</a>

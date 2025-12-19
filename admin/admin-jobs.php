@@ -84,6 +84,7 @@ $jobs = $conn->query("SELECT * FROM jobs ORDER BY created_at DESC");
                 <td><?php echo htmlspecialchars($j['location']); ?></td>
                 <td><?php echo $j['is_approved'] ? 'Yes' : 'No'; ?></td>
                 <td>
+                    <a class="btn btn-small btn-secondary" href="admin-edit-job.php?id=<?php echo $j['id']; ?>">Edit</a>
                     <?php if (!$j['is_approved']): ?>
                         <a class="btn btn-small" href="admin-approve-job.php?id=<?php echo $j['id']; ?>">Approve</a>
                     <?php endif; ?>

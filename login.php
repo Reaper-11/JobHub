@@ -20,17 +20,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 require 'header.php';
 ?>
-<h1>User Login</h1>
-<div class="form-card">
-    <?php if ($msg): ?>
-        <div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div>
-    <?php endif; ?>
-    <form method="post">
-        <label>Email</label>
-        <input type="text" name="email">
-        <label>Password</label>
-        <input type="password" name="password">
-        <button type="submit">Login</button>
-    </form>
+<div class="login-wrapper">
+    <div class="login-card">
+        <div class="login-card__header">
+            <h2>Login to your account</h2>
+        </div>
+        <?php if ($msg): ?>
+            <div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div>
+        <?php endif; ?>
+        <form method="post" class="login-form">
+            <label>Email</label>
+            <div class="input-icon">
+                <span class="icon">&#128100;</span>
+                <input type="text" name="email" placeholder="Email" required>
+            </div>
+
+            <label>Password</label>
+            <div class="input-icon">
+                <span class="icon">&#128274;</span>
+                <input type="password" name="password" placeholder="Password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">Sign in &#10132;</button>
+        </form>
+        <div class="login-card__footer">
+            <a href="#" class="link">Forgot password?</a>
+            <a href="register-choice.php" class="link">Don't have an account? Sign up</a>
+        </div>
+    </div>
 </div>
 <?php require 'footer.php'; ?>

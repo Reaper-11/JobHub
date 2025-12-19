@@ -29,6 +29,7 @@ CREATE TABLE applications (
     user_id INT NOT NULL,
     job_id INT NOT NULL,
     cover_letter TEXT,
+    status VARCHAR(20) DEFAULT 'pending',
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE

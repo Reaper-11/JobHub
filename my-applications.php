@@ -21,6 +21,7 @@ require 'header.php';
         <th>Job Title</th>
         <th>Company</th>
         <th>Location</th>
+        <th>Status</th>
         <th>Applied At</th>
     </tr>
     <?php while ($row = $res->fetch_assoc()): ?>
@@ -29,6 +30,7 @@ require 'header.php';
                 <?php echo htmlspecialchars($row['title']); ?></a></td>
             <td><?php echo htmlspecialchars($row['company']); ?></td>
             <td><?php echo htmlspecialchars($row['location']); ?></td>
+            <td><?php echo htmlspecialchars(ucfirst($row['status'] ?? 'pending')); ?></td>
             <td><?php echo htmlspecialchars($row['applied_at']); ?></td>
         </tr>
     <?php endwhile; ?>
