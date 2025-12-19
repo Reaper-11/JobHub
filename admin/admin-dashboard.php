@@ -1,5 +1,5 @@
 <?php
-require 'db.php';
+require '../db.php';
 if (!isset($_SESSION['admin_id'])) {
     header("Location: admin-login.php");
     exit;
@@ -13,13 +13,13 @@ $appCount  = $conn->query("SELECT COUNT(*) c FROM applications")->fetch_assoc()[
 <head>
     <meta charset="UTF-8">
     <title>Admin Dashboard - JobHub</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <main class="container">
     <h1>Admin Dashboard</h1>
     <p>Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?> |
-        <a href="logout.php">Logout</a></p>
+        <a href="../logout.php">Logout</a></p>
 
     <div class="jobs-grid">
         <div class="card"><h3>Total Jobs</h3><p><?php echo $jobsCount; ?></p></div>

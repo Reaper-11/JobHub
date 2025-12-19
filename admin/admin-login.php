@@ -1,5 +1,5 @@
 <?php
-require 'db.php';
+require '../db.php';
 $msg = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user = trim($_POST['username']);
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <title>Admin Login - JobHub</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <main class="container">

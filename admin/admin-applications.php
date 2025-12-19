@@ -1,5 +1,5 @@
 <?php
-require 'db.php';
+require '../db.php';
 if (!isset($_SESSION['admin_id'])) {
     header("Location: admin-login.php");
     exit;
@@ -16,7 +16,7 @@ $res = $conn->query($sql);
 <head>
     <meta charset="UTF-8">
     <title>Applications - JobHub</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <main class="container">

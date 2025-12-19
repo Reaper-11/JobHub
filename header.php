@@ -23,7 +23,7 @@ $isLoggedIn = isset($_SESSION['user_id']);
                 <a href="register.php">Register</a>
                 <a href="login.php">Login</a>
             <?php endif; ?>
-            <a href="admin-login.php" class="admin-link">Admin</a>
+            <a href="admin/admin-login.php" class="admin-link">Admin</a>
         </nav>
     </div>
 </header>

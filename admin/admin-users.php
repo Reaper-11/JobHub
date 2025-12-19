@@ -1,5 +1,5 @@
 <?php
-require 'db.php';
+require '../db.php';
 if (!isset($_SESSION['admin_id'])) {
     header("Location: admin-login.php");
     exit;
@@ -11,7 +11,7 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
 <head>
     <meta charset="UTF-8">
     <title>Manage Users - JobHub</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../style.css">
 </head>
 <body>
 <main class="container">
