@@ -47,5 +47,8 @@ require 'header.php';
         <input type="password" name="password">
         <button type="submit">Register</button>
     </form>
+    <p style="margin-top:10px;">
+        Registering as admin? <a href="admin/admin-register.php">Go to admin registration</a>
+    </p>
 </div>
 <?php require 'footer.php'; ?>

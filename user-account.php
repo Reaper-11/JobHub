@@ -12,8 +12,8 @@ $passMsg = "";
 $passType = "";
 
 // Fetch current user details
-$userRes = $conn->query("SELECT name, email FROM users WHERE id = $uid");
-$user = $userRes ? $userRes->fetch_assoc() : ['name' => '', 'email' => ''];
+$userRes = $conn->query("SELECT name, email, phone FROM users WHERE id = $uid");
+$user = $userRes ? $userRes->fetch_assoc() : ['name' => '', 'email' => '', 'phone' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -21,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'profile') {
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
 
         if ($name === '' || $email === '') {
             $profileMsg = "Name and email are required.";
@@ -32,14 +33,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $profileMsg = "That email is already in use.";
                 $profileType = "alert-error";
             } else {
-                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ? WHERE id = ?");
-                $stmt->bind_param("ssi", $name, $email, $uid);
+                $phoneVal = $phone === '' ? null : $phone;
+                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?");
+                $stmt->bind_param("sssi", $name, $email, $phoneVal, $uid);
                 if ($stmt->execute()) {
                     $profileMsg = "Profile updated successfully.";
                     $profileType = "alert-success";
                     $_SESSION['user_name'] = $name;
                     $user['name'] = $name;
                     $user['email'] = $email;
+                    $user['phone'] = $phone;
                 } else {
                     $profileMsg = "Could not update profile. Please try again.";
                     $profileType = "alert-error";
@@ -101,6 +104,9 @@ require 'header.php';
 
         <label>Email*</label>
         <input type="text" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+
+        <label>Phone (optional)</label>
+        <input type="text" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="e.g. +977-9800000000">
 
         <button type="submit" class="btn btn-primary">Save Profile</button>
     </form>
