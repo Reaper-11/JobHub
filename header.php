@@ -10,7 +10,7 @@ $basePath = isset($basePath) ? $basePath : '';
     <title>JobHub - Job Portal</title>
     <link rel="stylesheet" href="<?php echo htmlspecialchars($basePath); ?>style.css">
 </head>
-<body>
+<body class="<?php echo isset($bodyClass) ? htmlspecialchars($bodyClass) : ''; ?>">
 <header class="topbar">
     <div class="container flex-between">
         <div class="logo">JobHub</div>
@@ -27,6 +27,7 @@ $basePath = isset($basePath) ? $basePath : '';
             <?php endif; ?>
             <?php if (isset($_SESSION['company_id'])): ?>
                 <a href="<?php echo htmlspecialchars($basePath); ?>company/company-dashboard.php">Company Panel</a>
+                <a href="<?php echo htmlspecialchars($basePath); ?>company/company-account.php">Company Account</a>
                 <a href="<?php echo htmlspecialchars($basePath); ?>logout.php">Company Logout</a>
             <?php elseif (!$isLoggedIn): ?>
                 <a href="<?php echo htmlspecialchars($basePath); ?>company/company-register.php">Company Register</a>

@@ -1,19 +1,18 @@
 <?php
-require 'db.php';
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
+require '../db.php';
+if (!isset($_SESSION['company_id'])) {
+    header("Location: company-login.php");
     exit;
 }
 
-$uid = (int) $_SESSION['user_id'];
+$cid = (int) $_SESSION['company_id'];
 $profileMsg = "";
 $profileType = "";
 $passMsg = "";
 $passType = "";
 
-// Fetch current user details
-$userRes = $conn->query("SELECT name, email FROM users WHERE id = $uid");
-$user = $userRes ? $userRes->fetch_assoc() : ['name' => '', 'email' => ''];
+$companyRes = $conn->query("SELECT name, email FROM companies WHERE id = $cid");
+$company = $companyRes ? $companyRes->fetch_assoc() : ['name' => '', 'email' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -23,23 +22,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['email'] ?? '');
 
         if ($name === '' || $email === '') {
-            $profileMsg = "Name and email are required.";
+            $profileMsg = "Company name and email are required.";
             $profileType = "alert-error";
         } else {
             $emailEsc = $conn->real_escape_string($email);
-            $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
+            $check = $conn->query("SELECT id FROM companies WHERE email='$emailEsc' AND id <> $cid");
             if ($check && $check->num_rows > 0) {
                 $profileMsg = "That email is already in use.";
                 $profileType = "alert-error";
             } else {
-                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ? WHERE id = ?");
-                $stmt->bind_param("ssi", $name, $email, $uid);
+                $stmt = $conn->prepare("UPDATE companies SET name = ?, email = ? WHERE id = ?");
+                $stmt->bind_param("ssi", $name, $email, $cid);
                 if ($stmt->execute()) {
-                    $profileMsg = "Profile updated successfully.";
+                    $profileMsg = "Company profile updated successfully.";
                     $profileType = "alert-success";
-                    $_SESSION['user_name'] = $name;
-                    $user['name'] = $name;
-                    $user['email'] = $email;
+                    $_SESSION['company_name'] = $name;
+                    $company['name'] = $name;
+                    $company['email'] = $email;
+
+                    $jobUpdate = $conn->prepare("UPDATE jobs SET company = ? WHERE company_id = ?");
+                    $jobUpdate->bind_param("si", $name, $cid);
+                    $jobUpdate->execute();
+                    $jobUpdate->close();
                 } else {
                     $profileMsg = "Could not update profile. Please try again.";
                     $profileType = "alert-error";
@@ -62,15 +66,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $oldHash = md5($old);
             $newHash = md5($new);
 
-            $res = $conn->query("SELECT password FROM users WHERE id = $uid");
+            $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
             $row = $res ? $res->fetch_assoc() : null;
 
             if (!$row || $row['password'] !== $oldHash) {
                 $passMsg = "Old password is incorrect.";
                 $passType = "alert-error";
             } else {
-                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
-                $stmt->bind_param("si", $newHash, $uid);
+                $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
+                $stmt->bind_param("si", $newHash, $cid);
                 if ($stmt->execute()) {
                     $passMsg = "Password updated successfully.";
                     $passType = "alert-success";
@@ -84,10 +88,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$basePath = '../';
 $bodyClass = 'account-page';
-require 'header.php';
+require '../header.php';
 ?>
-<h1>Account</h1>
+<h1>Company Account</h1>
+<p><a href="company-dashboard.php">&laquo; Back to Dashboard</a></p>
 
 <div class="form-card">
     <h2>Profile</h2>
@@ -96,11 +102,11 @@ require 'header.php';
     <?php endif; ?>
     <form method="post">
         <input type="hidden" name="action" value="profile">
-        <label>Full Name*</label>
-        <input type="text" name="name" value="<?php echo htmlspecialchars($user['name']); ?>" required>
+        <label>Company Name*</label>
+        <input type="text" name="name" value="<?php echo htmlspecialchars($company['name']); ?>" required>
 
         <label>Email*</label>
-        <input type="text" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+        <input type="text" name="email" value="<?php echo htmlspecialchars($company['email']); ?>" required>
 
         <button type="submit" class="btn btn-primary">Save Profile</button>
     </form>
@@ -125,4 +131,4 @@ require 'header.php';
         <button type="submit" class="btn btn-primary">Update Password</button>
     </form>
 </div>
-<?php require 'footer.php'; ?>
+<?php require '../footer.php'; ?>

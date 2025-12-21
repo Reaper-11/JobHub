@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require '../db.php';
 if (!isset($_SESSION['admin_id'])) {
     header("Location: admin-login.php");
@@ -31,12 +31,14 @@ $companyCount = $conn->query("SELECT COUNT(*) c FROM companies")->fetch_assoc()[
 
     <div class="card">
         <h3>Admin Menu</h3>
-        <ul>
+        <ul class="admin-menu">
             <li><a href="admin-jobs.php">Manage Jobs</a></li>
             <li><a href="admin-users.php">Manage Users</a></li>
+            <li><a href="admin-companies.php">Manage Companies</a></li>
             <li><a href="admin-applications.php">View Applications</a></li>
         </ul>
     </div>
 </main>
 </body>
 </html>
+

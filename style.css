@@ -1,6 +1,7 @@
-*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif;}
+﻿*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif;}
 html,body{height:100%;}
 body{background:#f5f6fa;color:#333;display:flex;flex-direction:column;}
+.account-page{background:#d0d0d0;}
 main{flex:1;}
 .container{width:90%;max-width:1100px;margin:0 auto;}
 .topbar{background:#1e3799;color:#fff;padding:10px 0;margin-bottom:20px;}
@@ -55,3 +56,7 @@ th{background:#f0f0f0;}
 .register-choice-card{max-width:520px;margin:0 auto;}
 .choice-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
 .choice-actions .btn{flex:1;min-width:180px;text-align:center;}
+
+.admin-menu a{color:#1e3799;text-decoration:none;}
+.admin-menu a:visited{color:#1e3799;}
+.admin-menu a:hover{text-decoration:underline;}

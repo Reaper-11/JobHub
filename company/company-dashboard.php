@@ -26,6 +26,7 @@ require '../header.php';
     <p>
         <a class="btn" href="company-add-job.php">Post New Job</a>
         <a class="btn btn-secondary" href="company-applications.php">View Applications</a>
+        <a class="btn btn-secondary" href="company-account.php">Company Account</a>
         <a class="btn btn-secondary" href="../logout.php">Logout</a>
     </p>
 </div>
