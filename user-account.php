@@ -10,10 +10,22 @@ $profileMsg = "";
 $profileType = "";
 $passMsg = "";
 $passType = "";
+$jobCategories = [
+    "IT & Software",
+    "Marketing",
+    "Sales",
+    "Finance",
+    "Design",
+    "Education",
+    "Healthcare",
+    "Engineering",
+    "Part-Time",
+    "Internship",
+];
 
 // Fetch current user details
-$userRes = $conn->query("SELECT name, email, phone FROM users WHERE id = $uid");
-$user = $userRes ? $userRes->fetch_assoc() : ['name' => '', 'email' => '', 'phone' => ''];
+$userRes = $conn->query("SELECT name, email, phone, preferred_category, cv_path FROM users WHERE id = $uid");
+$user = $userRes ? $userRes->fetch_assoc() : ['name' => '', 'email' => '', 'phone' => '', 'preferred_category' => '', 'cv_path' => ''];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -22,11 +34,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
+        $preferred_category = trim($_POST['preferred_category'] ?? '');
+        $currentCv = $user['cv_path'] ?? '';
+        $uploadError = '';
+        $newCvPath = $currentCv;
 
-        if ($name === '' || $email === '') {
-            $profileMsg = "Name and email are required.";
+        if ($name === '' || $email === '' || $preferred_category === '') {
+            $profileMsg = "Name, email, and category are required.";
+            $profileType = "alert-error";
+        } elseif (!in_array($preferred_category, $jobCategories, true)) {
+            $profileMsg = "Invalid job category selected.";
             $profileType = "alert-error";
         } else {
+            if (isset($_FILES['cv_file']) && $_FILES['cv_file']['error'] !== UPLOAD_ERR_NO_FILE) {
+                if ($_FILES['cv_file']['error'] !== UPLOAD_ERR_OK) {
+                    $uploadError = "Could not upload CV. Please try again.";
+                } else {
+                    $maxBytes = 5 * 1024 * 1024;
+                    $fileSize = (int) $_FILES['cv_file']['size'];
+                    $ext = strtolower(pathinfo($_FILES['cv_file']['name'], PATHINFO_EXTENSION));
+                    $allowed = ['pdf', 'doc', 'docx'];
+                    if (!in_array($ext, $allowed, true)) {
+                        $uploadError = "CV must be a PDF or Word document.";
+                    } elseif ($fileSize > $maxBytes) {
+                        $uploadError = "CV must be 5MB or smaller.";
+                    } else {
+                        $uploadDir = __DIR__ . '/uploads/cv';
+                        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
+                            $uploadError = "Upload folder is not available.";
+                        } else {
+                            $fileName = 'cv_' . $uid . '_' . time() . '.' . $ext;
+                            $destPath = $uploadDir . '/' . $fileName;
+                            if (move_uploaded_file($_FILES['cv_file']['tmp_name'], $destPath)) {
+                                $newCvPath = 'uploads/cv/' . $fileName;
+                            } else {
+                                $uploadError = "Could not save CV file.";
+                            }
+                        }
+                    }
+                }
+            }
+
+            if ($uploadError !== '') {
+                $profileMsg = $uploadError;
+                $profileType = "alert-error";
+            } else {
             $emailEsc = $conn->real_escape_string($email);
             $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
             if ($check && $check->num_rows > 0) {
@@ -34,20 +86,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $profileType = "alert-error";
             } else {
                 $phoneVal = $phone === '' ? null : $phone;
-                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?");
-                $stmt->bind_param("sssi", $name, $email, $phoneVal, $uid);
+                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
+                $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
                 if ($stmt->execute()) {
                     $profileMsg = "Profile updated successfully.";
                     $profileType = "alert-success";
                     $_SESSION['user_name'] = $name;
+                    $_SESSION['preferred_category'] = $preferred_category;
                     $user['name'] = $name;
                     $user['email'] = $email;
                     $user['phone'] = $phone;
+                    $user['preferred_category'] = $preferred_category;
+                    $user['cv_path'] = $newCvPath;
                 } else {
                     $profileMsg = "Could not update profile. Please try again.";
                     $profileType = "alert-error";
                 }
                 $stmt->close();
+            }
             }
         }
     } elseif ($action === 'password') {
@@ -97,7 +153,7 @@ require 'header.php';
     <?php if ($profileMsg): ?>
         <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
     <?php endif; ?>
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="action" value="profile">
         <label>Full Name*</label>
         <input type="text" name="name" value="<?php echo htmlspecialchars($user['name']); ?>" required>
@@ -107,6 +163,25 @@ require 'header.php';
 
         <label>Phone (optional)</label>
         <input type="text" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="e.g. +977-9800000000">
+
+        <label>Job Preference*</label>
+        <select name="preferred_category" required>
+            <option value="">Prefer Job Category</option>
+            <?php foreach ($jobCategories as $cat): ?>
+                <option value="<?php echo htmlspecialchars($cat); ?>"
+                    <?php echo ($user['preferred_category'] === $cat) ? "selected" : ""; ?>>
+                    <?php echo htmlspecialchars($cat); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+
+        <label>CV (PDF/DOC/DOCX, max 5MB)</label>
+        <input type="file" name="cv_file" accept=".pdf,.doc,.docx">
+        <?php if (!empty($user['cv_path'])): ?>
+            <p class="meta">
+                Current CV: <a href="<?php echo htmlspecialchars($user['cv_path']); ?>" target="_blank">View</a>
+            </p>
+        <?php endif; ?>
 
         <button type="submit" class="btn btn-primary">Save Profile</button>
     </form>

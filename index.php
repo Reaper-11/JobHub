@@ -9,7 +9,7 @@ $sql = "SELECT j.* FROM jobs j
         WHERE (j.company_id IS NULL OR c.is_approved = 1)";
 if ($keyword !== '') {
     $k = "%" . $conn->real_escape_string($keyword) . "%";
-    $sql .= " AND (title LIKE '$k' OR company LIKE '$k' OR location LIKE '$k')";
+    $sql .= " AND (j.title LIKE '$k' OR j.company LIKE '$k' OR j.location LIKE '$k')";
 }
 $sql .= " ORDER BY created_at DESC";
 $result = $conn->query($sql);

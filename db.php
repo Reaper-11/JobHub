@@ -16,6 +16,12 @@ if ($prefColCheck && $prefColCheck->num_rows === 0) {
     $conn->query("ALTER TABLE users ADD COLUMN preferred_category VARCHAR(100) NULL AFTER phone");
 }
 
+// Ensure users.cv_path exists for CV uploads.
+$cvColCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'cv_path'");
+if ($cvColCheck && $cvColCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE users ADD COLUMN cv_path VARCHAR(255) NULL AFTER preferred_category");
+}
+
 // Ensure applications.status exists for admin updates.
 $colCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'status'");
 if ($colCheck && $colCheck->num_rows === 0) {
