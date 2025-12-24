@@ -10,6 +10,12 @@ if ($conn->connect_error) {
 }
 session_start();
 
+// Ensure users.preferred_category exists for job preference feature.
+$prefColCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'preferred_category'");
+if ($prefColCheck && $prefColCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE users ADD COLUMN preferred_category VARCHAR(100) NULL AFTER phone");
+}
+
 // Ensure applications.status exists for admin updates.
 $colCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'status'");
 if ($colCheck && $colCheck->num_rows === 0) {
