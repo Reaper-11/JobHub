@@ -2,7 +2,7 @@
 require 'db.php';
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
 $jobSearchOptions = [
-    "Top Jobs",
+    "Popular Jobs",
     "Hot Jobs",
     "Normal Jobs",
     "Instant Jobs",
