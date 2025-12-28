@@ -59,6 +59,20 @@ nav a {
   font-size: 14px;
 }
 
+nav .nav-form {
+  display: inline-block;
+  margin-left: 10px;
+}
+
+nav .nav-select {
+  width: auto;
+  min-width: 160px;
+  padding: 4px 8px;
+  margin: 0;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
 nav a.admin-link {
   background: #ff6b6b;
   padding: 6px 10px;

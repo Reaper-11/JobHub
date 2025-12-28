@@ -1,8 +1,20 @@
 <?php
 require 'db.php';
-require 'header.php';
-
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
+$jobSearchOptions = [
+    "Top Jobs",
+    "Hot Jobs",
+    "Normal Jobs",
+    "Instant Jobs",
+    "Premium Jobs",
+    "IT Jobs",
+    "Hospitality Jobs",
+    "Administration/Management Jobs",
+    "Ngo/Ingo Jobs",
+    "Tender Notice, EOI, Bids",
+];
+$showJobSearch = true;
+require 'header.php';
 
 $sql = "SELECT j.* FROM jobs j
         LEFT JOIN companies c ON c.id = j.company_id

@@ -16,6 +16,18 @@ $basePath = isset($basePath) ? $basePath : '';
         <div class="logo">JobHub</div>
         <nav>
             <?php if (!isset($_SESSION['company_id'])): ?>
+                <?php if (!empty($showJobSearch) && !empty($jobSearchOptions)): ?>
+                    <form method="get" action="<?php echo htmlspecialchars($basePath); ?>index.php" class="nav-form">
+                        <select name="q" class="nav-select" onchange="if (this.value) { this.form.submit(); }">
+                            <option value="">Search Job</option>
+                            <?php foreach ($jobSearchOptions as $option): ?>
+                                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo ($keyword ?? '') === $option ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($option); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                <?php endif; ?>
                 <a href="<?php echo htmlspecialchars($basePath); ?>index.php">Home</a>
             <?php endif; ?>
             <?php if ($isLoggedIn && !isset($_SESSION['company_id'])): ?>
