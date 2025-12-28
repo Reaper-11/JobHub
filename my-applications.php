@@ -22,17 +22,25 @@ require 'header.php';
         <th>Company</th>
         <th>Location</th>
         <th>Status</th>
+        <th>Rejection Reason</th>
         <th>Applied At</th>
         <th>Action</th>
         <th>Cancel</th>
     </tr>
     <?php while ($row = $res->fetch_assoc()): ?>
+        <?php $currentStatus = $row['status'] ?? 'pending'; ?>
         <tr>
             <td><a href="job-detail.php?id=<?php echo $row['job_id']; ?>">
                 <?php echo htmlspecialchars($row['title']); ?></a></td>
             <td><?php echo htmlspecialchars($row['company']); ?></td>
             <td><?php echo htmlspecialchars($row['location']); ?></td>
-            <td><?php echo htmlspecialchars(ucfirst($row['status'] ?? 'pending')); ?></td>
+            <td><?php echo htmlspecialchars(ucfirst($currentStatus)); ?></td>
+            <td>
+                <?php
+                $reason = $row['rejection_reason'] ?? '';
+                echo ($currentStatus === 'rejected' && $reason !== '') ? htmlspecialchars($reason) : '-';
+                ?>
+            </td>
             <td><?php echo htmlspecialchars($row['applied_at']); ?></td>
             <td><a class="btn btn-small" href="my-application-edit.php?id=<?php echo $row['id']; ?>">Edit</a></td>
             <td>

@@ -5,6 +5,12 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
+$editingDisabled = true;
+if ($editingDisabled) {
+    header("Location: admin-jobs.php");
+    exit;
+}
+
 $jobId = (int) ($_GET['id'] ?? 0);
 if ($jobId <= 0) {
     header("Location: admin-jobs.php");

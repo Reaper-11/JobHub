@@ -28,6 +28,12 @@ if ($colCheck && $colCheck->num_rows === 0) {
     $conn->query("ALTER TABLE applications ADD COLUMN status VARCHAR(20) DEFAULT 'pending'");
 }
 
+// Ensure applications.rejection_reason exists for rejection feedback.
+$reasonColCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'rejection_reason'");
+if ($reasonColCheck && $reasonColCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE applications ADD COLUMN rejection_reason TEXT NULL");
+}
+
 // Ensure applications.company_id exists for company views.
 $companyColCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'company_id'");
 if ($companyColCheck && $companyColCheck->num_rows === 0) {

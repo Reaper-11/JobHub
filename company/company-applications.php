@@ -15,28 +15,43 @@ $statusOptions = [
     'hold' => 'Hold'
 ];
 $statusColumnExists = false;
+$reasonColumnExists = false;
 $colCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'status'");
 if ($colCheck && $colCheck->num_rows > 0) {
     $statusColumnExists = true;
+}
+$reasonColCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'rejection_reason'");
+if ($reasonColCheck && $reasonColCheck->num_rows > 0) {
+    $reasonColumnExists = true;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $appId = (int) ($_POST['app_id'] ?? 0);
     $status = $_POST['status'] ?? '';
+    $rejectionReason = trim($_POST['rejection_reason'] ?? '');
     if (!$statusColumnExists) {
         $msg = "Status column is missing. Please run the database migration first.";
+        $msgType = "alert-error";
+    } elseif (!$reasonColumnExists) {
+        $msg = "Rejection reason column is missing. Please run the database migration first.";
         $msgType = "alert-error";
     } elseif ($appId <= 0 || !isset($statusOptions[$status])) {
         $msg = "Invalid status update.";
         $msgType = "alert-error";
+    } elseif ($status === 'rejected' && $rejectionReason === '') {
+        $msg = "Please provide a reason for rejection.";
+        $msgType = "alert-error";
     } else {
+        if ($status !== 'rejected') {
+            $rejectionReason = null;
+        }
         $stmt = $conn->prepare(
             "UPDATE applications a
              JOIN jobs j ON j.id = a.job_id
-             SET a.status = ?
+             SET a.status = ?, a.rejection_reason = ?
              WHERE a.id = ? AND (a.company_id = ? OR j.company_id = ?)"
         );
-        $stmt->bind_param("siii", $status, $appId, $cid, $cid);
+        $stmt->bind_param("ssiii", $status, $rejectionReason, $appId, $cid, $cid);
         if ($stmt->execute() && $stmt->affected_rows > 0) {
             $msg = "Application status updated.";
             $msgType = "alert-success";
@@ -92,6 +107,7 @@ require '../header.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                    <textarea name="rejection_reason" rows="2" placeholder="Reason (required if rejected)"><?php echo htmlspecialchars($a['rejection_reason'] ?? ''); ?></textarea>
                     <button type="submit" class="btn btn-small btn-secondary">Update</button>
                 </form>
             </td>

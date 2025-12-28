@@ -82,7 +82,6 @@ $jobs = $conn->query("SELECT * FROM jobs ORDER BY created_at DESC");
                 <td><?php echo htmlspecialchars($j['company']); ?></td>
                 <td><?php echo htmlspecialchars($j['location']); ?></td>
                 <td>
-                    <a class="btn btn-small btn-secondary" href="admin-edit-job.php?id=<?php echo $j['id']; ?>">Edit</a>
                     <a class="btn btn-danger btn-small"
                        href="admin-delete.php?table=jobs&id=<?php echo $j['id']; ?>&return=admin-jobs.php"
                        onclick="return confirm('Delete this job?')">Delete</a>

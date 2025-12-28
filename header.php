@@ -15,7 +15,9 @@ $basePath = isset($basePath) ? $basePath : '';
     <div class="container flex-between">
         <div class="logo">JobHub</div>
         <nav>
-            <a href="<?php echo htmlspecialchars($basePath); ?>index.php">Home</a>
+            <?php if (!isset($_SESSION['company_id'])): ?>
+                <a href="<?php echo htmlspecialchars($basePath); ?>index.php">Home</a>
+            <?php endif; ?>
             <?php if ($isLoggedIn && !isset($_SESSION['company_id'])): ?>
                 <a href="<?php echo htmlspecialchars($basePath); ?>user-account.php">Account</a>
                 <a href="<?php echo htmlspecialchars($basePath); ?>my-bookmarks.php">My Bookmarks</a>
@@ -23,17 +25,14 @@ $basePath = isset($basePath) ? $basePath : '';
                 <a href="<?php echo htmlspecialchars($basePath); ?>logout.php">Logout</a>
             <?php elseif (!$isLoggedIn && !isset($_SESSION['company_id'])): ?>
                 <a href="<?php echo htmlspecialchars($basePath); ?>register-choice.php">Register</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>login.php">Login</a>
+                <a href="<?php echo htmlspecialchars($basePath); ?>login-choice.php">Login</a>
             <?php endif; ?>
             <?php if (isset($_SESSION['company_id'])): ?>
-                <a href="<?php echo htmlspecialchars($basePath); ?>company/company-dashboard.php">Company Panel</a>
+                <a href="<?php echo htmlspecialchars($basePath); ?>company/company-dashboard.php">Company Dashboard</a>
                 <a href="<?php echo htmlspecialchars($basePath); ?>company/company-account.php">Company Account</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>logout.php">Company Logout</a>
+                <a href="<?php echo htmlspecialchars($basePath); ?>logout.php">Logout</a>
             <?php elseif (!$isLoggedIn): ?>
-                <a href="<?php echo htmlspecialchars($basePath); ?>company/company-register.php">Company Register</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>company/company-login.php">Company Login</a>
             <?php endif; ?>
-            <a href="<?php echo htmlspecialchars($basePath); ?>admin/admin-login.php" class="admin-link">Admin</a>
         </nav>
     </div>
 </header>
