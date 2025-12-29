@@ -63,6 +63,12 @@ if ($companyApprovedCol && $companyApprovedCol->num_rows === 0) {
     $conn->query("ALTER TABLE companies ADD COLUMN is_approved TINYINT(1) DEFAULT 0");
 }
 
+// Ensure companies.rejection_reason exists for rejection feedback.
+$companyRejectCol = $conn->query("SHOW COLUMNS FROM companies LIKE 'rejection_reason'");
+if ($companyRejectCol && $companyRejectCol->num_rows === 0) {
+    $conn->query("ALTER TABLE companies ADD COLUMN rejection_reason TEXT NULL");
+}
+
 // Ensure jobs.company_id exists for company job posts.
 $companyCol = $conn->query("SHOW COLUMNS FROM jobs LIKE 'company_id'");
 if ($companyCol && $companyCol->num_rows === 0) {

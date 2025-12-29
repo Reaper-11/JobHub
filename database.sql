@@ -68,6 +68,7 @@ CREATE TABLE companies (
     website VARCHAR(200),
     location VARCHAR(150),
     is_approved TINYINT(1) DEFAULT 0,
+    rejection_reason TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -78,6 +79,7 @@ CREATE TABLE companies (
     password VARCHAR(255) NOT NULL,
     website VARCHAR(200),
     location VARCHAR(150),
+    rejection_reason TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

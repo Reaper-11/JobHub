@@ -5,8 +5,17 @@ if (!isset($_SESSION['company_id'])) {
     exit;
 }
 $cid = (int) $_SESSION['company_id'];
-$statusRes = $conn->query("SELECT is_approved FROM companies WHERE id=$cid");
-$isApproved = $statusRes ? (int) $statusRes->fetch_assoc()['is_approved'] : 0;
+$statusRes = $conn->query("SELECT is_approved, rejection_reason FROM companies WHERE id=$cid");
+$statusRow = $statusRes ? $statusRes->fetch_assoc() : null;
+$isApproved = $statusRow ? (int) $statusRow['is_approved'] : 0;
+$rejectionReason = $statusRow ? trim((string) ($statusRow['rejection_reason'] ?? '')) : '';
+if ($isApproved === 1) {
+    $statusLabel = 'Approved';
+} elseif ($isApproved === -1) {
+    $statusLabel = 'Rejected';
+} else {
+    $statusLabel = 'Pending Approval';
+}
 
 $countJobs = $conn->query(
     "SELECT COUNT(*) c FROM jobs WHERE company_id=$cid"
@@ -21,7 +30,10 @@ require '../header.php';
 <h1>Company Dashboard</h1>
 <div class="card">
     <p>Welcome, <?php echo htmlspecialchars($_SESSION['company_name']); ?></p>
-    <p>Status: <?php echo $isApproved ? 'Approved' : 'Pending Approval'; ?></p>
+    <p>Status: <?php echo $statusLabel; ?></p>
+    <?php if ($isApproved === -1 && $rejectionReason !== ''): ?>
+        <p>Reason: <?php echo htmlspecialchars($rejectionReason); ?></p>
+    <?php endif; ?>
     <p>Total jobs posted: <?php echo $countJobs; ?></p>
     <p>
         <a class="btn" href="company-add-job.php">Post New Job</a>

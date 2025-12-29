@@ -10,15 +10,39 @@ $msgType = "alert-success";
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['company_id'], $_POST['action'])) {
     $companyId = (int) $_POST['company_id'];
     $action = $_POST['action'];
-    if ($companyId > 0 && ($action === 'approve' || $action === 'unapprove')) {
-        $isApproved = $action === 'approve' ? 1 : 0;
-        $stmt = $conn->prepare("UPDATE companies SET is_approved=? WHERE id=?");
-        $stmt->bind_param("ii", $isApproved, $companyId);
-        if ($stmt->execute()) {
-            $msg = $isApproved ? "Company approved." : "Company set to pending.";
+    if ($companyId > 0 && in_array($action, ['approve', 'unapprove', 'reject'], true)) {
+        if ($action === 'reject') {
+            $reason = isset($_POST['reason']) ? trim($_POST['reason']) : '';
+            if ($reason === '') {
+                $msg = "Rejection reason is required.";
+                $msgType = "alert-error";
+            } else {
+                $isApproved = -1;
+                $stmt = $conn->prepare("UPDATE companies SET is_approved=?, rejection_reason=? WHERE id=?");
+                $stmt->bind_param("isi", $isApproved, $reason, $companyId);
+            }
+        } elseif ($action === 'approve') {
+            $isApproved = 1;
+            $stmt = $conn->prepare("UPDATE companies SET is_approved=?, rejection_reason=NULL WHERE id=?");
+            $stmt->bind_param("ii", $isApproved, $companyId);
         } else {
-            $msg = "Error updating company status.";
-            $msgType = "alert-error";
+            $isApproved = 0;
+            $stmt = $conn->prepare("UPDATE companies SET is_approved=?, rejection_reason=NULL WHERE id=?");
+            $stmt->bind_param("ii", $isApproved, $companyId);
+        }
+        if (!empty($stmt)) {
+            if ($stmt->execute()) {
+                if ($isApproved === 1) {
+                    $msg = "Company approved.";
+                } elseif ($isApproved === -1) {
+                    $msg = "Company rejected.";
+                } else {
+                    $msg = "Company set to pending.";
+                }
+            } else {
+                $msg = "Error updating company status.";
+                $msgType = "alert-error";
+            }
         }
     }
 }
@@ -57,10 +81,42 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
                 <td><?php echo htmlspecialchars($c['email']); ?></td>
                 <td><?php echo htmlspecialchars($c['website']); ?></td>
                 <td><?php echo htmlspecialchars($c['location']); ?></td>
-                <td><?php echo $c['is_approved'] ? 'Approved' : 'Pending'; ?></td>
+                <?php
+                $statusValue = (int) $c['is_approved'];
+                if ($statusValue === 1) {
+                    $statusLabel = 'Approved';
+                } elseif ($statusValue === -1) {
+                    $statusLabel = 'Rejected';
+                } else {
+                    $statusLabel = 'Pending';
+                }
+                ?>
+                <td>
+                    <?php echo $statusLabel; ?>
+                    <?php if ($statusValue === -1 && !empty($c['rejection_reason'])): ?>
+                        (Reason: <?php echo htmlspecialchars($c['rejection_reason']); ?>)
+                    <?php endif; ?>
+                </td>
                 <td><?php echo htmlspecialchars($c['created_at']); ?></td>
                 <td>
-                    <?php if ((int) $c['is_approved'] === 1): ?>
+                    <?php if ($statusValue === 1): ?>
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
+                            <input type="hidden" name="action" value="unapprove">
+                            <button type="submit" class="btn btn-small btn-secondary">Set Pending</button>
+                        </form>
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
+                            <input type="hidden" name="action" value="reject">
+                            <input type="text" name="reason" placeholder="Reason" required>
+                            <button type="submit" class="btn btn-small btn-danger">Reject</button>
+                        </form>
+                    <?php elseif ($statusValue === -1): ?>
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="btn btn-small">Approve</button>
+                        </form>
                         <form method="post" class="inline-form">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="unapprove">
@@ -71,6 +127,12 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="approve">
                             <button type="submit" class="btn btn-small">Approve</button>
+                        </form>
+                        <form method="post" class="inline-form">
+                            <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
+                            <input type="hidden" name="action" value="reject">
+                            <input type="text" name="reason" placeholder="Reason" required>
+                            <button type="submit" class="btn btn-small btn-danger">Reject</button>
                         </form>
                     <?php endif; ?>
                     <a class="btn btn-danger btn-small"

@@ -8,15 +8,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $emailEsc = $conn->real_escape_string($email);
     $res = $conn->query(
-        "SELECT id, name, is_approved FROM companies WHERE email='$emailEsc' AND password='$hash'"
+        "SELECT id, name, is_approved, rejection_reason FROM companies WHERE email='$emailEsc' AND password='$hash'"
     );
     if ($res->num_rows == 1) {
         $row = $res->fetch_assoc();
-        $_SESSION['company_id']   = $row['id'];
-        $_SESSION['company_name'] = $row['name'];
-        $_SESSION['company_approved'] = (int) $row['is_approved'];
-        header("Location: company-dashboard.php");
-        exit;
+        if ((int) $row['is_approved'] === -1) {
+            $reason = trim((string) ($row['rejection_reason'] ?? ''));
+            $msg = $reason !== '' ? "Company account rejected: $reason" : "Company account rejected. Contact admin.";
+        } else {
+            $_SESSION['company_id']   = $row['id'];
+            $_SESSION['company_name'] = $row['name'];
+            $_SESSION['company_approved'] = (int) $row['is_approved'];
+            header("Location: company-dashboard.php");
+            exit;
+        }
     } else {
         $msg = "Invalid company email or password.";
     }
