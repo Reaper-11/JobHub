@@ -10,6 +10,8 @@ $profileMsg = "";
 $profileType = "";
 $passMsg = "";
 $passType = "";
+$deleteMsg = "";
+$deleteType = "";
 
 $companyRes = $conn->query("SELECT name, email FROM companies WHERE id = $cid");
 $company = $companyRes ? $companyRes->fetch_assoc() : ['name' => '', 'email' => ''];
@@ -85,6 +87,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->close();
             }
         }
+    } elseif ($action === 'delete') {
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+        if ($confirmPassword === '') {
+            $deleteMsg = "Password is required to delete your account.";
+            $deleteType = "alert-error";
+        } else {
+            $confirmHash = md5($confirmPassword);
+            $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
+            $row = $res ? $res->fetch_assoc() : null;
+
+            if (!$row || $row['password'] !== $confirmHash) {
+                $deleteMsg = "Password is incorrect.";
+                $deleteType = "alert-error";
+            } else {
+                $conn->query("DELETE FROM jobs WHERE company_id = $cid");
+
+                $stmt = $conn->prepare("DELETE FROM companies WHERE id = ?");
+                $stmt->bind_param("i", $cid);
+                if ($stmt->execute()) {
+                    session_unset();
+                    session_destroy();
+                    header("Location: ../index.php");
+                    exit;
+                } else {
+                    $deleteMsg = "Could not delete account. Please try again.";
+                    $deleteType = "alert-error";
+                }
+                $stmt->close();
+            }
+        }
     }
 }
 
@@ -129,6 +161,19 @@ require '../header.php';
         <input type="password" name="confirm_password" placeholder="Confirm Password" required>
 
         <button type="submit" class="btn btn-primary">Update Password</button>
+    </form>
+</div>
+
+<div class="form-card">
+    <h2>Delete Account</h2>
+    <?php if ($deleteMsg): ?>
+        <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
+    <?php endif; ?>
+    <form method="post" onsubmit="return confirm('This will permanently delete your company account and jobs. Continue?');">
+        <input type="hidden" name="action" value="delete">
+        <label>Confirm Password*</label>
+        <input type="password" name="confirm_password" required>
+        <button type="submit" class="btn btn-danger">Delete Company</button>
     </form>
 </div>
 <?php require '../footer.php'; ?>
