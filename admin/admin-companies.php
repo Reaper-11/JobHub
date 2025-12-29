@@ -108,7 +108,7 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
                         <form method="post" class="inline-form">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="reject">
-                            <input type="text" name="reason" placeholder="Reason" required>
+                            <input type="text" name="reason" placeholder="Reason for rejection/delete" required>
                             <button type="submit" class="btn btn-small btn-danger">Reject</button>
                         </form>
                     <?php elseif ($statusValue === -1): ?>
@@ -131,7 +131,7 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
                         <form method="post" class="inline-form">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="reject">
-                            <input type="text" name="reason" placeholder="Reason" required>
+                            <input type="text" name="reason" placeholder="Reason for rejection/delete" required>
                             <button type="submit" class="btn btn-small btn-danger">Reject</button>
                         </form>
                     <?php endif; ?>
