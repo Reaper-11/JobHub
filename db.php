@@ -59,6 +59,12 @@ if ($cvColCheck && $cvColCheck->num_rows === 0) {
     $conn->query("ALTER TABLE users ADD COLUMN cv_path VARCHAR(255) NULL AFTER preferred_category");
 }
 
+// Ensure users.profile_image exists for profile photos.
+$profileImageColCheck = $conn->query("SHOW COLUMNS FROM users LIKE 'profile_image'");
+if ($profileImageColCheck && $profileImageColCheck->num_rows === 0) {
+    $conn->query("ALTER TABLE users ADD COLUMN profile_image VARCHAR(255) NULL AFTER cv_path");
+}
+
 // Ensure applications.status exists for admin updates.
 $colCheck = $conn->query("SHOW COLUMNS FROM applications LIKE 'status'");
 if ($colCheck && $colCheck->num_rows === 0) {

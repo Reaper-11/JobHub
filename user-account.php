@@ -26,8 +26,15 @@ $jobCategories = [
 ];
 
 // Fetch current user details
-$userRes = $conn->query("SELECT name, email, phone, preferred_category, cv_path FROM users WHERE id = $uid");
-$user = $userRes ? $userRes->fetch_assoc() : ['name' => '', 'email' => '', 'phone' => '', 'preferred_category' => '', 'cv_path' => ''];
+$userRes = $conn->query("SELECT name, email, phone, preferred_category, cv_path, profile_image FROM users WHERE id = $uid");
+$user = $userRes ? $userRes->fetch_assoc() : [
+    'name' => '',
+    'email' => '',
+    'phone' => '',
+    'preferred_category' => '',
+    'cv_path' => '',
+    'profile_image' => ''
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';

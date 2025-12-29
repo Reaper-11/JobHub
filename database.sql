@@ -9,6 +9,7 @@ CREATE TABLE users (
     phone VARCHAR(50),
     preferred_category VARCHAR(100),
     cv_path VARCHAR(255),
+    profile_image VARCHAR(255),
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
