@@ -2,16 +2,14 @@
 require 'db.php';
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
 $jobSearchOptions = [
-    "Popular Jobs",
-    "Hot Jobs",
-    "Normal Jobs",
-    "Instant Jobs",
-    "Premium Jobs",
-    "IT Jobs",
-    "Hospitality Jobs",
-    "Administration/Management Jobs",
-    "Ngo/Ingo Jobs",
-    "Tender Notice, EOI, Bids",
+    "IT & Software",
+    "Marketing",
+    "Sales",
+    "Finance",
+    "Design",
+    "Education",
+    "Healthcare",
+    "Engineering",
 ];
 $showJobSearch = true;
 require 'header.php';

@@ -46,7 +46,13 @@ require '../header.php';
             <td><?php echo htmlspecialchars($j['title']); ?></td>
             <td><?php echo htmlspecialchars($j['location']); ?></td>
             <td><?php echo htmlspecialchars($j['created_at']); ?></td>
-            <td><a class="btn btn-small" href="company-edit-job.php?id=<?php echo $j['id']; ?>">Edit</a></td>
+            <td>
+                <a class="btn btn-small" href="company-edit-job.php?id=<?php echo $j['id']; ?>">Edit</a>
+                <form class="inline-form" method="post" action="company-delete-job.php" onsubmit="return confirm('Delete this job? This cannot be undone.');">
+                    <input type="hidden" name="id" value="<?php echo $j['id']; ?>">
+                    <button class="btn btn-small btn-danger" type="submit">Delete</button>
+                </form>
+            </td>
         </tr>
     <?php endwhile; ?>
 </table>
