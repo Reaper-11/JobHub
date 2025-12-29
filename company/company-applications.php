@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$sql = "SELECT a.*, u.name, u.email, j.title
+$sql = "SELECT a.*, u.name, u.email, u.cv_path, j.title
         FROM applications a
         JOIN users u ON u.id = a.user_id
         JOIN jobs j ON j.id = a.job_id
@@ -84,6 +84,7 @@ require '../header.php';
         <th>Job</th>
         <th>User</th>
         <th>Email</th>
+        <th>CV</th>
         <th>Status</th>
         <th>Applied At</th>
         <th>Action</th>
@@ -95,6 +96,13 @@ require '../header.php';
             <td><?php echo htmlspecialchars($a['title']); ?></td>
             <td><?php echo htmlspecialchars($a['name']); ?></td>
             <td><?php echo htmlspecialchars($a['email']); ?></td>
+            <td>
+                <?php if (!empty($a['cv_path'])): ?>
+                    <a class="btn btn-small" href="<?php echo htmlspecialchars($basePath . $a['cv_path']); ?>" target="_blank">View CV</a>
+                <?php else: ?>
+                    <span class="meta">No CV</span>
+                <?php endif; ?>
+            </td>
             <td><?php echo htmlspecialchars($statusOptions[$currentStatus] ?? ucfirst($currentStatus)); ?></td>
             <td><?php echo htmlspecialchars($a['applied_at']); ?></td>
             <td>

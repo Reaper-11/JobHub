@@ -22,6 +22,7 @@ require 'header.php';
         <th>Company</th>
         <th>Location</th>
         <th>Status</th>
+        <th>Message</th>
         <th>Rejection Reason</th>
         <th>Applied At</th>
         <th>Action</th>
@@ -35,6 +36,9 @@ require 'header.php';
             <td><?php echo htmlspecialchars($row['company']); ?></td>
             <td><?php echo htmlspecialchars($row['location']); ?></td>
             <td><?php echo htmlspecialchars(ucfirst($currentStatus)); ?></td>
+            <td>
+                <?php echo $currentStatus === 'approved' ? 'Check your mail for further details.' : '-'; ?>
+            </td>
             <td>
                 <?php
                 $reason = $row['rejection_reason'] ?? '';
