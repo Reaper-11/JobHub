@@ -6,24 +6,40 @@ if (!isset($_SESSION['company_id'])) {
 }
 $cid = (int) $_SESSION['company_id'];
 $msg = "";
+$jobCategories = [
+    "IT & Software",
+    "Marketing",
+    "Sales",
+    "Finance",
+    "Design",
+    "Education",
+    "Healthcare",
+    "Engineering",
+    "Part-Time",
+    "Internship",
+];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title    = trim($_POST['title']);
     $location = trim($_POST['location']);
     $type     = trim($_POST['type']);
+    $category = trim($_POST['category'] ?? '');
     $salary   = trim($_POST['salary']);
+    $duration = trim($_POST['application_duration']);
     $desc     = trim($_POST['description']);
 
-    if ($title=="" || $location=="" || $type=="" || $desc=="") {
+    if ($title=="" || $location=="" || $type=="" || $category=="" || $desc=="") {
         $msg = "All required fields must be filled.";
+    } elseif (!in_array($category, $jobCategories, true)) {
+        $msg = "Invalid job category selected.";
     } else {
         // company posts job immediately
         $stmt = $conn->prepare(
-            "INSERT INTO jobs (company_id, title, company, location, type, salary, description, is_approved)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 1)"
+            "INSERT INTO jobs (company_id, title, company, location, type, category, salary, application_duration, description, is_approved)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)"
         );
         $companyName = $_SESSION['company_name'];
-        $stmt->bind_param("issssss", $cid, $title, $companyName, $location, $type, $salary, $desc);
+        $stmt->bind_param("issssssss", $cid, $title, $companyName, $location, $type, $category, $salary, $duration, $desc);
         if ($stmt->execute()) {
             $msg = "Job posted successfully.";
         } else {
@@ -58,8 +74,23 @@ require '../header.php';
             <option value="Remote">Remote</option>
         </select>
 
+        <label>Job Category *</label>
+        <select name="category" required>
+            <option value="">Select category</option>
+            <?php $selectedCategory = $_POST['category'] ?? ''; ?>
+            <?php foreach ($jobCategories as $cat): ?>
+                <option value="<?php echo htmlspecialchars($cat); ?>"
+                    <?php echo $selectedCategory === $cat ? 'selected' : ''; ?>>
+                    <?php echo htmlspecialchars($cat); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+
         <label>Salary (optional)</label>
         <input type="text" name="salary">
+
+        <label>Application Duration (optional)</label>
+        <input type="text" name="application_duration">
 
         <label>Description *</label>
         <textarea name="description" rows="4"></textarea>
@@ -68,3 +99,5 @@ require '../header.php';
     </form>
 </div>
 <?php require '../footer.php'; ?>
+
+

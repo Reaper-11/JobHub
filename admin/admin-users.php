@@ -32,9 +32,13 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
                 <td><?php echo htmlspecialchars($u['email']); ?></td>
                 <td><?php echo htmlspecialchars($u['created_at']); ?></td>
                 <td>
-                    <a class="btn btn-danger btn-small"
-                       href="admin-delete.php?table=users&id=<?php echo $u['id']; ?>&return=admin-users.php"
-                       onclick="return confirm('Delete this user?')">Delete</a>
+                    <form class="inline-form" method="post" action="admin-delete.php" onsubmit="return confirm('Delete this user?');">
+                        <input type="hidden" name="table" value="users">
+                        <input type="hidden" name="id" value="<?php echo $u['id']; ?>">
+                        <input type="hidden" name="return" value="admin-users.php">
+                        <input class="inline-input" type="text" name="reason" placeholder="Reason for deletion" required>
+                        <button class="btn btn-danger btn-small" type="submit">Delete</button>
+                    </form>
                 </td>
             </tr>
         <?php endwhile; ?>

@@ -39,6 +39,7 @@ table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
 th,td{border:1px solid #ddd;padding:8px;text-align:left;}
 th{background:#f0f0f0;}
 .inline-form{display:inline;}
+.inline-input{width:180px;display:inline-block;margin:0 6px 0 0;}
 .alert{padding:8px 10px;border-radius:3px;margin-bottom:10px;font-size:13px;}
 .alert-error{background:#ffe5e5;color:#c0392b;}
 .alert-success{background:#e5ffe9;color:#27ae60;}

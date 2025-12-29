@@ -15,32 +15,39 @@ if ($jobRes->num_rows == 0) {
     die("Job not found.");
 }
 $job = $jobRes->fetch_assoc();
+$isExpired = is_job_expired($job);
 
 $msg = "";
+$msgType = "alert-success";
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
-    $uid = (int) $_SESSION['user_id'];
+    if ($isExpired) {
+        $msg = "This job has expired and is no longer accepting applications.";
+        $msgType = "alert-error";
+    } else {
+        $uid = (int) $_SESSION['user_id'];
 
-    if (isset($_POST['apply'])) {
-        $cover = trim($_POST['cover_letter']);
-        $companyId = isset($job['company_id']) ? (int) $job['company_id'] : null;
-        $stmt = $conn->prepare(
-            "INSERT INTO applications (user_id, job_id, company_id, cover_letter) VALUES (?, ?, ?, ?)"
-        );
-        $stmt->bind_param("iiis", $uid, $job_id, $companyId, $cover);
-        if ($stmt->execute()) {
-            $msg = "Application submitted successfully.";
-        } else {
-            $msg = "You may have already applied or error occurred.";
+        if (isset($_POST['apply'])) {
+            $cover = trim($_POST['cover_letter']);
+            $companyId = isset($job['company_id']) ? (int) $job['company_id'] : null;
+            $stmt = $conn->prepare(
+                "INSERT INTO applications (user_id, job_id, company_id, cover_letter) VALUES (?, ?, ?, ?)"
+            );
+            $stmt->bind_param("iiis", $uid, $job_id, $companyId, $cover);
+            if ($stmt->execute()) {
+                $msg = "Application submitted successfully.";
+            } else {
+                $msg = "You may have already applied or error occurred.";
+            }
         }
-    }
 
-    if (isset($_POST['bookmark'])) {
-        $stmt = $conn->prepare("INSERT IGNORE INTO bookmarks (user_id, job_id) VALUES (?, ?)");
-        $stmt->bind_param("ii", $uid, $job_id);
-        if ($stmt->execute()) {
-            $msg = "Job bookmarked.";
-        } else {
-            $msg = "Error bookmarking job.";
+        if (isset($_POST['bookmark'])) {
+            $stmt = $conn->prepare("INSERT IGNORE INTO bookmarks (user_id, job_id) VALUES (?, ?)");
+            $stmt->bind_param("ii", $uid, $job_id);
+            if ($stmt->execute()) {
+                $msg = "Job bookmarked.";
+            } else {
+                $msg = "Error bookmarking job.";
+            }
         }
     }
 }
@@ -57,14 +64,24 @@ require 'header.php';
     <?php if (!empty($job['salary'])): ?>
         <p class="meta"><strong>Salary:</strong> <?php echo htmlspecialchars($job['salary']); ?></p>
     <?php endif; ?>
+    <?php if (!empty($job['category'])): ?>
+        <p class="meta"><strong>Category:</strong> <?php echo htmlspecialchars($job['category']); ?></p>
+    <?php endif; ?>
+    <?php if (!empty($job['application_duration'])): ?>
+        <p class="meta"><strong>Application Duration:</strong> <?php echo htmlspecialchars($job['application_duration']); ?></p>
+    <?php endif; ?>
     <p><?php echo nl2br(htmlspecialchars($job['description'])); ?></p>
 </div>
 
 <?php if ($msg): ?>
-    <div class="alert alert-success"><?php echo htmlspecialchars($msg); ?></div>
+    <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
 <?php endif; ?>
 
-<?php if (isset($_SESSION['user_id'])): ?>
+<?php if ($isExpired): ?>
+<div class="alert alert-error">
+    This job has expired and is no longer accepting applications.
+</div>
+<?php elseif (isset($_SESSION['user_id'])): ?>
 <div class="form-card">
     <h3>Apply for this job</h3>
     <form method="post">

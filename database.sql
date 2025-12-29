@@ -21,8 +21,10 @@ CREATE TABLE jobs (
     company VARCHAR(150) NOT NULL,
     location VARCHAR(150) NOT NULL,
     type VARCHAR(50) NOT NULL, -- Full-time, Part-time, Remote
+    category VARCHAR(100),
     description TEXT NOT NULL,
     salary VARCHAR(100),
+    application_duration VARCHAR(100),
     is_approved TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -70,6 +72,14 @@ CREATE TABLE companies (
     is_approved TINYINT(1) DEFAULT 0,
     rejection_reason TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_deletion_reasons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    admin_id INT NOT NULL,
+    reason TEXT NOT NULL,
+    deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE companies (

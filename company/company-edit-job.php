@@ -8,6 +8,18 @@ $cid = (int) $_SESSION['company_id'];
 $jobId = (int) ($_GET['id'] ?? 0);
 $msg = '';
 $msgType = 'alert-success';
+$jobCategories = [
+    "IT & Software",
+    "Marketing",
+    "Sales",
+    "Finance",
+    "Design",
+    "Education",
+    "Healthcare",
+    "Engineering",
+    "Part-Time",
+    "Internship",
+];
 
 $stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND company_id = ? LIMIT 1");
 $stmt->bind_param("ii", $jobId, $cid);
@@ -24,26 +36,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title    = trim($_POST['title'] ?? '');
     $location = trim($_POST['location'] ?? '');
     $type     = trim($_POST['type'] ?? '');
+    $category = trim($_POST['category'] ?? '');
     $salary   = trim($_POST['salary'] ?? '');
+    $duration = trim($_POST['application_duration'] ?? '');
     $desc     = trim($_POST['description'] ?? '');
 
-    if ($title === '' || $location === '' || $type === '' || $desc === '') {
+    if ($title === '' || $location === '' || $type === '' || $category === '' || $desc === '') {
         $msg = 'All required fields must be filled.';
+        $msgType = 'alert-error';
+    } elseif (!in_array($category, $jobCategories, true)) {
+        $msg = 'Invalid job category selected.';
         $msgType = 'alert-error';
     } else {
         $companyName = $_SESSION['company_name'];
         $update = $conn->prepare(
-            "UPDATE jobs SET title = ?, company = ?, location = ?, type = ?, salary = ?, description = ?
+            "UPDATE jobs SET title = ?, company = ?, location = ?, type = ?, category = ?, salary = ?, application_duration = ?, description = ?
              WHERE id = ? AND company_id = ?"
         );
-        $update->bind_param("ssssssii", $title, $companyName, $location, $type, $salary, $desc, $jobId, $cid);
+        $update->bind_param("ssssssssii", $title, $companyName, $location, $type, $category, $salary, $duration, $desc, $jobId, $cid);
         if ($update->execute()) {
             $msg = 'Job updated successfully.';
             $msgType = 'alert-success';
             $job['title'] = $title;
             $job['location'] = $location;
             $job['type'] = $type;
+            $job['category'] = $category;
             $job['salary'] = $salary;
+            $job['application_duration'] = $duration;
             $job['description'] = $desc;
         } else {
             $msg = 'Could not update job. Please try again.';
@@ -81,8 +100,22 @@ require '../header.php';
             <?php endforeach; ?>
         </select>
 
+        <label>Job Category *</label>
+        <select name="category" required>
+            <option value="">Select category</option>
+            <?php foreach ($jobCategories as $cat): ?>
+                <option value="<?php echo htmlspecialchars($cat); ?>"
+                    <?php echo ($job['category'] ?? '') === $cat ? 'selected' : ''; ?>>
+                    <?php echo htmlspecialchars($cat); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+
         <label>Salary (optional)</label>
         <input type="text" name="salary" value="<?php echo htmlspecialchars($job['salary']); ?>">
+
+        <label>Application Duration (optional)</label>
+        <input type="text" name="application_duration" value="<?php echo htmlspecialchars($job['application_duration'] ?? ''); ?>">
 
         <label>Description *</label>
         <textarea name="description" rows="4"><?php echo htmlspecialchars($job['description']); ?></textarea>
@@ -91,3 +124,7 @@ require '../header.php';
     </form>
 </div>
 <?php require '../footer.php'; ?>
+
+
+
+

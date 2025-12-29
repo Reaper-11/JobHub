@@ -19,8 +19,10 @@ $companyCount = $conn->query("SELECT COUNT(*) c FROM companies")->fetch_assoc()[
 <body>
 <main class="container">
     <h1>Admin Dashboard</h1>
-    <p>Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?> |
-        <a href="../logout.php">Logout</a></p>
+    <div class="card flex-between">
+        <p>Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?></p>
+        <a class="btn btn-secondary btn-small" href="../logout.php">Logout</a>
+    </div>
 
     <div class="jobs-grid">
         <div class="card"><h3>Total Jobs</h3><p><?php echo $jobsCount; ?></p></div>
@@ -32,7 +34,7 @@ $companyCount = $conn->query("SELECT COUNT(*) c FROM companies")->fetch_assoc()[
     <div class="card">
         <h3>Admin Menu</h3>
         <ul class="admin-menu">
-            <li><a href="admin-jobs.php">Manage Jobs</a></li>
+            <li><a href="admin-jobs.php">Job Details</a></li>
             <li><a href="admin-users.php">Manage Users</a></li>
             <li><a href="admin-companies.php">Manage Companies</a></li>
             <li><a href="admin-applications.php">View Applications</a></li>

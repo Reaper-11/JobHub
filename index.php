@@ -1,6 +1,7 @@
 <?php
 require 'db.php';
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
+$category = isset($_GET['category']) ? trim($_GET['category']) : '';
 $jobSearchOptions = [
     "IT & Software",
     "Marketing",
@@ -12,6 +13,9 @@ $jobSearchOptions = [
     "Engineering",
 ];
 $showJobSearch = true;
+if ($category !== '' && !in_array($category, $jobSearchOptions, true)) {
+    $category = '';
+}
 require 'header.php';
 
 $sql = "SELECT j.* FROM jobs j
@@ -21,9 +25,16 @@ if ($keyword !== '') {
     $k = "%" . $conn->real_escape_string($keyword) . "%";
     $sql .= " AND (j.title LIKE '$k' OR j.company LIKE '$k' OR j.location LIKE '$k')";
 }
+if ($category !== '') {
+    $cat = $conn->real_escape_string($category);
+    $sql .= " AND j.category = '$cat'";
+}
 $sql .= " ORDER BY created_at DESC";
 $result = $conn->query($sql);
 $jobs = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+$jobs = array_values(array_filter($jobs, function ($job) {
+    return !is_job_expired($job);
+}));
 $popularJobs = array_slice($jobs, 0, 3);
 $latestJobs = $jobs;
 ?>
