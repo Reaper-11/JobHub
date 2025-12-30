@@ -1,9 +1,29 @@
 ﻿/* ===== Global Reset ===== */
+:root {
+  --bg: #f5f6fa;
+  --text: #2f3640;
+  --muted: #6b7280;
+
+  --primary: #1e3799;
+  --primary-2: #4a69bd;
+  --danger: #e55039;
+
+  --card: #ffffff;
+  --border: #e6e6e6;
+
+  --shadow-sm: 0 0 5px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.10);
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
+  /* Suggested: upgrade typography */
+  font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
 }
 
 html,
@@ -12,10 +32,11 @@ body {
 }
 
 body {
-  background: #f5f6fa;
-  color: #333;
+  background: var(--bg);
+  color: var(--text);
   display: flex;
   flex-direction: column;
+  line-height: 1.45;
 }
 
 /* ===== Layout ===== */
@@ -35,14 +56,17 @@ main {
 
 /* ===== Topbar ===== */
 .topbar {
-  background: #1e3799;
+  /* Suggested: add depth */
+  background: linear-gradient(135deg, #1e3799, #273c75);
   color: #fff;
   padding: 10px 0;
   margin-bottom: 20px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
 }
 
 .topbar .logo {
-  font-weight: bold;
+  font-weight: 800;
+  letter-spacing: 0.2px;
   font-size: 22px;
 }
 
@@ -57,16 +81,19 @@ nav a {
   margin-left: 15px;
   text-decoration: none;
   font-size: 14px;
+  opacity: 0.95;
 }
 
 nav a.admin-link {
   background: #ff6b6b;
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
 }
 
 nav a:hover {
   text-decoration: underline;
+  opacity: 1;
 }
 
 /* ===== Footer ===== */
@@ -74,7 +101,7 @@ nav a:hover {
   margin-top: 30px;
   padding: 15px 0;
   text-align: center;
-  background: #1e3799;
+  background: linear-gradient(135deg, #1e3799, #273c75);
   color: #fff;
   font-size: 14px;
 }
@@ -84,16 +111,26 @@ h1,
 h2,
 h3 {
   margin-bottom: 15px;
+  color: #1f2937;
+}
+
+p {
+  color: #374151;
+}
+
+small {
+  color: var(--muted);
 }
 
 /* ===== Cards ===== */
 .form-card,
 .card {
-  background: #fff;
-  border-radius: 6px;
+  background: var(--card);
+  border-radius: var(--radius-md);
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 
 .form-card {
@@ -105,7 +142,8 @@ h3 {
 label {
   display: block;
   margin: 6px 0 4px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #374151;
 }
 
 input[type="text"],
@@ -113,55 +151,78 @@ input[type="password"],
 textarea,
 select {
   width: 100%;
-  padding: 8px 10px;
+  padding: 10px 12px;
   margin: 6px 0 12px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: #111827;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 textarea {
   resize: vertical;
 }
 
+/* Suggested: focus state for accessibility + premium feel */
+input[type="text"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30, 55, 153, 0.15);
+}
+
 /* ===== Buttons ===== */
 button,
 .btn {
   display: inline-block;
-  background: #1e3799;
+  background: var(--primary);
   color: #fff;
   border: none;
-  padding: 8px 14px;
-  border-radius: 4px;
+  padding: 9px 14px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   cursor: pointer;
   text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
 button:hover,
 .btn:hover {
-  opacity: 0.9;
+  opacity: 0.98;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+button:active,
+.btn:active {
+  transform: translateY(0px);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn-primary {
-  background: #1e3799;
+  background: var(--primary);
 }
 
 .btn-secondary {
-  background: #4a69bd;
+  background: var(--primary-2);
 }
 
 .btn-danger {
-  background: #e55039;
+  background: var(--danger);
 }
 
 .btn-ghost {
   background: #e6e9f5;
-  color: #333;
+  color: #111827;
+  border: 1px solid #d9def2;
 }
 
 .btn-small {
   font-size: 12px;
-  padding: 5px 10px;
+  padding: 6px 10px;
 }
 
 .btn-full {
@@ -179,16 +240,17 @@ button:hover,
 /* ===== Badge & Meta ===== */
 .badge {
   display: inline-block;
-  padding: 2px 6px;
+  padding: 3px 8px;
   font-size: 11px;
-  border-radius: 3px;
+  border-radius: 999px;
   background: #f7d794;
-  margin-left: 5px;
+  margin-left: 6px;
+  font-weight: 700;
 }
 
 .meta {
   font-size: 13px;
-  color: #555;
+  color: #6b7280;
   margin: 6px 0;
 }
 
@@ -198,17 +260,26 @@ table {
   border-collapse: collapse;
   margin-top: 10px;
   font-size: 14px;
+  background: #fff;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
 }
 
 th,
 td {
-  border: 1px solid #ddd;
-  padding: 8px;
+  border-bottom: 1px solid #eee;
+  padding: 10px;
   text-align: left;
 }
 
 th {
-  background: #f0f0f0;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+tr:hover td {
+  background: #fafafa;
 }
 
 /* ===== Utilities ===== */
@@ -220,22 +291,45 @@ th {
   text-align: right;
 }
 
+.text-center {
+  text-align: center;
+}
+
+.flex {
+  display: flex;
+}
+
+.gap-10 {
+  gap: 10px;
+}
+
+.mt-10 {
+  margin-top: 10px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
 /* ===== Alerts ===== */
 .alert {
-  padding: 8px 10px;
-  border-radius: 3px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
   margin-bottom: 10px;
   font-size: 13px;
+  border: 1px solid transparent;
 }
 
 .alert-error {
   background: #ffe5e5;
   color: #c0392b;
+  border-color: #ffd0d0;
 }
 
 .alert-success {
   background: #e5ffe9;
   color: #27ae60;
+  border-color: #c9f6d4;
 }
 
 /* ===== Login UI ===== */
@@ -249,9 +343,9 @@ th {
   width: 100%;
   max-width: 420px;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 18px 20px;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.10);
   border: 1px solid #e6e6e6;
 }
 
@@ -265,7 +359,7 @@ th {
 .login-card__header h2 {
   margin: 0;
   font-size: 20px;
-  color: #444;
+  color: #1f2937;
 }
 
 .login-card__close {
@@ -281,7 +375,7 @@ th {
 .login-card__sub {
   margin: 6px 0 14px;
   text-align: center;
-  color: #666;
+  color: #6b7280;
   font-size: 13px;
 }
 
@@ -305,7 +399,7 @@ th {
 }
 
 .input-icon input {
-  padding-left: 32px;
+  padding-left: 34px;
 }
 
 .login-card__footer {
@@ -316,7 +410,7 @@ th {
 }
 
 .login-card__footer .link {
-  color: #1e3799;
+  color: var(--primary);
   text-decoration: none;
   font-size: 13px;
 }
@@ -346,27 +440,62 @@ th {
 
 /* ===== Admin Menu Links ===== */
 .admin-menu a {
-  color: #1e3799;
+  color: var(--primary);
   text-decoration: none;
+  font-weight: 700;
 }
 
 .admin-menu a:visited {
-  color: #1e3799;
+  color: var(--primary);
 }
 
 .admin-menu a:hover {
   text-decoration: underline;
 }
 
-/* ===== Small Safety Defaults (optional) ===== */
+/* ===== Suggested: Make Admin area feel distinct (optional) ===== */
+/* Add class "admin-page" on admin screens if you can */
+.admin-page .topbar {
+  background: linear-gradient(135deg, #111827, #1f2937);
+}
+
+.admin-page .footer {
+  background: linear-gradient(135deg, #111827, #1f2937);
+}
+
+.admin-page nav a.admin-link {
+  background: #f59e0b;
+  color: #111827;
+}
+
+/* ===== Small Safety Defaults ===== */
 img {
   max-width: 100%;
   height: auto;
 }
+
 a {
-  color: #1e3799;
+  color: var(--primary);
   text-decoration: none;
 }
+
 a:hover {
   text-decoration: underline;
-} 
+}
+
+/* ===== Responsive Touch ===== */
+@media (max-width: 520px) {
+  .topbar .logo {
+    font-size: 18px;
+  }
+
+  nav a {
+    font-size: 13px;
+    margin-left: 10px;
+  }
+
+  .login-card {
+    border-radius: 10px;
+    padding: 16px;
+  }
+}

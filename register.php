@@ -206,9 +206,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 <a href="index.php">Home</a>
                 <a href="register-choice.php">Register</a>
                 <a href="login.php">Login</a>
-                <a href="company-register.php">Company Register</a>
-                <a href="company-login.php">Company Login</a>
-                <a class="admin-pill" href="admin/login.php">Admin</a>
             </div>
         </div>
     </div>
