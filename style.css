@@ -1,4 +1,4 @@
-/* ===== Global Reset ===== */
+﻿/* ===== Global Reset ===== */
 :root {
   --bg: #e5e7eb;
   --text: #2f3640;
@@ -505,5 +505,3 @@ a:hover {
     padding: 16px;
   }
 }
-
-
