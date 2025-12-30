@@ -38,9 +38,6 @@ $jobs = array_values(array_filter($jobs, function ($job) {
 $popularJobs = array_slice($jobs, 0, 3);
 $latestJobs = $jobs;
 ?>
-<style>
-body{background:#ddd;}
-</style>
 <h1>Let's find you a job.</h1>
 
 <form method="get" class="form-card">
