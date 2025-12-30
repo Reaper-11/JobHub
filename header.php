@@ -8,7 +8,7 @@ $basePath = isset($basePath) ? $basePath : '';
 <head>
     <meta charset="UTF-8">
     <title>JobHub - Job Portal</title>
-    <link rel="stylesheet" href="<?php echo htmlspecialchars($basePath); ?>style.css">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($basePath); ?>style.css?v=<?php echo filemtime(__DIR__ . '/style.css'); ?>">
 </head>
 <body class="<?php echo isset($bodyClass) ? htmlspecialchars($bodyClass) : ''; ?>">
 <header class="topbar">

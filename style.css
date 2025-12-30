@@ -12,7 +12,7 @@
   --brand-deep: #0b4f6c;
 
   /* Light theme */
-  --bg: #f3f4f6;
+  --bg: #6b7280;
   --surface: #ffffff;
   --surface-2: #f8fafc;
   --text: #0f172a;
@@ -34,7 +34,7 @@
 
 /* Manual dark mode: add class "dark" to body */
 body.dark{
-  --bg: #4b5563;
+  --bg: #6b7280;
   --surface: rgba(255,255,255,.06);
   --surface-2: rgba(255,255,255,.08);
   --text: #e7ecff;
@@ -49,7 +49,7 @@ body.dark{
 /* Auto dark mode if OS prefers dark (only applies if you don't force light) */
 @media (prefers-color-scheme: dark){
   body:not(.light){
-    --bg: #4b5563;
+    --bg: #6b7280;
     --surface: rgba(255,255,255,.06);
     --surface-2: rgba(255,255,255,.08);
     --text: #e7ecff;
