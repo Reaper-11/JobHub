@@ -43,9 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <input type="password" name="password">
             <button type="submit">Login</button>
         </form>
-        <p style="margin-top:10px;">
-            New admin? <a href="admin-register.php">Register here</a>
-        </p>
     </div>
 </main>
 </body>
