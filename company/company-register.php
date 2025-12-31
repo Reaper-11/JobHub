@@ -57,5 +57,6 @@ require '../header.php';
 
         <button type="submit">Register Company</button>
     </form>
+    <p class="meta">Already have an account? <a href="company-login.php">Login</a></p>
 </div>
 <?php require '../footer.php'; ?>

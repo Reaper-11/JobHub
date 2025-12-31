@@ -42,6 +42,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
+<header class="topbar">
+    <div class="container flex-between">
+        <div class="logo">JobHub</div>
+        <nav>
+            <a href="../index.php">Home</a>
+        </nav>
+    </div>
+</header>
 <main class="container">
     <h1>Admin Login</h1>
     <div class="form-card">
