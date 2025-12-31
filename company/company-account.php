@@ -65,16 +65,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $passMsg = "New password and confirmation do not match.";
             $passType = "alert-error";
         } else {
-            $oldHash = md5($old);
-            $newHash = md5($new);
-
             $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
             $row = $res ? $res->fetch_assoc() : null;
+            $storedHash = $row['password'] ?? '';
+            $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($old));
+            $validOld = password_verify($old, $storedHash) || $legacyMatch;
 
-            if (!$row || $row['password'] !== $oldHash) {
+            if (!$row || !$validOld) {
                 $passMsg = "Old password is incorrect.";
                 $passType = "alert-error";
             } else {
+                $newHash = password_hash($new, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
                 $stmt->bind_param("si", $newHash, $cid);
                 if ($stmt->execute()) {
@@ -93,11 +94,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $deleteMsg = "Password is required to delete your account.";
             $deleteType = "alert-error";
         } else {
-            $confirmHash = md5($confirmPassword);
             $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
             $row = $res ? $res->fetch_assoc() : null;
+            $storedHash = $row['password'] ?? '';
+            $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($confirmPassword));
+            $validConfirm = password_verify($confirmPassword, $storedHash) || $legacyMatch;
 
-            if (!$row || $row['password'] !== $confirmHash) {
+            if (!$row || !$validConfirm) {
                 $deleteMsg = "Password is incorrect.";
                 $deleteType = "alert-error";
             } else {

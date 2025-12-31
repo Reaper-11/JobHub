@@ -102,4 +102,4 @@ ALTER TABLE jobs
 
 -- default admin: username=admin, password=admin123
 INSERT INTO admins (username, password)
-VALUES ('admin', MD5('admin123'));
+VALUES ('admin', '$2y$12$MmiMPnDRxytmC8IvqKc/0Ozk6KgKAm2oWi/Zgaf.T61IhNfniAGwe');

@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($check->num_rows > 0) {
             $msg = "Company email already registered.";
         } else {
-            $hash = md5($pass); // simple hash for project
+            $hash = password_hash($pass, PASSWORD_DEFAULT);
             $stmt = $conn->prepare(
                 "INSERT INTO companies (name,email,password,website,location) VALUES (?,?,?,?,?)"
             );

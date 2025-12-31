@@ -4,19 +4,29 @@ $msg = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
     $pass  = $_POST['password'];
-    $hash  = md5($pass);
-
     $emailEsc = $conn->real_escape_string($email);
-    $res = $conn->query("SELECT id, name FROM users WHERE email='$emailEsc' AND password='$hash'");
-    if ($res->num_rows == 1) {
+    $res = $conn->query("SELECT id, name, password FROM users WHERE email='$emailEsc' LIMIT 1");
+    if ($res && $res->num_rows == 1) {
         $row = $res->fetch_assoc();
-        $_SESSION['user_id'] = $row['id'];
-        $_SESSION['user_name'] = $row['name'];
-        header("Location: index.php");
-        exit;
-    } else {
-        $msg = "Invalid email or password.";
+        $storedHash = $row['password'] ?? '';
+        $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($pass));
+        $valid = password_verify($pass, $storedHash) || $legacyMatch;
+
+        if ($valid) {
+            if ($legacyMatch) {
+                $newHash = password_hash($pass, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+                $stmt->bind_param("si", $newHash, $row['id']);
+                $stmt->execute();
+                $stmt->close();
+            }
+            $_SESSION['user_id'] = $row['id'];
+            $_SESSION['user_name'] = $row['name'];
+            header("Location: index.php");
+            exit;
+        }
     }
+    $msg = "Invalid email or password.";
 }
 require 'header.php';
 ?>

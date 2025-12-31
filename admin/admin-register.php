@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($check->num_rows > 0) {
             $msg = 'Username already exists.';
         } else {
-            $hash = md5($password);
+            $hash = password_hash($password, PASSWORD_DEFAULT);
             $insert = $conn->prepare('INSERT INTO admins (username, password) VALUES (?, ?)');
             $insert->bind_param('ss', $username, $hash);
 

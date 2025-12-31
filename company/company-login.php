@@ -4,23 +4,36 @@ $msg = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
     $pass  = $_POST['password'];
-    $hash  = md5($pass);
-
     $emailEsc = $conn->real_escape_string($email);
     $res = $conn->query(
-        "SELECT id, name, is_approved, rejection_reason FROM companies WHERE email='$emailEsc' AND password='$hash'"
+        "SELECT id, name, is_approved, rejection_reason, password FROM companies WHERE email='$emailEsc' LIMIT 1"
     );
-    if ($res->num_rows == 1) {
+    if ($res && $res->num_rows == 1) {
         $row = $res->fetch_assoc();
-        if ((int) $row['is_approved'] === -1) {
-            $reason = trim((string) ($row['rejection_reason'] ?? ''));
-            $msg = $reason !== '' ? "Company account rejected: $reason" : "Company account rejected. Contact admin.";
+        $storedHash = $row['password'] ?? '';
+        $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($pass));
+        $valid = password_verify($pass, $storedHash) || $legacyMatch;
+
+        if ($valid) {
+            if ($legacyMatch) {
+                $newHash = password_hash($pass, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
+                $stmt->bind_param("si", $newHash, $row['id']);
+                $stmt->execute();
+                $stmt->close();
+            }
+            if ((int) $row['is_approved'] === -1) {
+                $reason = trim((string) ($row['rejection_reason'] ?? ''));
+                $msg = $reason !== '' ? "Company account rejected: $reason" : "Company account rejected. Contact admin.";
+            } else {
+                $_SESSION['company_id']   = $row['id'];
+                $_SESSION['company_name'] = $row['name'];
+                $_SESSION['company_approved'] = (int) $row['is_approved'];
+                header("Location: company-dashboard.php");
+                exit;
+            }
         } else {
-            $_SESSION['company_id']   = $row['id'];
-            $_SESSION['company_name'] = $row['name'];
-            $_SESSION['company_approved'] = (int) $row['is_approved'];
-            header("Location: company-dashboard.php");
-            exit;
+            $msg = "Invalid company email or password.";
         }
     } else {
         $msg = "Invalid company email or password.";

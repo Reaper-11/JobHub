@@ -42,8 +42,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $phoneEsc = $conn->real_escape_string($phone);
             $prefEsc  = $conn->real_escape_string($preferred_category);
 
-            // Keep consistent with your project if login uses md5
-            $hash = md5($pass);
+            $hash = password_hash($pass, PASSWORD_DEFAULT);
 
             $sql = "INSERT INTO users (name, email, phone, password, preferred_category)
                     VALUES ('$nameEsc', '$emailEsc', '$phoneEsc', '$hash', '$prefEsc')";
