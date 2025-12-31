@@ -42,7 +42,7 @@ require 'header.php';
             <label>Email</label>
             <div class="input-icon">
                 <span class="icon">&#128100;</span>
-                <input type="text" name="email" placeholder="Email" required>
+                <input type="email" name="email" placeholder="Email" required>
             </div>
 
             <label>Password</label>

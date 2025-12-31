@@ -141,7 +141,7 @@ require '../header.php';
         <input type="text" name="name" value="<?php echo htmlspecialchars($company['name']); ?>" required>
 
         <label>Email*</label>
-        <input type="text" name="email" value="<?php echo htmlspecialchars($company['email']); ?>" required>
+        <input type="email" name="email" value="<?php echo htmlspecialchars($company['email']); ?>" required>
 
         <button type="submit" class="btn btn-primary">Save Profile</button>
     </form>

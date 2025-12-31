@@ -44,7 +44,7 @@ require '../header.php';
         <input type="text" name="name">
 
         <label>Company Email *</label>
-        <input type="text" name="email">
+        <input type="email" name="email">
 
         <label>Password *</label>
         <input type="password" name="password">
@@ -57,5 +57,6 @@ require '../header.php';
 
         <button type="submit">Register Company</button>
     </form>
+    <p class="meta">Already have an account? <a href="company-login.php">Login</a></p>
 </div>
 <?php require '../footer.php'; ?>

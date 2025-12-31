@@ -153,6 +153,7 @@ label {
 }
 
 input[type="text"],
+input[type="email"],
 input[type="password"],
 textarea,
 select {
@@ -172,6 +173,7 @@ textarea {
 
 /* Suggested: focus state for accessibility + premium feel */
 input[type="text"]:focus,
+input[type="email"]:focus,
 input[type="password"]:focus,
 textarea:focus,
 select:focus {
