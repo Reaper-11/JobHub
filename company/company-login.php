@@ -47,7 +47,7 @@ require '../header.php';
     <?php if ($msg): ?><div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
     <form method="post">
         <label>Company Email</label>
-        <input type="text" name="email">
+        <input type="email" name="email">
         <label>Password</label>
         <input type="password" name="password">
         <button type="submit">Login</button>

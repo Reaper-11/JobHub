@@ -207,7 +207,7 @@ require 'header.php';
         <input type="text" name="name" value="<?php echo htmlspecialchars($user['name']); ?>" required>
 
         <label>Email*</label>
-        <input type="text" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+        <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
 
         <label>Phone (optional)</label>
         <input type="text" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="e.g. +977-9800000000">

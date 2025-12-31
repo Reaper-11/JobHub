@@ -44,7 +44,7 @@ require '../header.php';
         <input type="text" name="name">
 
         <label>Company Email *</label>
-        <input type="text" name="email">
+        <input type="email" name="email">
 
         <label>Password *</label>
         <input type="password" name="password">
