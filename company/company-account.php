@@ -171,6 +171,16 @@ require '../header.php';
     color: #6b7280;
 }
 
+.account-card {
+    margin-bottom: 28px;
+    padding: 26px;
+}
+
+.account-card.delete-card {
+    border: 1px solid #f1b5b5;
+    background: #fff5f5;
+}
+
 @media (max-width: 600px) {
     .page-header {
         flex-direction: column;
@@ -184,8 +194,8 @@ require '../header.php';
     <a class="btn btn-back" href="company-dashboard.php">Back to Dashboard</a>
 </div>
 
-<div class="form-card">
-    <h2>Profile</h2>
+<div class="form-card account-card">
+    <h2>🏢 Profile</h2>
     <?php if ($profileMsg): ?>
         <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
     <?php endif; ?>
@@ -207,8 +217,8 @@ require '../header.php';
     </form>
 </div>
 
-<div class="form-card">
-    <h2>Change Password</h2>
+<div class="form-card account-card">
+    <h2>🔒 Change Password</h2>
     <?php if ($passMsg): ?>
         <div class="alert <?php echo $passType; ?>"><?php echo htmlspecialchars($passMsg); ?></div>
     <?php endif; ?>
@@ -227,8 +237,8 @@ require '../header.php';
     </form>
 </div>
 
-<div class="form-card">
-    <h2>Delete Account</h2>
+<div class="form-card account-card delete-card">
+    <h2>⚠ Delete Account</h2>
     <?php if ($deleteMsg): ?>
         <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
     <?php endif; ?>

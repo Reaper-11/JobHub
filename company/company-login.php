@@ -47,10 +47,46 @@ require '../header.php';
     <?php if ($msg): ?><div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
     <form method="post">
         <label>Company Email</label>
-        <input type="email" name="email">
+        <input type="email" name="email" placeholder="company@example.com" required>
         <label>Password</label>
-        <input type="password" name="password">
-        <button type="submit">Login</button>
+        <input type="password" name="password" placeholder="••••••••" required>
+        <button type="submit" class="btn-login">Login</button>
     </form>
-</div>
+        <div class="register-cta">
+            Don’t have a company account? <a href="company-register.php">Register here</a>
+        </div>
+    </div>
+<style>
+
+.btn-login {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px 14px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.btn-login:hover {
+    background: #162c7a;
+}
+
+.register-cta {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 14px;
+    color: #374151;
+}
+
+.register-cta a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.register-cta a:hover {
+    text-decoration: underline;
+}
+</style>
 <?php require '../footer.php'; ?>

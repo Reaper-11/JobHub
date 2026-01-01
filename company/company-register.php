@@ -45,23 +45,49 @@ require '../header.php';
     <?php endif; ?>
     <form method="post">
         <label>Company Name *</label>
-        <input type="text" name="name">
+        <input type="text" name="name" placeholder="e.g. JobHub Pvt. Ltd." required>
 
         <label>Company Email *</label>
-        <input type="email" name="email">
+        <input type="email" name="email" placeholder="company@example.com" required>
 
         <label>Password *</label>
-        <input type="password" name="password">
+        <input type="password" name="password" placeholder="••••••••" required>
 
         <label>Website</label>
-        <input type="text" name="website">
+        <input type="url" name="website" placeholder="https://company.com">
 
         <label>Location</label>
-        <input type="text" name="location">
+        <input type="text" name="location" placeholder="Kathmandu, Nepal">
 
-        <button type="submit">Register Company</button>
+        <button type="submit" class="btn-register">Register Company</button>
     </form>
     <p class="meta">Already have an account? <a href="company-login.php">Login</a></p>
 </div>
+<style>
+input[type="url"] {
+    width: 100%;
+    padding: 10px 12px;
+    margin: 6px 0 12px;
+    border: 1px solid #d1d5db;
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: #111827;
+}
+
+.btn-register {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+}
+
+.btn-register:hover {
+    background: #162c7a;
+}
+</style>
 <?php require '../footer.php'; ?>
 
