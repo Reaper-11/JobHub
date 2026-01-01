@@ -1,12 +1,10 @@
 <?php
 require '../db.php';
-require '../includes/flash.php';
 if (!isset($_SESSION['admin_id'])) {
     header("Location: admin-login.php");
     exit;
 }
 $jobs = $conn->query("SELECT * FROM jobs ORDER BY created_at DESC");
-$flash = get_flash('jobs');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,11 +17,6 @@ $flash = get_flash('jobs');
 <main class="container">
     <h1>Job Details</h1>
     <p><a href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
-    <?php if ($flash): ?>
-        <div class="alert <?php echo htmlspecialchars($flash['type']); ?>">
-            <?php echo htmlspecialchars($flash['message']); ?>
-        </div>
-    <?php endif; ?>
 
     <h3>All Jobs</h3>
     <table>
@@ -41,12 +34,9 @@ $flash = get_flash('jobs');
                 <td><?php echo htmlspecialchars($j['company']); ?></td>
                 <td><?php echo htmlspecialchars($j['location']); ?></td>
                 <td>
-                    <form class="inline-form" method="post" action="admin-delete.php" onsubmit="return confirm('Delete this job?');">
-                        <input type="hidden" name="table" value="jobs">
-                        <input type="hidden" name="id" value="<?php echo $j['id']; ?>">
-                        <input type="hidden" name="return" value="admin-jobs.php">
-                        <button class="btn btn-danger btn-small" type="submit">Delete</button>
-                    </form>
+                    <a class="btn btn-danger btn-small"
+                       href="admin-delete.php?table=jobs&id=<?php echo $j['id']; ?>&return=admin-jobs.php"
+                       onclick="return confirm('Delete this job?')">Delete</a>
                 </td>
             </tr>
         <?php endwhile; ?>

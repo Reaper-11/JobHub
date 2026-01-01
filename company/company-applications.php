@@ -10,7 +10,9 @@ $msgType = "alert-success";
 $statusOptions = [
     'pending' => 'Pending',
     'approved' => 'Approved',
-    'rejected' => 'Rejected'
+    'rejected' => 'Rejected',
+    'interview' => 'Interview',
+    'hold' => 'Hold'
 ];
 $statusColumnExists = false;
 $reasonColumnExists = false;
@@ -89,7 +91,6 @@ require '../header.php';
     </tr>
     <?php while ($a = $res->fetch_assoc()): ?>
         <?php $currentStatus = $a['status'] ?? 'pending'; ?>
-        <?php if (!isset($statusOptions[$currentStatus])) { $currentStatus = 'pending'; } ?>
         <tr>
             <td><?php echo $a['id']; ?></td>
             <td><?php echo htmlspecialchars($a['title']); ?></td>

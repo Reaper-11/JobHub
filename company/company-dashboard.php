@@ -1,6 +1,5 @@
 <?php
 require '../db.php';
-require '../includes/flash.php';
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
     exit;
@@ -25,16 +24,10 @@ $countJobs = $conn->query(
 $jobs = $conn->query(
     "SELECT * FROM jobs WHERE company_id=$cid ORDER BY created_at DESC"
 );
-$flash = get_flash('jobs');
 $basePath = '../';
 require '../header.php';
 ?>
 <h1>Company Dashboard</h1>
-<?php if ($flash): ?>
-    <div class="alert <?php echo htmlspecialchars($flash['type']); ?>">
-        <?php echo htmlspecialchars($flash['message']); ?>
-    </div>
-<?php endif; ?>
 <div class="card">
     <p>Welcome, <?php echo htmlspecialchars($_SESSION['company_name']); ?></p>
     <p>Status: <?php echo $statusLabel; ?></p>
@@ -68,7 +61,7 @@ require '../header.php';
             <td>
                 <a class="btn btn-small" href="company-edit-job.php?id=<?php echo $j['id']; ?>">Edit</a>
                 <form class="inline-form" method="post" action="company-delete-job.php" onsubmit="return confirm('Delete this job? This cannot be undone.');">
-                    <input type="hidden" name="job_id" value="<?php echo $j['id']; ?>">
+                    <input type="hidden" name="id" value="<?php echo $j['id']; ?>">
                     <button class="btn btn-small btn-danger" type="submit">Delete</button>
                 </form>
             </td>
