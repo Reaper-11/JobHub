@@ -8,7 +8,6 @@ $conn = new mysqli($host, $user, $pass, $dbname);
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
-session_start();
 
 if (!function_exists('job_expiration_timestamp')) {
     function job_expiration_timestamp($createdAt, $duration)
