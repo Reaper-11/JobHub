@@ -68,6 +68,15 @@ $sql = "SELECT a.*, u.name, u.email, u.cv_path, j.title
         WHERE (a.company_id = $cid OR j.company_id = $cid)
         ORDER BY a.applied_at DESC";
 $res = $conn->query($sql);
+$rows = [];
+$approvedRows = [];
+$rejectedRows = [];
+$pendingRows = [];
+if ($res) {
+    while ($row = $res->fetch_assoc()) {
+        $rows[] = $row;
+    }
+}
 $basePath = '../';
 require '../header.php';
 ?>
@@ -76,48 +85,79 @@ require '../header.php';
 <?php if ($msg): ?>
     <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
 <?php endif; ?>
-<table>
-    <tr>
-        <th>ID</th>
-        <th>Job</th>
-        <th>User</th>
-        <th>Email</th>
-        <th>CV</th>
-        <th>Status</th>
-        <th>Applied At</th>
-        <th>Action</th>
-    </tr>
-    <?php while ($a = $res->fetch_assoc()): ?>
-        <?php $currentStatus = $a['status'] ?? 'pending'; ?>
+<?php
+function render_company_applications_table(array $rows, array $statusOptions, $basePath)
+{
+    if (empty($rows)) {
+        echo '<p>No applications to show.</p>';
+        return;
+    }
+    ?>
+    <table>
         <tr>
-            <td><?php echo $a['id']; ?></td>
-            <td><?php echo htmlspecialchars($a['title']); ?></td>
-            <td><?php echo htmlspecialchars($a['name']); ?></td>
-            <td><?php echo htmlspecialchars($a['email']); ?></td>
-            <td>
-                <?php if (!empty($a['cv_path'])): ?>
-                    <a class="btn btn-small" href="<?php echo htmlspecialchars($basePath . $a['cv_path']); ?>" target="_blank">View CV</a>
-                <?php else: ?>
-                    <span class="meta">No CV</span>
-                <?php endif; ?>
-            </td>
-            <td><?php echo htmlspecialchars($statusOptions[$currentStatus] ?? ucfirst($currentStatus)); ?></td>
-            <td><?php echo htmlspecialchars($a['applied_at']); ?></td>
-            <td>
-                <form method="post" class="inline-form">
-                    <input type="hidden" name="app_id" value="<?php echo $a['id']; ?>">
-                    <select name="status">
-                        <?php foreach ($statusOptions as $value => $label): ?>
-                            <option value="<?php echo $value; ?>" <?php echo $currentStatus === $value ? 'selected' : ''; ?>>
-                                <?php echo $label; ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                    <textarea name="rejection_reason" rows="2" placeholder="Reason (required if rejected)"><?php echo htmlspecialchars($a['rejection_reason'] ?? ''); ?></textarea>
-                    <button type="submit" class="btn btn-small btn-secondary">Update</button>
-                </form>
-            </td>
+            <th>ID</th>
+            <th>Job</th>
+            <th>User</th>
+            <th>Email</th>
+            <th>CV</th>
+            <th>Status</th>
+            <th>Applied At</th>
+            <th>Action</th>
         </tr>
-    <?php endwhile; ?>
-</table>
+        <?php foreach ($rows as $a): ?>
+            <?php $currentStatus = $a['status'] ?? 'pending'; ?>
+            <tr>
+                <td><?php echo $a['id']; ?></td>
+                <td><?php echo htmlspecialchars($a['title']); ?></td>
+                <td><?php echo htmlspecialchars($a['name']); ?></td>
+                <td><?php echo htmlspecialchars($a['email']); ?></td>
+                <td>
+                    <?php if (!empty($a['cv_path'])): ?>
+                        <a class="btn btn-small" href="<?php echo htmlspecialchars($basePath . $a['cv_path']); ?>" target="_blank">View CV</a>
+                    <?php else: ?>
+                        <span class="meta">No CV</span>
+                    <?php endif; ?>
+                </td>
+                <td><?php echo htmlspecialchars($statusOptions[$currentStatus] ?? ucfirst($currentStatus)); ?></td>
+                <td><?php echo htmlspecialchars($a['applied_at']); ?></td>
+                <td>
+                    <form method="post" class="inline-form">
+                        <input type="hidden" name="app_id" value="<?php echo $a['id']; ?>">
+                        <select name="status">
+                            <?php foreach ($statusOptions as $value => $label): ?>
+                                <option value="<?php echo $value; ?>" <?php echo $currentStatus === $value ? 'selected' : ''; ?>>
+                                    <?php echo $label; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <textarea name="rejection_reason" rows="2" placeholder="Reason (required if rejected)"><?php echo htmlspecialchars($a['rejection_reason'] ?? ''); ?></textarea>
+                        <button type="submit" class="btn btn-small btn-secondary">Update</button>
+                    </form>
+                </td>
+            </tr>
+        <?php endforeach; ?>
+    </table>
+    <?php
+}
+
+foreach ($rows as $row) {
+    $status = strtolower($row['status'] ?? 'pending');
+    if ($status === 'approved') {
+        $approvedRows[] = $row;
+    } elseif ($status === 'rejected') {
+        $rejectedRows[] = $row;
+    } else {
+        $pendingRows[] = $row;
+    }
+}
+?>
+
+<h2>Approved</h2>
+<?php render_company_applications_table($approvedRows, $statusOptions, $basePath); ?>
+
+<h2>Rejected</h2>
+<?php render_company_applications_table($rejectedRows, $statusOptions, $basePath); ?>
+
+<h2>Pending</h2>
+<?php render_company_applications_table($pendingRows, $statusOptions, $basePath); ?>
 <?php require '../footer.php'; ?>

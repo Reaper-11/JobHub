@@ -33,7 +33,7 @@ $sql .= " ORDER BY created_at DESC";
 $result = $conn->query($sql);
 $jobs = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $jobs = array_values(array_filter($jobs, function ($job) {
-    return !is_job_expired($job);
+    return !is_job_expired($job) && !is_job_closed($job);
 }));
 $popularJobs = array_slice($jobs, 0, 3);
 $latestJobs = $jobs;

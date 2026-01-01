@@ -47,4 +47,14 @@ if (!function_exists('is_job_expired')) {
     }
 }
 
+if (!function_exists('is_job_closed')) {
+    function is_job_closed(array $job)
+    {
+        if (!isset($job['status'])) {
+            return false;
+        }
+        return strtolower((string) $job['status']) === 'closed';
+    }
+}
+
 ?>

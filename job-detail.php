@@ -16,12 +16,15 @@ if ($jobRes->num_rows == 0) {
 }
 $job = $jobRes->fetch_assoc();
 $isExpired = is_job_expired($job);
+$isClosed = is_job_closed($job);
 
 $msg = "";
 $msgType = "alert-success";
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
-    if ($isExpired) {
-        $msg = "This job has expired and is no longer accepting applications.";
+    if ($isExpired || $isClosed) {
+        $msg = $isClosed
+            ? "This job is closed and is no longer accepting applications."
+            : "This job has expired and is no longer accepting applications.";
         $msgType = "alert-error";
     } else {
         $uid = (int) $_SESSION['user_id'];
@@ -77,9 +80,11 @@ require 'header.php';
     <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
 <?php endif; ?>
 
-<?php if ($isExpired): ?>
+<?php if ($isExpired || $isClosed): ?>
 <div class="alert alert-error">
-    This job has expired and is no longer accepting applications.
+    <?php echo $isClosed
+        ? "This job is closed and is no longer accepting applications."
+        : "This job has expired and is no longer accepting applications."; ?>
 </div>
 <?php elseif (isset($_SESSION['user_id'])): ?>
 <div class="form-card">
