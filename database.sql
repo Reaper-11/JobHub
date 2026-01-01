@@ -83,27 +83,6 @@ CREATE TABLE user_deletion_reasons (
     deleted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE companies (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(150) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
-    website VARCHAR(200),
-    location VARCHAR(150),
-    rejection_reason TEXT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-/* Optional: link jobs to company_id (nullable for old jobs) */
 ALTER TABLE jobs
-    ADD COLUMN company_id INT NULL AFTER id,
     ADD CONSTRAINT fk_jobs_company
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
-
--- default admin: username=admin, password=admin123
-INSERT INTO admins (username, password)
-VALUES ('admin', '$2y$12$MmiMPnDRxytmC8IvqKc/0Ozk6KgKAm2oWi/Zgaf.T61IhNfniAGwe');
-
--- additional admin: username=Admin, password=admin123
-INSERT INTO admins (username, password)
-VALUES ('Admin', '$2y$12$MmiMPnDRxytmC8IvqKc/0Ozk6KgKAm2oWi/Zgaf.T61IhNfniAGwe');
