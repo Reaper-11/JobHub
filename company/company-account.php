@@ -13,8 +13,27 @@ $passType = "";
 $deleteMsg = "";
 $deleteType = "";
 
-$companyRes = $conn->query("SELECT name, email FROM companies WHERE id = $cid");
-$company = $companyRes ? $companyRes->fetch_assoc() : ['name' => '', 'email' => ''];
+$company = ['name' => '', 'email' => '', 'is_approved' => 0, 'created_at' => null];
+$companyStmt = $conn->prepare("SELECT name, email, is_approved, created_at FROM companies WHERE id = ?");
+$companyStmt->bind_param("i", $cid);
+if ($companyStmt->execute()) {
+    $companyRes = $companyStmt->get_result();
+    if ($companyRes) {
+        $row = $companyRes->fetch_assoc();
+        if ($row) {
+            $company = $row;
+        }
+    }
+}
+$companyStmt->close();
+$companyStatusLabel = ((int) ($company['is_approved'] ?? 0) === 1) ? 'Approved' : 'Pending';
+$joinedDate = '';
+if (!empty($company['created_at'])) {
+    $joinedTs = strtotime($company['created_at']);
+    if ($joinedTs !== false) {
+        $joinedDate = date('d M Y', $joinedTs);
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -147,6 +166,11 @@ require '../header.php';
     background: #162c7a;
 }
 
+.input-readonly {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
 @media (max-width: 600px) {
     .page-header {
         flex-direction: column;
@@ -172,6 +196,12 @@ require '../header.php';
 
         <label>Email*</label>
         <input type="email" name="email" value="<?php echo htmlspecialchars($company['email']); ?>" required>
+
+        <label>Company Status</label>
+        <input type="text" value="<?php echo $companyStatusLabel; ?>" class="input-readonly" disabled>
+
+        <label>Joined Date</label>
+        <input type="text" value="<?php echo htmlspecialchars($joinedDate); ?>" class="input-readonly" disabled>
 
         <button type="submit" class="btn btn-primary">Save Profile</button>
     </form>
