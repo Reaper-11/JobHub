@@ -17,6 +17,11 @@ if ($jobRes->num_rows == 0) {
 $job = $jobRes->fetch_assoc();
 $isExpired = is_job_expired($job);
 $isClosed = is_job_closed($job);
+if ($viewStmt = $conn->prepare("UPDATE jobs SET views = views + 1 WHERE id = ?")) {
+    $viewStmt->bind_param("i", $job_id);
+    $viewStmt->execute();
+    $viewStmt->close();
+}
 
 $msg = "";
 $msgType = "alert-success";

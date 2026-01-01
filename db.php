@@ -57,4 +57,55 @@ if (!function_exists('is_job_closed')) {
     }
 }
 
+if (!function_exists('db_query_all')) {
+    function db_query_all($sql, $types = '', array $params = [])
+    {
+        global $conn;
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            return [];
+        }
+        if ($types !== '' && !empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        if (!$stmt->execute()) {
+            $stmt->close();
+            return [];
+        }
+        $result = $stmt->get_result();
+        $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $stmt->close();
+        return $rows;
+    }
+}
+
+if (!function_exists('db_query_value')) {
+    function db_query_value($sql, $types = '', array $params = [], $default = 0)
+    {
+        global $conn;
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            return $default;
+        }
+        if ($types !== '' && !empty($params)) {
+            $stmt->bind_param($types, ...$params);
+        }
+        if (!$stmt->execute()) {
+            $stmt->close();
+            return $default;
+        }
+        $result = $stmt->get_result();
+        if (!$result) {
+            $stmt->close();
+            return $default;
+        }
+        $row = $result->fetch_row();
+        $stmt->close();
+        if (!$row || !array_key_exists(0, $row)) {
+            return $default;
+        }
+        return $row[0] === null ? $default : $row[0];
+    }
+}
+
 ?>

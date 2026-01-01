@@ -127,8 +127,38 @@ $basePath = '../';
 $bodyClass = 'account-page';
 require '../header.php';
 ?>
-<h1>Company Account</h1>
-<p><a href="company-dashboard.php">&laquo; Back to Dashboard</a></p>
+<style>
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.btn-back {
+    background: var(--primary);
+    color: #fff;
+    border-radius: var(--radius-sm);
+    padding: 9px 14px;
+}
+
+.btn-back:hover {
+    background: #162c7a;
+}
+
+@media (max-width: 600px) {
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+<div class="page-header">
+    <h1>Company Account</h1>
+    <a class="btn btn-back" href="company-dashboard.php">Back to Dashboard</a>
+</div>
 
 <div class="form-card">
     <h2>Profile</h2>

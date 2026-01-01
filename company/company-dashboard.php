@@ -28,24 +28,33 @@ if ($isApproved === 1) {
 $totalJobs = 0;
 $activeJobs = 0;
 $closedJobs = 0;
-$jobs = [];
-if ($jobsStmt = $conn->prepare("SELECT id, title, location, created_at, application_duration, status FROM jobs WHERE company_id = ? ORDER BY created_at DESC")) {
-    $jobsStmt->bind_param("i", $cid);
-    if ($jobsStmt->execute()) {
-        $jobsRes = $jobsStmt->get_result();
-        if ($jobsRes) {
-            while ($row = $jobsRes->fetch_assoc()) {
-                $jobs[] = $row;
-                $isClosed = is_job_closed($row) || is_job_expired($row);
-                if ($isClosed) {
-                    $closedJobs++;
-                } else {
-                    $activeJobs++;
-                }
-            }
-        }
+$jobsSql = "SELECT j.id,
+                   j.title,
+                   j.location,
+                   j.created_at,
+                   j.application_duration,
+                   j.status,
+                   COALESCE(j.views, 0) AS views,
+                   COALESCE(apps.total_apps, 0) AS total_apps,
+                   COALESCE(apps.shortlisted_apps, 0) AS shortlisted_apps
+            FROM jobs j
+            LEFT JOIN (
+                SELECT a.job_id,
+                       COUNT(*) AS total_apps,
+                       SUM(CASE WHEN a.status = 'shortlisted' THEN 1 ELSE 0 END) AS shortlisted_apps
+                FROM applications a
+                GROUP BY a.job_id
+            ) apps ON apps.job_id = j.id
+            WHERE j.company_id = ?
+            ORDER BY j.created_at DESC";
+$jobs = db_query_all($jobsSql, "i", [$cid]);
+foreach ($jobs as $row) {
+    $isClosed = is_job_closed($row) || is_job_expired($row);
+    if ($isClosed) {
+        $closedJobs++;
+    } else {
+        $activeJobs++;
     }
-    $jobsStmt->close();
 }
 $totalJobs = count($jobs);
 
@@ -105,7 +114,7 @@ require '../header.php';
     <div class="stat-card">
         <div class="stat-label">New Applications</div>
         <div class="stat-value"><?php echo $newAppsToday; ?></div>
-        <div class="stat-sub">Today • <?php echo $newAppsWeek; ?> This Week</div>
+        <div class="stat-sub">Today: <?php echo $newAppsToday; ?> | This Week: <?php echo $newAppsWeek; ?></div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Active / Closed Jobs</div>
@@ -119,22 +128,25 @@ require '../header.php';
         <th>ID</th>
         <th>Title</th>
         <th>Location</th>
+        <th>Views</th>
+        <th>Applications</th>
+        <th>Shortlisted</th>
         <th>Created</th>
-        <th>Status</th>
         <th>Action</th>
     </tr>
     <?php foreach ($jobs as $j): ?>
         <?php
         $jobIsClosed = is_job_closed($j);
         $jobIsExpired = is_job_expired($j);
-        $jobStatusLabel = $jobIsClosed ? 'Closed' : ($jobIsExpired ? 'Expired' : 'Active');
         ?>
         <tr>
             <td><?php echo $j['id']; ?></td>
             <td><?php echo htmlspecialchars($j['title']); ?></td>
             <td><?php echo htmlspecialchars($j['location']); ?></td>
+            <td><?php echo (int) ($j['views'] ?? 0); ?></td>
+            <td><?php echo (int) ($j['total_apps'] ?? 0); ?></td>
+            <td><?php echo (int) ($j['shortlisted_apps'] ?? 0); ?></td>
             <td><?php echo htmlspecialchars($j['created_at']); ?></td>
-            <td><?php echo $jobStatusLabel; ?></td>
             <td>
                 <a class="btn btn-small" href="company-edit-job.php?id=<?php echo $j['id']; ?>">Edit</a>
                 <?php if ($jobIsClosed): ?>

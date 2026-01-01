@@ -27,6 +27,7 @@ CREATE TABLE jobs (
     salary VARCHAR(100),
     application_duration VARCHAR(100),
     status VARCHAR(20) DEFAULT 'active',
+    views INT DEFAULT 0,
     is_approved TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
