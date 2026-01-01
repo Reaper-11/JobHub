@@ -22,7 +22,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
             $stmt->bind_param("sssss", $name, $email, $hash, $website, $location);
             if ($stmt->execute()) {
-                $msg = "Company registered. You can login now.";
+                $_SESSION['company_id'] = $conn->insert_id;
+                $_SESSION['company_name'] = $name;
+                $_SESSION['company_approved'] = 0;
+                header("Location: company-dashboard.php");
+                exit;
             } else {
                 $msg = "Error: ".$conn->error;
             }
@@ -60,3 +64,4 @@ require '../header.php';
     <p class="meta">Already have an account? <a href="company-login.php">Login</a></p>
 </div>
 <?php require '../footer.php'; ?>
+

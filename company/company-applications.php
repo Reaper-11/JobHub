@@ -10,9 +10,7 @@ $msgType = "alert-success";
 $statusOptions = [
     'pending' => 'Pending',
     'approved' => 'Approved',
-    'rejected' => 'Rejected',
-    'interview' => 'Interview',
-    'hold' => 'Hold'
+    'rejected' => 'Rejected'
 ];
 $statusColumnExists = false;
 $reasonColumnExists = false;
