@@ -50,6 +50,7 @@ function render_application_table(array $rows, $showMessage, $showReason)
         </tr>
         <?php foreach ($rows as $row): ?>
             <?php $currentStatus = $row['status'] ?? 'pending'; ?>
+        <?php if (!in_array($currentStatus, ['pending', 'approved', 'rejected'], true)) { $currentStatus = 'pending'; } ?>
             <tr>
                 <td><a href="job-detail.php?id=<?php echo $row['job_id']; ?>">
                     <?php echo htmlspecialchars($row['title']); ?></a></td>
@@ -87,6 +88,9 @@ function render_application_table(array $rows, $showMessage, $showReason)
 <?php
 foreach ($rows as $row) {
     $status = strtolower($row['status'] ?? 'pending');
+    if (!in_array($status, ['pending', 'approved', 'rejected'], true)) {
+        $status = 'pending';
+    }
     if ($status === 'approved') {
         $approvedRows[] = $row;
     } elseif ($status === 'rejected') {
