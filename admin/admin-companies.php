@@ -135,9 +135,12 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
                             <button type="submit" class="btn btn-small btn-danger">Reject</button>
                         </form>
                     <?php endif; ?>
-                    <a class="btn btn-danger btn-small"
-                       href="admin-delete.php?table=companies&id=<?php echo $c['id']; ?>&return=admin-companies.php"
-                       onclick="return confirm('Delete this company?')">Delete</a>
+                    <form class="inline-form" method="post" action="admin-delete.php" onsubmit="return confirm('Delete this company?');">
+                        <input type="hidden" name="table" value="companies">
+                        <input type="hidden" name="id" value="<?php echo $c['id']; ?>">
+                        <input type="hidden" name="return" value="admin-companies.php">
+                        <button class="btn btn-danger btn-small" type="submit">Delete</button>
+                    </form>
                 </td>
             </tr>
         <?php endwhile; ?>
