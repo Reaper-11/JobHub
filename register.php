@@ -73,147 +73,158 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 
     <style>
-        :root{
-            --primary:#1f3aa9;
-            --bg:#f3f5f9;
-            --card:#ffffff;
+        .user-register-page{
+            --bg:#e5e7eb;
+            --text:#2f3640;
             --muted:#6b7280;
-            --border:#e5e7eb;
-        }
-
-        body{
+            --primary:#1e3799;
+            --primary-dark:#162c7a;
+            --card:#ffffff;
+            --border:#e6e6e6;
+            --radius-sm:4px;
+            --radius-md:8px;
+            --shadow-sm:0 0 5px rgba(0,0,0,0.05);
+            --shadow-md:0 6px 18px rgba(0,0,0,0.10);
             background:var(--bg);
+            color:var(--text);
             min-height:100vh;
             display:flex;
             flex-direction:column;
         }
 
-        /* Top Navbar style (matches screenshot vibe) */
-        .topbar{
-            background:var(--primary);
+        .user-register-page *{
+            box-sizing:border-box;
+            margin:0;
+            padding:0;
+            font-family:"Inter","Segoe UI",Roboto,Arial,sans-serif;
+        }
+
+        .user-register-page .container{
+            width:90%;
+            max-width:1100px;
+            margin:0 auto;
+        }
+
+        .user-register-page .topbar{
+            background:linear-gradient(135deg, #1e3799, #273c75);
             color:#fff;
-            padding:12px 0;
+            padding:10px 0;
+            margin-bottom:20px;
+            box-shadow:0 6px 18px rgba(0,0,0,0.08);
         }
-        .topbar .brand{
-            font-weight:700;
+        .user-register-page .topbar .brand{
+            font-weight:800;
+            letter-spacing:0.2px;
             font-size:22px;
-            letter-spacing:.3px;
         }
-        .topbar a{
+        .user-register-page .topbar a{
             color:#fff;
             text-decoration:none;
             font-size:14px;
-            margin-left:16px;
-            opacity:.95;
+            margin-left:15px;
+            opacity:0.95;
         }
-        .topbar a:hover{ opacity:1; text-decoration:underline; }
-        .admin-pill{
-            background:#ff4d4d;
-            padding:6px 10px;
-            border-radius:6px;
-            margin-left:12px;
-            display:inline-block;
+        .user-register-page .topbar a:hover{
+            text-decoration:underline;
+            opacity:1;
         }
 
-        /* Page Container */
-        .page-wrap{
+        .user-register-page .page-wrap{
+            width:90%;
             max-width:1100px;
             margin:0 auto;
-            padding:28px 18px 40px;
-            width:100%;
+            padding:0 0 20px;
             flex:1 0 auto;
         }
-        .title{
+        .user-register-page .title{
+            margin-bottom:15px;
+            color:#1f2937;
             font-size:28px;
             font-weight:700;
-            margin-bottom:18px;
-            color:#111827;
         }
 
-        /* Form Card */
-        .form-card{
+        .user-register-page .form-card{
             background:var(--card);
+            border-radius:var(--radius-md);
+            padding:20px;
+            margin:0 auto 20px;
+            box-shadow:var(--shadow-sm);
             border:1px solid var(--border);
-            border-radius:10px;
-            padding:22px;
-            box-shadow:0 10px 22px rgba(0,0,0,.04);
+            max-width:600px;
         }
 
-        .form-label{
-            font-weight:600;
-            color:#111827;
-            margin-top:12px;
+        .user-register-page .form-label{
+            display:block;
+            margin:6px 0 4px;
+            font-weight:700;
+            color:#374151;
         }
-        .required-star{
-            color:#ff3b3b;
+        .user-register-page .required-star{
+            color:#374151;
             margin-left:4px;
         }
 
-        /* IMPORTANT FIX: force ALL inputs full width */
-        .form-control, .form-select{
-            width:100% !important;
-            height:44px;
-            border-radius:8px;
-            border:1px solid var(--border);
+        .user-register-page .form-control,
+        .user-register-page .form-select{
+            width:100%;
+            padding:10px 12px;
+            margin:6px 0 12px;
+            border:1px solid #d1d5db;
+            border-radius:var(--radius-sm);
+            background:#fff;
+            color:#111827;
+            transition:border-color 0.15s ease, box-shadow 0.15s ease;
         }
-        .form-control:focus, .form-select:focus{
-            border-color:rgba(31,58,169,.55);
-            box-shadow:0 0 0 .2rem rgba(31,58,169,.15);
-        }
-
-        .btn-primary{
-            background:var(--primary);
+        .user-register-page .form-control:focus,
+        .user-register-page .form-select:focus{
+            outline:none;
             border-color:var(--primary);
-            height:46px;
-            border-radius:8px;
-            font-weight:600;
-        }
-        .btn-primary:hover{
-            background:#193190;
-            border-color:#193190;
-        }
-        .user-register-btn{
-            transition:background-color .25s ease, transform .25s ease, box-shadow .25s ease;
-            cursor:pointer;
-        }
-        .user-register-btn:hover{
-            background:#193190;
-            border-color:#193190;
-        }
-        .user-register-btn:active{
-            background:#142973;
-            border-color:#142973;
-            transform:scale(0.99);
-            box-shadow:inset 0 2px 6px rgba(0,0,0,.18);
+            box-shadow:0 0 0 3px rgba(30,55,153,0.15);
         }
 
-        .helper{
-            margin-top:12px;
-            color:var(--muted);
-            font-size:14px;
-        }
-
-        .alert-custom{
-            border-radius:10px;
-            padding:12px 14px;
-        }
-
-        /* Footer bar like screenshot bottom strip */
-        .footerbar{
+        .user-register-page .user-register-btn{
+            width:100%;
+            margin-top:10px;
+            padding:10px 14px;
             background:var(--primary);
-            height:60px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
+            color:#fff;
+            border:none;
+            border-radius:var(--radius-sm);
+            cursor:pointer;
+            transition:background-color 0.2s ease;
+        }
+        .user-register-page .user-register-btn:hover{
+            background:var(--primary-dark);
+        }
+
+        .user-register-page .helper{
+            font-size:13px;
+            color:var(--muted);
+            margin:6px 0;
+        }
+
+        .user-register-page .alert-custom{
+            border-radius:var(--radius-sm);
+            padding:10px 12px;
+            margin-bottom:10px;
+            font-size:13px;
+            border:1px solid #ffd0d0;
+            background:#ffe5e5;
+            color:#c0392b;
+        }
+
+        .user-register-page .footerbar{
+            margin-top:30px;
+            padding:15px 0;
+            text-align:center;
+            background:linear-gradient(135deg, #1e3799, #273c75);
             color:#fff;
             font-size:14px;
-            font-weight:500;
-            letter-spacing:.2px;
-            flex:0 0 auto;
         }
     </style>
 </head>
 <body>
+    <div class="user-register-page">
 
     <!-- Top Nav (adjust links to your actual pages if needed) -->
     <div class="topbar">
@@ -310,5 +321,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     <div class="footerbar">&copy; 2025 JobHub - Simple Job Portal</div>
 
+    </div>
 </body>
 </html>
