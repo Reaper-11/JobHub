@@ -144,6 +144,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             color:#111827;
             margin-top:12px;
         }
+        .required-star{
+            color:#ff3b3b;
+            margin-left:4px;
+        }
 
         /* IMPORTANT FIX: force ALL inputs full width */
         .form-control, .form-select{
@@ -167,6 +171,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         .btn-primary:hover{
             background:#193190;
             border-color:#193190;
+        }
+        .user-register-btn{
+            transition:background-color .25s ease, transform .25s ease, box-shadow .25s ease;
+            cursor:pointer;
+        }
+        .user-register-btn:hover{
+            background:#193190;
+            border-color:#193190;
+        }
+        .user-register-btn:active{
+            background:#142973;
+            border-color:#142973;
+            transform:scale(0.99);
+            box-shadow:inset 0 2px 6px rgba(0,0,0,.18);
         }
 
         .helper{
@@ -221,45 +239,66 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <div class="form-card">
             <form method="POST">
                 <div class="mb-2">
-                    <label class="form-label">Full Name</label>
-                    <input class="form-control" type="text" name="name" placeholder="Enter your name" required
+                    <label class="form-label">Full Name<span class="required-star">*</span></label>
+                    <input class="form-control" type="text" name="name" placeholder="e.g. Ram Khadka" required
                            value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
                 </div>
 
                 <div class="mb-2">
-                    <label class="form-label">Email</label>
-                    <input class="form-control" type="email" name="email" placeholder="Enter email" required
+                    <label class="form-label">Email<span class="required-star">*</span></label>
+                    <input class="form-control" type="email" name="email" placeholder="e.g. ramesh@gmail.com" required
                            value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                 </div>
 
                 <div class="mb-2">
                     <label class="form-label">Phone</label>
-                    <input class="form-control" type="text" name="phone" placeholder="Enter phone (optional)"
+                    <input class="form-control" type="tel" name="phone" placeholder="98XXXXXXXX"
                            value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
                 </div>
 
                 <div class="mb-2">
-                    <label class="form-label">Password</label>
-                    <input class="form-control" type="password" name="password" placeholder="Create password" required>
+                    <label class="form-label">Location</label>
+                    <input class="form-control" type="text" name="location" id="location" placeholder="Kathmandu, Nepal" autocomplete="address-level2">
+                </div>
+
+                <div class="mb-2">
+                    <label class="form-label">Password<span class="required-star">*</span></label>
+                    <input class="form-control" type="password" name="password" placeholder="Remember your password" required minlength="8">
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label">Job Preference</label>
-                    <select name="preferred_category" class="form-select" required>
-                        <option value="">Prefer Job Category</option>
-                        <?php
-                            $selected = $_POST['preferred_category'] ?? "";
-                            foreach ($jobCategories as $cat):
-                        ?>
-                            <option value="<?php echo htmlspecialchars($cat); ?>"
-                                <?php echo ($selected === $cat) ? "selected" : ""; ?>>
-                                <?php echo htmlspecialchars($cat); ?>
-                            </option>
-                        <?php endforeach; ?>
+                    <label class="form-label">Prefer Job Category</label>
+                    <select name="job_category" id="job_category" class="form-select">
+                        <option value="">Select a job category</option>
+                        <option value="Administration / Management">Administration / Management</option>
+                        <option value="Public Relations / Advertising">Public Relations / Advertising</option>
+                        <option value="Agriculture & Livestock">Agriculture & Livestock</option>
+                        <option value="Engineering / Architecture">Engineering / Architecture</option>
+                        <option value="Automotive / Automobiles">Automotive / Automobiles</option>
+                        <option value="Communications / Broadcasting">Communications / Broadcasting</option>
+                        <option value="Computer / Technology Management">Computer / Technology Management</option>
+                        <option value="Computer / Consulting">Computer / Consulting</option>
+                        <option value="Computer / System Programming">Computer / System Programming</option>
+                        <option value="Construction Services">Construction Services</option>
+                        <option value="Contractors">Contractors</option>
+                        <option value="Education">Education</option>
+                        <option value="Electronics / Electrical">Electronics / Electrical</option>
+                        <option value="Entertainment">Entertainment</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Finance / Accounting">Finance / Accounting</option>
+                        <option value="Healthcare / Medical">Healthcare / Medical</option>
+                        <option value="Hospitality / Tourism">Hospitality / Tourism</option>
+                        <option value="Information Technology (IT)">Information Technology (IT)</option>
+                        <option value="Manufacturing">Manufacturing</option>
+                        <option value="Marketing / Sales">Marketing / Sales</option>
+                        <option value="Media / Journalism">Media / Journalism</option>
+                        <option value="Retail / Wholesale">Retail / Wholesale</option>
+                        <option value="Security Services">Security Services</option>
+                        <option value="Transportation / Logistics">Transportation / Logistics</option>
                     </select>
                 </div>
 
-                <button class="btn btn-primary w-100" type="submit">Create Account</button>
+                <button class="btn btn-primary w-100 user-register-btn" type="submit">Create Account</button>
 
                 <div class="helper">
                     Already have an account? <a href="login.php">Login</a>
@@ -273,4 +312,3 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 </body>
 </html>
-
