@@ -30,7 +30,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 require 'header.php';
 ?>
-<div class="login-wrapper">
+<style>
+    .login-wrapper .required-star {
+        color: #ff3b3b;
+        margin-left: 4px;
+    }
+
+    .user-login-page .btn.btn-primary {
+        transition: background-color 0.25s ease, opacity 0.25s ease, filter 0.25s ease;
+    }
+
+    .user-login-page .btn.btn-primary:hover:not(:disabled) {
+        filter: brightness(0.92);
+    }
+
+    .user-login-page .btn.btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+        filter: none;
+    }
+</style>
+<div class="login-wrapper user-login-page">
     <div class="login-card">
         <div class="login-card__header">
             <h2>Login to your account</h2>
@@ -39,24 +61,63 @@ require 'header.php';
             <div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div>
         <?php endif; ?>
         <form method="post" class="login-form">
-            <label>Email</label>
+            <label>Email<span class="required-star">*</span></label>
             <div class="input-icon">
                 <span class="icon">&#128100;</span>
-                <input type="email" name="email" placeholder="Email" required>
+                <input type="email" name="email" placeholder="e.g. ramesh@gmail.com" required autocomplete="email">
             </div>
 
-            <label>Password</label>
+            <label>Password<span class="required-star">*</span></label>
             <div class="input-icon">
                 <span class="icon">&#128274;</span>
-                <input type="password" name="password" placeholder="Password" required>
+                <input type="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required autocomplete="current-password">
             </div>
 
             <button type="submit" class="btn btn-primary btn-full">Sign in &#10132;</button>
         </form>
         <div class="login-card__footer">
             <a href="#" class="link">Forgot password?</a>
-            <a href="register-choice.php" class="link">Don't have an account? Sign up</a>
+            <a href="register-choice.php" class="link">Don’t have an account? Create one</a>
         </div>
     </div>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var page = document.querySelector('.user-login-page');
+        if (!page) return;
+
+        var form = page.querySelector('.login-form');
+        var email = form ? form.querySelector('input[name="email"]') : null;
+        var password = form ? form.querySelector('input[name="password"]') : null;
+        var submitBtn = form ? form.querySelector('button[type="submit"]') : null;
+
+        if (!form || !email || !password || !submitBtn) return;
+
+        function updateButtonState() {
+            var ready = email.value.trim() !== "" && password.value.trim() !== "";
+            submitBtn.disabled = !ready || submitBtn.dataset.loading === "true";
+        }
+
+        email.focus();
+
+        email.addEventListener('input', updateButtonState);
+        password.addEventListener('input', updateButtonState);
+
+        form.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT') {
+                e.preventDefault();
+                form.requestSubmit();
+            }
+        });
+
+        form.addEventListener('submit', function () {
+            submitBtn.dataset.loading = "true";
+            submitBtn.textContent = "Signing in...";
+            submitBtn.disabled = true;
+        });
+
+        updateButtonState();
+        setTimeout(updateButtonState, 0);
+    });
+</script>
 <?php require 'footer.php'; ?>
