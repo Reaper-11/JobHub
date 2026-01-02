@@ -31,9 +31,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require 'header.php';
 ?>
 <style>
-    .login-wrapper .required-star {
+    .user-login-page {
+        margin-bottom: 20px;
+    }
+
+    .user-login-page .login-card {
+        width: 100%;
+        max-width: 600px;
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+        border: 1px solid #e6e6e6;
+        margin: 0 auto 20px;
+    }
+
+    .user-login-page .required-star {
         color: #ff3b3b;
         margin-left: 4px;
+    }
+
+    .user-login-page .login-form label {
+        display: block;
+        margin: 6px 0 4px;
+        font-weight: 700;
+        color: #374151;
+    }
+
+    .user-login-page .input-group {
+        position: relative;
+        margin: 6px 0 12px;
+    }
+
+    .user-login-page .input-group .input-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #777;
+        font-size: 14px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .user-login-page .input-group input {
+        width: 100%;
+        padding-left: 34px;
+        padding-right: 12px;
     }
 
     .user-login-page .btn.btn-primary {
@@ -51,6 +97,10 @@ require 'header.php';
         transform: none;
         filter: none;
     }
+
+    .user-login-page .login-card__footer {
+        margin-top: 16px;
+    }
 </style>
 <div class="login-wrapper user-login-page">
     <div class="login-card">
@@ -62,14 +112,14 @@ require 'header.php';
         <?php endif; ?>
         <form method="post" class="login-form">
             <label>Email<span class="required-star">*</span></label>
-            <div class="input-icon">
-                <span class="icon">&#128100;</span>
+            <div class="input-group">
+                <span class="input-icon" aria-hidden="true">&#128100;</span>
                 <input type="email" name="email" placeholder="e.g. ramesh@gmail.com" required autocomplete="email">
             </div>
 
             <label>Password<span class="required-star">*</span></label>
-            <div class="input-icon">
-                <span class="icon">&#128274;</span>
+            <div class="input-group">
+                <span class="input-icon" aria-hidden="true">&#128274;</span>
                 <input type="password" name="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" required autocomplete="current-password">
             </div>
 
@@ -77,7 +127,7 @@ require 'header.php';
         </form>
         <div class="login-card__footer">
             <a href="#" class="link">Forgot password?</a>
-            <a href="register-choice.php" class="link">Don’t have an account? Create one</a>
+            <a href="register-choice.php" class="link">Don't have an account? Create one</a>
         </div>
     </div>
 </div>
@@ -90,7 +140,6 @@ require 'header.php';
         var email = form ? form.querySelector('input[name="email"]') : null;
         var password = form ? form.querySelector('input[name="password"]') : null;
         var submitBtn = form ? form.querySelector('button[type="submit"]') : null;
-
         if (!form || !email || !password || !submitBtn) return;
 
         function updateButtonState() {
