@@ -5,6 +5,11 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
+$statusFilter = strtolower(trim($_GET['status'] ?? 'pending'));
+if (!in_array($statusFilter, ['pending', 'approved', 'rejected', 'all'], true)) {
+    $statusFilter = 'pending';
+}
+
 $msg = "";
 $msgType = "alert-success";
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['company_id'], $_POST['action'])) {
@@ -47,7 +52,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['company_id'], $_POST[
     }
 }
 
-$companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
+$companiesSql = "SELECT * FROM companies";
+if ($statusFilter !== 'all') {
+    $statusMap = [
+        'pending' => 0,
+        'approved' => 1,
+        'rejected' => -1
+    ];
+    $statusValue = $statusMap[$statusFilter] ?? 0;
+    $companiesSql .= " WHERE is_approved = " . (int) $statusValue;
+}
+$companiesSql .= " ORDER BY created_at DESC";
+$companies = $conn->query($companiesSql);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -55,6 +71,29 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
     <meta charset="UTF-8">
     <title>Manage Companies - JobHub</title>
     <link rel="stylesheet" href="../style.css">
+    <style>
+        .status-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 12px 0 18px;
+        }
+        .status-tab {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid #dfe3eb;
+            background: #f7f8fb;
+            color: #2c2f36;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .status-tab.active {
+            background: #e0e7f1;
+            border-color: #c7d2e3;
+        }
+    </style>
 </head>
 <body>
 <main class="container">
@@ -62,6 +101,13 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
     <p><a href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
 
     <?php if ($msg): ?><div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
+
+    <div class="status-tabs">
+        <a class="status-tab <?php echo $statusFilter === 'pending' ? 'active' : ''; ?>" href="admin-companies.php?status=pending">Pending</a>
+        <a class="status-tab <?php echo $statusFilter === 'approved' ? 'active' : ''; ?>" href="admin-companies.php?status=approved">Approved</a>
+        <a class="status-tab <?php echo $statusFilter === 'rejected' ? 'active' : ''; ?>" href="admin-companies.php?status=rejected">Rejected</a>
+        <a class="status-tab <?php echo $statusFilter === 'all' ? 'active' : ''; ?>" href="admin-companies.php?status=all">All</a>
+    </div>
 
     <table>
         <tr>
@@ -105,22 +151,11 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
                             <input type="hidden" name="action" value="unapprove">
                             <button type="submit" class="btn btn-small btn-secondary">Set Pending</button>
                         </form>
-                        <form method="post" class="inline-form">
-                            <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
-                            <input type="hidden" name="action" value="reject">
-                            <input type="text" name="reason" placeholder="Reason for rejection/delete" required>
-                            <button type="submit" class="btn btn-small btn-danger">Reject</button>
-                        </form>
                     <?php elseif ($statusValue === -1): ?>
                         <form method="post" class="inline-form">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="approve">
                             <button type="submit" class="btn btn-small">Approve</button>
-                        </form>
-                        <form method="post" class="inline-form">
-                            <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
-                            <input type="hidden" name="action" value="unapprove">
-                            <button type="submit" class="btn btn-small btn-secondary">Set Pending</button>
                         </form>
                     <?php else: ?>
                         <form method="post" class="inline-form">
@@ -128,20 +163,59 @@ $companies = $conn->query("SELECT * FROM companies ORDER BY created_at DESC");
                             <input type="hidden" name="action" value="approve">
                             <button type="submit" class="btn btn-small">Approve</button>
                         </form>
-                        <form method="post" class="inline-form">
+                        <form method="post" class="inline-form reject-form">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="reject">
-                            <input type="text" name="reason" placeholder="Reason for rejection/delete" required>
+                            <input type="text" name="reason" class="reason-input" style="display:none;">
                             <button type="submit" class="btn btn-small btn-danger">Reject</button>
                         </form>
                     <?php endif; ?>
-                    <a class="btn btn-danger btn-small"
-                       href="admin-delete.php?table=companies&id=<?php echo $c['id']; ?>&return=admin-companies.php"
-                       onclick="return confirm('Delete this company?')">Delete</a>
+                    <form method="get" action="admin-delete.php" class="inline-form delete-form">
+                        <input type="hidden" name="table" value="companies">
+                        <input type="hidden" name="id" value="<?php echo $c['id']; ?>">
+                        <input type="hidden" name="return" value="admin-companies.php">
+                        <input type="text" name="reason" class="reason-input" style="display:none;">
+                        <button type="submit" class="btn btn-danger btn-small">Delete</button>
+                    </form>
                 </td>
             </tr>
         <?php endwhile; ?>
     </table>
 </main>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.querySelectorAll('.reject-form').forEach(function (form) {
+            var input = form.querySelector('.reason-input');
+            form.addEventListener('submit', function (e) {
+                if (!input) return;
+                if (input.style.display === 'none') {
+                    e.preventDefault();
+                    input.style.display = 'inline-block';
+                    input.placeholder = 'Rejection reason (required)';
+                    input.required = true;
+                    input.focus();
+                }
+            });
+        });
+
+        document.querySelectorAll('.delete-form').forEach(function (form) {
+            var input = form.querySelector('.reason-input');
+            form.addEventListener('submit', function (e) {
+                if (!input) return;
+                if (input.style.display === 'none') {
+                    e.preventDefault();
+                    input.style.display = 'inline-block';
+                    input.placeholder = 'Delete reason (optional)';
+                    input.required = false;
+                    input.focus();
+                    return;
+                }
+                if (!confirm('Delete this company?')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    });
+</script>
 </body>
 </html>
