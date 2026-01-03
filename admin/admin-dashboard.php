@@ -8,6 +8,9 @@ $jobsCount = $conn->query("SELECT COUNT(*) c FROM jobs")->fetch_assoc()['c'];
 $usersCount = $conn->query("SELECT COUNT(*) c FROM users")->fetch_assoc()['c'];
 $appCount  = $conn->query("SELECT COUNT(*) c FROM applications")->fetch_assoc()['c'];
 $companyCount = $conn->query("SELECT COUNT(*) c FROM companies")->fetch_assoc()['c'];
+$pendingCompanies = $conn->query("SELECT COUNT(*) c FROM companies WHERE is_approved = 0")->fetch_assoc()['c'];
+$approvedCompanies = $conn->query("SELECT COUNT(*) c FROM companies WHERE is_approved = 1")->fetch_assoc()['c'];
+$rejectedCompanies = $conn->query("SELECT COUNT(*) c FROM companies WHERE is_approved = -1")->fetch_assoc()['c'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -15,6 +18,68 @@ $companyCount = $conn->query("SELECT COUNT(*) c FROM companies")->fetch_assoc()[
     <meta charset="UTF-8">
     <title>Admin Dashboard - JobHub</title>
     <link rel="stylesheet" href="../style.css">
+    <style>
+        .quick-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+            margin-top: 12px;
+        }
+        .quick-action-card {
+            display: block;
+            padding: 18px;
+            border-radius: 12px;
+            border: 1px solid #e2e6ef;
+            background: #fff;
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
+            color: inherit;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+        .quick-action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+            background-color: #f7f9fc;
+        }
+        .quick-action-title {
+            margin: 0 0 6px;
+            font-weight: 700;
+        }
+        .quick-action-text {
+            margin: 0;
+            color: #5a6575;
+            font-size: 0.92rem;
+        }
+        .approval-list {
+            list-style: none;
+            padding: 0;
+            margin: 12px 0 16px;
+        }
+        .approval-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #edf0f5;
+        }
+        .approval-item:last-child {
+            border-bottom: none;
+        }
+        .approval-value {
+            font-weight: 700;
+            color: #2d5d8a;
+        }
+        @media (max-width: 980px) {
+            .quick-actions-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (max-width: 640px) {
+            .quick-actions-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 <main class="container">
@@ -32,15 +97,45 @@ $companyCount = $conn->query("SELECT COUNT(*) c FROM companies")->fetch_assoc()[
     </div>
 
     <div class="card">
-        <h3>Admin Menu</h3>
-        <ul class="admin-menu">
-            <li><a href="admin-jobs.php">Job Details</a></li>
-            <li><a href="admin-users.php">Manage Users</a></li>
-            <li><a href="admin-companies.php">Manage Companies</a></li>
-            <li><a href="admin-applications.php">View Applications</a></li>
+        <h3>Company Approval</h3>
+        <ul class="approval-list">
+            <li class="approval-item">
+                <span>Pending Companies</span>
+                <span class="approval-value"><?php echo $pendingCompanies; ?></span>
+            </li>
+            <li class="approval-item">
+                <span>Approved Companies</span>
+                <span class="approval-value"><?php echo $approvedCompanies; ?></span>
+            </li>
+            <li class="approval-item">
+                <span>Rejected Companies</span>
+                <span class="approval-value"><?php echo $rejectedCompanies; ?></span>
+            </li>
         </ul>
+        <a class="btn btn-secondary btn-small" href="admin-companies.php">Review Pending Companies</a>
+    </div>
+
+    <div class="card">
+        <h3>Quick Actions</h3>
+        <div class="quick-actions-grid">
+            <a class="quick-action-card" href="admin-jobs.php">
+                <h4 class="quick-action-title">Manage Jobs</h4>
+                <p class="quick-action-text">Review, edit, and moderate job postings.</p>
+            </a>
+            <a class="quick-action-card" href="admin-users.php">
+                <h4 class="quick-action-title">Manage Users</h4>
+                <p class="quick-action-text">Handle user accounts and access.</p>
+            </a>
+            <a class="quick-action-card" href="admin-companies.php">
+                <h4 class="quick-action-title">Manage Companies</h4>
+                <p class="quick-action-text">Oversee company profiles and listings.</p>
+            </a>
+            <a class="quick-action-card" href="admin-applications.php">
+                <h4 class="quick-action-title">View Applications</h4>
+                <p class="quick-action-text">Track and review recent applications.</p>
+            </a>
+        </div>
     </div>
 </main>
 </body>
 </html>
-
