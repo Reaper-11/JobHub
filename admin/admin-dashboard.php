@@ -119,20 +119,20 @@ $rejectedCompanies = $conn->query("SELECT COUNT(*) c FROM companies WHERE is_app
         <h3>Quick Actions</h3>
         <div class="quick-actions-grid">
             <a class="quick-action-card" href="admin-jobs.php">
-                <h4 class="quick-action-title">Manage Jobs</h4>
-                <p class="quick-action-text">Review, edit, and moderate job postings.</p>
-            </a>
-            <a class="quick-action-card" href="admin-users.php">
-                <h4 class="quick-action-title">Manage Users</h4>
-                <p class="quick-action-text">Handle user accounts and access.</p>
+                <h4 class="quick-action-title">View Jobs</h4>
+                <p class="quick-action-text">View all job listings posted by approved companies.</p>
             </a>
             <a class="quick-action-card" href="admin-companies.php">
                 <h4 class="quick-action-title">Manage Companies</h4>
-                <p class="quick-action-text">Oversee company profiles and listings.</p>
+                <p class="quick-action-text">Approve or reject company accounts.</p>
+            </a>
+            <a class="quick-action-card" href="admin-users.php">
+                <h4 class="quick-action-title">View Users</h4>
+                <p class="quick-action-text">View registered users and basic details.</p>
             </a>
             <a class="quick-action-card" href="admin-applications.php">
                 <h4 class="quick-action-title">View Applications</h4>
-                <p class="quick-action-text">Track and review recent applications.</p>
+                <p class="quick-action-text">View job applications submitted by users.</p>
             </a>
         </div>
     </div>
