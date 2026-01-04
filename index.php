@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require 'db.php';
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
 $category = isset($_GET['category']) ? trim($_GET['category']) : '';
@@ -11,6 +11,10 @@ $jobSearchOptions = [
     "Education",
     "Healthcare",
     "Engineering",
+    "Kathmandu",
+    "Lalitpur",
+    "Bhaktapur",
+    "Pokhara",
 ];
 $showJobSearch = true;
 if ($category !== '' && !in_array($category, $jobSearchOptions, true)) {
@@ -43,6 +47,13 @@ $latestJobs = $jobs;
 <form method="get" class="form-card">
     <label>Search jobs (title, company, location)</label>
     <input type="text" name="q" value="<?php echo htmlspecialchars($keyword); ?>">
+    <select name="location" id="location">
+        <option value="" disabled selected>Select Location</option>
+        <option value="Kathmandu">Kathmandu</option>
+        <option value="Lalitpur">Lalitpur</option>
+        <option value="Bhaktapur">Bhaktapur</option>
+        <option value="Pokhara">Pokhara</option>
+    </select>
     <button type="submit">Search</button>
 </form>
 
@@ -92,3 +103,5 @@ $latestJobs = $jobs;
     <p>No jobs available yet.</p>
 <?php endif; ?>
 <?php require 'footer.php'; ?>
+
+
