@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require '../db.php';
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
@@ -195,7 +195,7 @@ require '../header.php';
 </div>
 
 <div class="form-card account-card">
-    <h2>🏢 Profile</h2>
+    <h2>Profile</h2>
     <?php if ($profileMsg): ?>
         <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
     <?php endif; ?>
@@ -218,7 +218,7 @@ require '../header.php';
 </div>
 
 <div class="form-card account-card">
-    <h2>🔒 Change Password</h2>
+    <h2>Change Password</h2>
     <?php if ($passMsg): ?>
         <div class="alert <?php echo $passType; ?>"><?php echo htmlspecialchars($passMsg); ?></div>
     <?php endif; ?>
@@ -238,7 +238,7 @@ require '../header.php';
 </div>
 
 <div class="form-card account-card delete-card">
-    <h2>⚠ Delete Account</h2>
+    <h2>Delete Account</h2>
     <?php if ($deleteMsg): ?>
         <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
     <?php endif; ?>
@@ -250,3 +250,4 @@ require '../header.php';
     </form>
 </div>
 <?php require '../footer.php'; ?>
+
