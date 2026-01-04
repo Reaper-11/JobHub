@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require '../db.php';
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
@@ -24,15 +24,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $location = trim($_POST['location']);
     $type     = trim($_POST['type']);
     $category = trim($_POST['category'] ?? '');
-    $salary   = trim($_POST['salary']);
+    $salaryValue = trim($_POST['salary'] ?? '');
     $duration = trim($_POST['application_duration']);
     $desc     = trim($_POST['description']);
 
-    if ($title=="" || $location=="" || $type=="" || $category=="" || $desc=="") {
+    $salary = '';
+    if ($salaryValue !== '') {
+        if (!is_numeric($salaryValue)) {
+            $msg = "Salary must be numeric.";
+        } else {
+            $salary = 'NPR ' . $salaryValue . ' / Monthly';
+        }
+    }
+
+    if ($msg === "" && ($title=="" || $location=="" || $type=="" || $category=="" || $desc=="")) {
         $msg = "All required fields must be filled.";
-    } elseif (!in_array($category, $jobCategories, true)) {
+    } elseif ($msg === "" && !in_array($category, $jobCategories, true)) {
         $msg = "Invalid job category selected.";
-    } else {
+    } elseif ($msg === "") {
         // company posts job immediately
         $stmt = $conn->prepare(
             "INSERT INTO jobs (company_id, title, company, location, type, category, salary, application_duration, description, is_approved)
@@ -51,6 +60,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $basePath = '../';
 require '../header.php';
 ?>
+<style>
+    .help-text {
+        font-size: 12px;
+        opacity: 0.8;
+        margin-top: 6px;
+        margin-bottom: 16px;
+    }
+    .salary-input::-webkit-outer-spin-button,
+    .salary-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    .salary-input {
+        -moz-appearance: textfield;
+    }    
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 18px;
+        flex-wrap: wrap;
+    }
+    .form-actions .btn-secondary {
+        background: #f2f4f8;
+        color: #1e2a3a;
+        border: 1px solid #cfd6e0;
+    }
+    .form-actions button {
+        flex: 1 1 180px;
+    }
+</style>
 <h1>Post New Job</h1>
 <div class="form-card">
     <?php if ($msg): ?>
@@ -87,17 +127,20 @@ require '../header.php';
         </select>
 
         <label>Salary (optional)</label>
-        <input type="text" name="salary">
+        <input type="number" name="salary" id="salary" class="salary-input" placeholder="e.g. 20000">
+        <div class="help-text">Enter expected monthly salary (NPR)</div>
 
-        <label>Application Duration (optional)</label>
-        <input type="text" name="application_duration">
+        <label>Application Deadline (optional)</label>
+        <input type="date" name="application_duration">
 
         <label>Description *</label>
         <textarea name="description" rows="4"></textarea>
 
-        <button type="submit">Submit Job</button>
+        <div class="form-actions">
+            <button type="submit">Publish Job</button>
+            <button type="button" class="btn-secondary" onclick="window.location.href='company-dashboard.php'">Back to Dashboard</button>
+        </div>
     </form>
 </div>
 <?php require '../footer.php'; ?>
-
 
