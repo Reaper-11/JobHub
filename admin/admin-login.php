@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require '../db.php';
 $msg = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -116,7 +116,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="admin-login-block">
         <div class="admin-login-header">
             <h1>Admin Login</h1>
-            <p class="admin-login-subtitle">🔒 Restricted Access – Admin Only</p>
+            <p class="admin-login-subtitle">Restricted Access - Admin Only</p>
         </div>
         <div class="form-card">
             <?php if ($msg): ?><div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </main>
-<div class="admin-login-page-footer">© 2026 JobHub Admin Panel – Authorized Access Only</div>
+<div class="admin-login-page-footer">Â© 2026 JobHub Admin Panel â€“ Authorized Access Only</div>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var form = document.querySelector('form');
@@ -161,3 +161,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </script>
 </body>
 </html>
+
