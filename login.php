@@ -111,7 +111,6 @@ require 'header.php';
             <button type="submit" class="btn btn-primary btn-full">Sign in &#10132;</button>
         </form>
         <div class="login-card__footer">
-            <a href="#" class="link">Forgot password?</a>
             <a href="register-choice.php" class="link">Don't have an account? Create one</a>
         </div>
     </div>
