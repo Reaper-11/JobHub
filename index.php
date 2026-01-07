@@ -168,18 +168,26 @@ if ($hasApplications) {
     $popularJobs = array_slice($jobs, 0, 3);
 }
 ?>
+<style>
+.job-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.job-description a {
+    color: #1a73e8;
+    font-size: 0.9em;
+    text-decoration: none;
+    margin-left: 6px;
+}
+</style>
 <h1>Let's find you a job.</h1>
 
 <form method="get" class="form-card">
     <label>Search jobs (title, company, location)</label>
     <input type="text" name="q" value="<?php echo htmlspecialchars($keyword); ?>">
-    <select name="location" id="location">
-        <option value="" disabled selected>Select Location</option>
-        <option value="Kathmandu">Kathmandu</option>
-        <option value="Lalitpur">Lalitpur</option>
-        <option value="Bhaktapur">Bhaktapur</option>
-        <option value="Pokhara">Pokhara</option>
-    </select>
     <button type="submit">Search</button>
 </form>
 
@@ -210,8 +218,14 @@ if ($hasApplications) {
                 <?php if (array_key_exists('salary', $row)): ?>
                     <p class="meta" style="color: #777; font-size: 0.9em; margin: 6px 0 0;"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
                 <?php endif; ?>
-                <p><?php echo nl2br(htmlspecialchars(substr($row['description'], 0, 120))); ?>...</p>
-                <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>">View & Apply</a>
+                <p class="job-description">
+                    <?php echo nl2br(htmlspecialchars($row['description'])); ?>
+                    <a href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>" style="background: transparent; color: #1a73e8; border: 1px solid #1a73e8;">View Details</a>
+                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                </div>
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
@@ -241,8 +255,14 @@ if ($hasApplications) {
                 <?php if (array_key_exists('salary', $row)): ?>
                     <p class="meta" style="color: #777; font-size: 0.9em; margin: 6px 0 0;"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
                 <?php endif; ?>
-                <p><?php echo nl2br(htmlspecialchars(substr($row['description'], 0, 120))); ?>...</p>
-                <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>">View & Apply</a>
+                <p class="job-description">
+                    <?php echo nl2br(htmlspecialchars($row['description'])); ?>
+                    <a href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>" style="background: transparent; color: #1a73e8; border: 1px solid #1a73e8;">View Details</a>
+                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                </div>
             </div>
         <?php endforeach; ?>
     </div>
