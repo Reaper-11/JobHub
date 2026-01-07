@@ -22,16 +22,18 @@ if ($category !== '' && !in_array($category, $jobSearchOptions, true)) {
 }
 require 'header.php';
 
+$keywordLike = '';
+$categoryValue = '';
 $sql = "SELECT j.* FROM jobs j
         LEFT JOIN companies c ON c.id = j.company_id
         WHERE (j.company_id IS NULL OR c.is_approved = 1)";
 if ($keyword !== '') {
-    $k = "%" . $conn->real_escape_string($keyword) . "%";
-    $sql .= " AND (j.title LIKE '$k' OR j.company LIKE '$k' OR j.location LIKE '$k')";
+    $keywordLike = "%" . $conn->real_escape_string($keyword) . "%";
+    $sql .= " AND (j.title LIKE '$keywordLike' OR j.company LIKE '$keywordLike' OR j.location LIKE '$keywordLike')";
 }
 if ($category !== '') {
-    $cat = $conn->real_escape_string($category);
-    $sql .= " AND j.category = '$cat'";
+    $categoryValue = $conn->real_escape_string($category);
+    $sql .= " AND j.category = '$categoryValue'";
 }
 $sql .= " ORDER BY created_at DESC";
 $result = $conn->query($sql);
@@ -39,8 +41,87 @@ $jobs = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
 $jobs = array_values(array_filter($jobs, function ($job) {
     return !is_job_expired($job) && !is_job_closed($job);
 }));
-$popularJobs = array_slice($jobs, 0, 3);
 $latestJobs = $jobs;
+
+$popularSubtitle = 'Most applied jobs this week';
+$popularJobs = [];
+$hasApplications = db_query_value("SHOW TABLES LIKE 'applications'", '', [], '') !== '';
+$viewsColumn = '';
+$featuredColumn = '';
+
+if (!$hasApplications) {
+    foreach (['view_count', 'views', 'visits'] as $column) {
+        if (db_query_value("SHOW COLUMNS FROM jobs LIKE '$column'", '', [], '') !== '') {
+            $viewsColumn = $column;
+            break;
+        }
+    }
+}
+
+if (!$hasApplications && $viewsColumn === '') {
+    foreach (['is_featured', 'featured'] as $column) {
+        if (db_query_value("SHOW COLUMNS FROM jobs LIKE '$column'", '', [], '') !== '') {
+            $featuredColumn = $column;
+            break;
+        }
+    }
+}
+
+if ($hasApplications) {
+    $popularSql = "SELECT j.*, COUNT(a.id) AS application_count
+                   FROM jobs j
+                   LEFT JOIN companies c ON c.id = j.company_id
+                   LEFT JOIN applications a ON a.job_id = j.id
+                   WHERE (j.company_id IS NULL OR c.is_approved = 1)";
+    if ($keywordLike !== '') {
+        $popularSql .= " AND (j.title LIKE '$keywordLike' OR j.company LIKE '$keywordLike' OR j.location LIKE '$keywordLike')";
+    }
+    if ($categoryValue !== '') {
+        $popularSql .= " AND j.category = '$categoryValue'";
+    }
+    $popularSql .= " GROUP BY j.id ORDER BY application_count DESC, j.created_at DESC LIMIT 10";
+    $popularRows = db_query_all($popularSql);
+    $popularJobs = array_values(array_filter($popularRows, function ($job) {
+        return !is_job_expired($job) && !is_job_closed($job);
+    }));
+    $popularJobs = array_slice($popularJobs, 0, 3);
+} elseif ($viewsColumn !== '') {
+    $popularSql = "SELECT j.* FROM jobs j
+                   LEFT JOIN companies c ON c.id = j.company_id
+                   WHERE (j.company_id IS NULL OR c.is_approved = 1)";
+    if ($keywordLike !== '') {
+        $popularSql .= " AND (j.title LIKE '$keywordLike' OR j.company LIKE '$keywordLike' OR j.location LIKE '$keywordLike')";
+    }
+    if ($categoryValue !== '') {
+        $popularSql .= " AND j.category = '$categoryValue'";
+    }
+    $popularSql .= " ORDER BY j.$viewsColumn DESC, j.created_at DESC LIMIT 10";
+    $popularRows = db_query_all($popularSql);
+    $popularJobs = array_values(array_filter($popularRows, function ($job) {
+        return !is_job_expired($job) && !is_job_closed($job);
+    }));
+    $popularJobs = array_slice($popularJobs, 0, 3);
+} elseif ($featuredColumn !== '') {
+    $popularSql = "SELECT j.* FROM jobs j
+                   LEFT JOIN companies c ON c.id = j.company_id
+                   WHERE (j.company_id IS NULL OR c.is_approved = 1)
+                   AND j.$featuredColumn = 1";
+    if ($keywordLike !== '') {
+        $popularSql .= " AND (j.title LIKE '$keywordLike' OR j.company LIKE '$keywordLike' OR j.location LIKE '$keywordLike')";
+    }
+    if ($categoryValue !== '') {
+        $popularSql .= " AND j.category = '$categoryValue'";
+    }
+    $popularSql .= " ORDER BY j.created_at DESC LIMIT 10";
+    $popularRows = db_query_all($popularSql);
+    $popularJobs = array_values(array_filter($popularRows, function ($job) {
+        return !is_job_expired($job) && !is_job_closed($job);
+    }));
+    $popularJobs = array_slice($popularJobs, 0, 3);
+} else {
+    $popularSubtitle = 'Featured picks';
+    $popularJobs = array_slice($jobs, 0, 3);
+}
 ?>
 <h1>Let's find you a job.</h1>
 
@@ -58,9 +139,10 @@ $latestJobs = $jobs;
 </form>
 
 <h2>Popular Jobs</h2>
+<p style="color: #999; font-size: 0.9em; margin: 0 0 10px;"><?php echo htmlspecialchars($popularSubtitle); ?></p>
 <div class="jobs-grid">
     <?php if (count($popularJobs) === 0): ?>
-        <p>No jobs available yet.</p>
+        <p>No popular jobs available right now.</p>
     <?php else: ?>
         <?php foreach ($popularJobs as $row): ?>
             <div class="card">
