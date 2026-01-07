@@ -195,7 +195,7 @@ if ($hasApplications) {
 <p style="color: #999; font-size: 0.9em; margin: 0 0 10px;"><?php echo htmlspecialchars($popularSubtitle); ?></p>
 <div class="jobs-grid">
     <?php if (count($popularJobs) === 0): ?>
-        <p>No popular jobs available right now.</p>
+        <p style="text-align: center; color: #999; margin: 12px 0;">No jobs found. Try changing filters.</p>
     <?php else: ?>
         <?php foreach ($popularJobs as $row): ?>
             <div class="card">
@@ -231,9 +231,11 @@ if ($hasApplications) {
     <?php endif; ?>
 </div>
 
-<?php if (count($latestJobs) > 0): ?>
-    <h2>All Latest Jobs</h2>
-    <div class="jobs-grid">
+<h2>All Latest Jobs</h2>
+<div class="jobs-grid">
+    <?php if (count($latestJobs) === 0): ?>
+        <p style="text-align: center; color: #999; margin: 12px 0;">No jobs found. Try changing filters.</p>
+    <?php else: ?>
         <?php foreach ($latestJobs as $row): ?>
             <div class="card">
                 <h3><?php echo htmlspecialchars($row['title']); ?></h3>
@@ -265,10 +267,8 @@ if ($hasApplications) {
                 </div>
             </div>
         <?php endforeach; ?>
-    </div>
-<?php else: ?>
-    <p>No jobs available yet.</p>
-<?php endif; ?>
+    <?php endif; ?>
+</div>
 <?php require 'footer.php'; ?>
 
 
