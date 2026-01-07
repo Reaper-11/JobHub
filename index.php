@@ -48,6 +48,51 @@ $popularJobs = [];
 $hasApplications = db_query_value("SHOW TABLES LIKE 'applications'", '', [], '') !== '';
 $viewsColumn = '';
 $featuredColumn = '';
+$postedColumn = db_query_value("SHOW COLUMNS FROM jobs LIKE 'posted_date'", '', [], '') !== '' ? 'posted_date' : 'created_at';
+$deadlineColumn = '';
+
+foreach (['application_deadline', 'deadline'] as $column) {
+    if (db_query_value("SHOW COLUMNS FROM jobs LIKE '$column'", '', [], '') !== '') {
+        $deadlineColumn = $column;
+        break;
+    }
+}
+
+if (!function_exists('format_posted_time')) {
+    function format_posted_time($dateValue)
+    {
+        $timestamp = strtotime((string) $dateValue);
+        if ($timestamp === false) {
+            return '';
+        }
+        $days = (int) floor((time() - $timestamp) / 86400);
+        if ($days <= 0) {
+            return 'Posted today';
+        }
+        if ($days === 1) {
+            return 'Posted 1 day ago';
+        }
+        return "Posted {$days} days ago";
+    }
+}
+
+if (!function_exists('format_salary_display')) {
+    function format_salary_display($salary)
+    {
+        $salary = trim((string) $salary);
+        if ($salary === '' || stripos($salary, 'negotiable') !== false) {
+            return 'Salary: Negotiable';
+        }
+        $label = $salary;
+        if (stripos($label, 'npr') === false) {
+            $label = 'NPR ' . $label;
+        }
+        if (stripos($label, 'month') === false && stripos($label, 'per') === false && strpos($label, '/') === false) {
+            $label .= ' / month';
+        }
+        return 'Salary: ' . $label;
+    }
+}
 
 if (!$hasApplications) {
     foreach (['view_count', 'views', 'visits'] as $column) {
@@ -152,8 +197,18 @@ if ($hasApplications) {
                     <?php echo htmlspecialchars($row['location']); ?>
                     <span class="badge"><?php echo htmlspecialchars($row['type']); ?></span>
                 </p>
-                <?php if (!empty($row['salary'])): ?>
-                    <p class="meta"><strong>Salary:</strong> <?php echo htmlspecialchars($row['salary']); ?></p>
+                <?php $postedText = format_posted_time($row[$postedColumn] ?? ''); ?>
+                <?php if ($postedText !== ''): ?>
+                    <p class="meta" style="color: #999; font-size: 0.85em; margin: 4px 0 0;"><?php echo htmlspecialchars($postedText); ?></p>
+                <?php endif; ?>
+                <?php if ($deadlineColumn !== '' && !empty($row[$deadlineColumn])): ?>
+                    <?php $deadlineTs = strtotime($row[$deadlineColumn]); ?>
+                    <?php if ($deadlineTs !== false): ?>
+                        <p class="meta" style="color: #999; font-size: 0.85em; margin: 2px 0 0;">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
+                    <?php endif; ?>
+                <?php endif; ?>
+                <?php if (array_key_exists('salary', $row)): ?>
+                    <p class="meta" style="color: #777; font-size: 0.9em; margin: 6px 0 0;"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
                 <?php endif; ?>
                 <p><?php echo nl2br(htmlspecialchars(substr($row['description'], 0, 120))); ?>...</p>
                 <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>">View & Apply</a>
@@ -173,8 +228,18 @@ if ($hasApplications) {
                     <?php echo htmlspecialchars($row['location']); ?>
                     <span class="badge"><?php echo htmlspecialchars($row['type']); ?></span>
                 </p>
-                <?php if (!empty($row['salary'])): ?>
-                    <p class="meta"><strong>Salary:</strong> <?php echo htmlspecialchars($row['salary']); ?></p>
+                <?php $postedText = format_posted_time($row[$postedColumn] ?? ''); ?>
+                <?php if ($postedText !== ''): ?>
+                    <p class="meta" style="color: #999; font-size: 0.85em; margin: 4px 0 0;"><?php echo htmlspecialchars($postedText); ?></p>
+                <?php endif; ?>
+                <?php if ($deadlineColumn !== '' && !empty($row[$deadlineColumn])): ?>
+                    <?php $deadlineTs = strtotime($row[$deadlineColumn]); ?>
+                    <?php if ($deadlineTs !== false): ?>
+                        <p class="meta" style="color: #999; font-size: 0.85em; margin: 2px 0 0;">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
+                    <?php endif; ?>
+                <?php endif; ?>
+                <?php if (array_key_exists('salary', $row)): ?>
+                    <p class="meta" style="color: #777; font-size: 0.9em; margin: 6px 0 0;"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
                 <?php endif; ?>
                 <p><?php echo nl2br(htmlspecialchars(substr($row['description'], 0, 120))); ?>...</p>
                 <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>">View & Apply</a>
