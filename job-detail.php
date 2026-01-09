@@ -65,6 +65,35 @@ if (!function_exists('format_posted_time')) {
     }
 }
 
+if (!function_exists('user_has_applied_job')) {
+    function user_has_applied_job($conn, $userId, $jobId)
+    {
+        if ($userId === null || $jobId === null) {
+            return false;
+        }
+        $stmt = $conn->prepare("SELECT 1 FROM applications WHERE user_id = ? AND job_id = ? LIMIT 1");
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param("ii", $userId, $jobId);
+        $stmt->execute();
+        $stmt->store_result();
+        $hasApplied = $stmt->num_rows > 0;
+        $stmt->close();
+        return $hasApplied;
+    }
+}
+
+$currentUserId = isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+$alreadyApplied = false;
+$formAlert = '';
+$formAlertType = '';
+if ($currentUserId !== null && user_has_applied_job($conn, $currentUserId, $job_id)) {
+    $alreadyApplied = true;
+    $formAlert = "You have already applied to this job";
+    $formAlertType = 'error';
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
     if ($isExpired || $isClosed) {
         $msg = $isClosed
@@ -75,16 +104,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
         $uid = (int) $_SESSION['user_id'];
 
         if (isset($_POST['apply'])) {
-            $cover = trim($_POST['cover_letter']);
-            $companyId = isset($job['company_id']) ? (int) $job['company_id'] : null;
-            $stmt = $conn->prepare(
-                "INSERT INTO applications (user_id, job_id, company_id, cover_letter) VALUES (?, ?, ?, ?)"
-            );
-            $stmt->bind_param("iiis", $uid, $job_id, $companyId, $cover);
-            if ($stmt->execute()) {
-                $msg = "Application submitted successfully.";
+            if (user_has_applied_job($conn, $uid, $job_id)) {
+                $alreadyApplied = true;
+                $formAlert = "You have already applied to this job";
+                $formAlertType = 'error';
             } else {
-                $msg = "You may have already applied or error occurred.";
+                $cover = trim($_POST['cover_letter']);
+                $companyId = isset($job['company_id']) ? (int) $job['company_id'] : null;
+                $stmt = $conn->prepare(
+                    "INSERT INTO applications (user_id, job_id, company_id, cover_letter) VALUES (?, ?, ?, ?)"
+                );
+                $stmt->bind_param("iiis", $uid, $job_id, $companyId, $cover);
+                if ($stmt->execute()) {
+                    $formAlert = "Application submitted successfully";
+                    $formAlertType = 'success';
+                    $alreadyApplied = true;
+                } else {
+                    $formAlert = "Unable to submit your application. Please try again.";
+                    $formAlertType = 'error';
+                }
             }
         }
 
@@ -199,11 +237,21 @@ foreach ($deadlineColumns as $column) {
 <?php elseif (isset($_SESSION['user_id'])): ?>
 <div class="form-card">
     <h3>Apply for this job</h3>
+    <?php if ($formAlert !== ''): ?>
+        <?php $alertStyle = $formAlertType === 'success'
+            ? 'background:#e6f4ea;color:#1b6630;border:1px solid #9cd5a9;font-size:0.9em;padding:10px;border-radius:6px;margin-bottom:12px;'
+            : 'background:#ffecec;color:#a30000;border:1px solid #f5c6c6;font-size:0.9em;padding:10px;border-radius:6px;margin-bottom:12px;'; ?>
+        <div style="<?php echo $alertStyle; ?>"><?php echo htmlspecialchars($formAlert); ?></div>
+    <?php endif; ?>
     <form method="post">
         <label>Cover Letter (optional)</label>
-        <textarea name="cover_letter" rows="4"></textarea>
+        <textarea name="cover_letter" rows="4"<?php echo $alreadyApplied ? ' disabled' : ''; ?>></textarea>
         <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;">
-            <button type="submit" name="apply" class="btn btn-primary">Apply Now</button>
+            <?php if ($alreadyApplied): ?>
+                <button type="button" class="btn btn-primary" disabled>Already Applied</button>
+            <?php else: ?>
+                <button type="submit" name="apply" class="btn btn-primary">Apply Now</button>
+            <?php endif; ?>
             <button type="submit" name="bookmark" class="btn btn-secondary">Bookmark</button>
         </div>
     </form>
