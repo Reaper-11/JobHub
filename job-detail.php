@@ -25,6 +25,28 @@ if ($viewStmt = $conn->prepare("UPDATE jobs SET views = views + 1 WHERE id = ?")
 
 $msg = "";
 $msgType = "alert-success";
+if (isset($_GET['msg'])) {
+    if ($_GET['msg'] === 'already_bookmarked') {
+        $msg = "Already bookmarked";
+        $msgType = "alert-error";
+    } elseif ($_GET['msg'] === 'bookmarked') {
+        $msg = "Job bookmarked successfully";
+        $msgType = "alert-success";
+    }
+}
+
+function add_msg_to_url($url, $msg)
+{
+    $fragment = '';
+    $hashPos = strpos($url, '#');
+    if ($hashPos !== false) {
+        $fragment = substr($url, $hashPos);
+        $url = substr($url, 0, $hashPos);
+    }
+    $separator = (strpos($url, '?') === false) ? '?' : '&';
+    return $url . $separator . 'msg=' . rawurlencode($msg) . $fragment;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
     if ($isExpired || $isClosed) {
         $msg = $isClosed
@@ -49,13 +71,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
         }
 
         if (isset($_POST['bookmark'])) {
-            $stmt = $conn->prepare("INSERT IGNORE INTO bookmarks (user_id, job_id) VALUES (?, ?)");
+            $returnUrl = $_SERVER['HTTP_REFERER'] ?? 'index.php';
+            $checkStmt = $conn->prepare("SELECT 1 FROM bookmarks WHERE user_id = ? AND job_id = ? LIMIT 1");
+            $checkStmt->bind_param("ii", $uid, $job_id);
+            $checkStmt->execute();
+            $checkStmt->store_result();
+            if ($checkStmt->num_rows > 0) {
+                $checkStmt->close();
+                header("Location: " . add_msg_to_url($returnUrl, "already_bookmarked"));
+                exit;
+            }
+            $checkStmt->close();
+
+            $stmt = $conn->prepare("INSERT INTO bookmarks (user_id, job_id, created_at) VALUES (?, ?, NOW())");
             $stmt->bind_param("ii", $uid, $job_id);
             if ($stmt->execute()) {
-                $msg = "Job bookmarked.";
-            } else {
-                $msg = "Error bookmarking job.";
+                header("Location: " . add_msg_to_url($returnUrl, "bookmarked"));
+                exit;
             }
+            $msg = "Error bookmarking job.";
+            $msgType = "alert-error";
         }
     }
 }
