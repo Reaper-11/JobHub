@@ -47,6 +47,24 @@ function add_msg_to_url($url, $msg)
     return $url . $separator . 'msg=' . rawurlencode($msg) . $fragment;
 }
 
+if (!function_exists('format_posted_time')) {
+    function format_posted_time($dateValue)
+    {
+        $timestamp = strtotime((string) $dateValue);
+        if ($timestamp === false) {
+            return '';
+        }
+        $days = (int) floor((time() - $timestamp) / 86400);
+        if ($days <= 0) {
+            return 'Posted today';
+        }
+        if ($days === 1) {
+            return 'Posted 1 day ago';
+        }
+        return "Posted {$days} days ago";
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
     if ($isExpired || $isClosed) {
         $msg = $isClosed
@@ -96,9 +114,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
 }
 
 require 'header.php';
+
+$postedText = '';
+$postedColumns = ['created_at', 'posted_at', 'posted_date'];
+foreach ($postedColumns as $column) {
+    if (!empty(trim((string) ($job[$column] ?? '')))) {
+        $postedText = format_posted_time($job[$column]);
+        if ($postedText !== '') {
+            break;
+        }
+    }
+}
+$deadlineFormatted = '';
+$deadlineColumns = ['application_deadline', 'deadline', 'apply_before'];
+foreach ($deadlineColumns as $column) {
+    if (!empty(trim((string) ($job[$column] ?? '')))) {
+        $deadlineTs = strtotime($job[$column]);
+        if ($deadlineTs !== false) {
+            $deadlineFormatted = date('M d', $deadlineTs);
+            break;
+        }
+    }
+}
 ?>
 <h1><?php echo htmlspecialchars($job['title']); ?></h1>
-<div class="card">
+<?php if ($postedText !== ''): ?>
+    <p style="color: #6b7280; font-size: 0.9em; margin: 6px 0 0;"><?php echo htmlspecialchars($postedText); ?></p>
+<?php endif; ?>
+<?php if ($deadlineFormatted !== ''): ?>
+    <p style="color: #6b7280; font-size: 0.9em; margin: 2px 0 10px;">Apply before: <?php echo htmlspecialchars($deadlineFormatted); ?></p>
+<?php endif; ?>
+<div class="card" style="margin-bottom: 30px;">
     <div class="job-meta">
         <?php if (!empty($job['location'])): ?>
             <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
@@ -156,8 +202,10 @@ require 'header.php';
     <form method="post">
         <label>Cover Letter (optional)</label>
         <textarea name="cover_letter" rows="4"></textarea>
-        <button type="submit" name="apply">Apply Now</button>
-        <button type="submit" name="bookmark" class="btn-secondary">Bookmark</button>
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;">
+            <button type="submit" name="apply" class="btn btn-primary">Apply Now</button>
+            <button type="submit" name="bookmark" class="btn btn-secondary">Bookmark</button>
+        </div>
     </form>
 </div>
 <?php else: ?>
