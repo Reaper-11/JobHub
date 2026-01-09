@@ -245,7 +245,8 @@ foreach ($deadlineColumns as $column) {
     <?php endif; ?>
     <form method="post">
         <label>Cover Letter (optional)</label>
-        <textarea name="cover_letter" rows="4"<?php echo $alreadyApplied ? ' disabled' : ''; ?>></textarea>
+        <textarea name="cover_letter" rows="4" maxlength="500" placeholder="Briefly explain why you are a good fit for this job&hellip;" <?php echo $alreadyApplied ? 'disabled' : ''; ?>></textarea>
+        <p style="font-size:0.85em; color:#6b7280; margin-top:5px;">Max 500 characters</p>
         <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;">
             <?php if ($alreadyApplied): ?>
                 <button type="button" class="btn btn-primary" disabled>Already Applied</button>
