@@ -99,20 +99,44 @@ require 'header.php';
 ?>
 <h1><?php echo htmlspecialchars($job['title']); ?></h1>
 <div class="card">
-    <p class="meta">
-        <?php echo htmlspecialchars($job['company']); ?> |
-        <?php echo htmlspecialchars($job['location']); ?>
-        <span class="badge"><?php echo htmlspecialchars($job['type']); ?></span>
-    </p>
-    <?php if (!empty($job['salary'])): ?>
-        <p class="meta"><strong>Salary:</strong> <?php echo htmlspecialchars($job['salary']); ?></p>
-    <?php endif; ?>
-    <?php if (!empty($job['category'])): ?>
-        <p class="meta"><strong>Category:</strong> <?php echo htmlspecialchars($job['category']); ?></p>
-    <?php endif; ?>
-    <?php if (!empty($job['application_duration'])): ?>
-        <p class="meta"><strong>Application Duration:</strong> <?php echo htmlspecialchars($job['application_duration']); ?></p>
-    <?php endif; ?>
+    <div class="job-meta">
+        <?php if (!empty($job['location'])): ?>
+            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Location</span>
+                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['location']); ?></span>
+            </div>
+        <?php endif; ?>
+        <?php if (!empty($job['company'])): ?>
+            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Company</span>
+                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['company']); ?></span>
+            </div>
+        <?php endif; ?>
+        <?php if (!empty($job['type'])): ?>
+            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Job Type</span>
+                <span class="meta-value"><span class="badge"><?php echo htmlspecialchars($job['type']); ?></span></span>
+            </div>
+        <?php endif; ?>
+        <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Salary</span>
+            <span class="meta-value" style="font-weight:400; color:#424242;">
+                <?php echo !empty(trim($job['salary'] ?? '')) ? htmlspecialchars($job['salary']) : 'Negotiable'; ?>
+            </span>
+        </div>
+        <?php if (!empty($job['category'])): ?>
+            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Category</span>
+                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['category']); ?></span>
+            </div>
+        <?php endif; ?>
+        <?php if (!empty($job['application_duration'])): ?>
+            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Application Duration</span>
+                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['application_duration']); ?></span>
+            </div>
+        <?php endif; ?>
+    </div>
     <p><?php echo nl2br(htmlspecialchars($job['description'])); ?></p>
 </div>
 
