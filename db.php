@@ -110,4 +110,64 @@ if (!function_exists('db_query_value')) {
     }
 }
 
+if (!function_exists('getRecommendedJobs')) {
+    function getRecommendedJobs($conn, $userId)
+    {
+        $preferredCategory = '';
+        $stmt = $conn->prepare("SELECT preferred_category FROM users WHERE id = ? LIMIT 1");
+        if ($stmt) {
+            $stmt->bind_param("i", $userId);
+            if ($stmt->execute()) {
+                $result = $stmt->get_result();
+                $row = $result ? $result->fetch_assoc() : null;
+                $preferredCategory = isset($row['preferred_category']) ? trim((string) $row['preferred_category']) : '';
+            }
+            $stmt->close();
+        }
+
+        $baseSql = "SELECT j.* FROM jobs j
+                    LEFT JOIN companies c ON c.id = j.company_id
+                    WHERE (j.company_id IS NULL OR c.is_approved = 1)";
+        $matching = [];
+        $remaining = [];
+
+        if ($preferredCategory !== '') {
+            $sql = $baseSql . " AND j.category = ? ORDER BY j.created_at DESC";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("s", $preferredCategory);
+                if ($stmt->execute()) {
+                    $result = $stmt->get_result();
+                    $matching = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+                }
+                $stmt->close();
+            }
+
+            $sql = $baseSql . " AND j.category <> ? ORDER BY j.created_at DESC";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param("s", $preferredCategory);
+                if ($stmt->execute()) {
+                    $result = $stmt->get_result();
+                    $remaining = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+                }
+                $stmt->close();
+            }
+        } else {
+            $sql = $baseSql . " ORDER BY j.created_at DESC";
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                if ($stmt->execute()) {
+                    $result = $stmt->get_result();
+                    $matching = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+                }
+                $stmt->close();
+            }
+        }
+
+        $recommended = array_merge($matching, $remaining);
+        return array_slice($recommended, 0, 10);
+    }
+}
+
 ?>

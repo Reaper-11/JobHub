@@ -36,6 +36,33 @@ $user = $userRes ? $userRes->fetch_assoc() : [
     'profile_image' => ''
 ];
 
+$recommendedJobs = getRecommendedJobs($conn, $uid);
+$deadlineColumn = '';
+foreach (['application_deadline', 'apply_before', 'deadline'] as $column) {
+    if (db_query_value("SHOW COLUMNS FROM jobs LIKE '$column'", '', [], '') !== '') {
+        $deadlineColumn = $column;
+        break;
+    }
+}
+$hasStatusColumn = db_query_value("SHOW COLUMNS FROM jobs LIKE 'status'", '', [], '') !== '';
+$today = date('Y-m-d');
+$recommendedJobs = array_values(array_filter($recommendedJobs, function ($job) use ($deadlineColumn, $hasStatusColumn, $today) {
+    if (is_job_expired($job) || is_job_closed($job)) {
+        return false;
+    }
+    if ($hasStatusColumn && isset($job['status']) && strtolower((string) $job['status']) !== 'active') {
+        return false;
+    }
+    if ($deadlineColumn !== '' && !empty($job[$deadlineColumn])) {
+        $deadlineTs = strtotime($job[$deadlineColumn]);
+        if ($deadlineTs !== false && date('Y-m-d', $deadlineTs) < $today) {
+            return false;
+        }
+    }
+    return true;
+}));
+$recommendedJobs = array_slice($recommendedJobs, 0, 10);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -195,6 +222,26 @@ $bodyClass = 'account-page';
 require 'header.php';
 ?>
 <h1>Account</h1>
+
+<div class="card">
+    <h2>Recommended for You</h2>
+    <?php if (count($recommendedJobs) === 0): ?>
+        <p class="meta">No recommendations yet. Update your job preference to see more.</p>
+    <?php else: ?>
+        <div class="jobs-grid">
+            <?php foreach ($recommendedJobs as $job): ?>
+                <div class="card">
+                    <h3><?php echo htmlspecialchars($job['title'] ?? ''); ?></h3>
+                    <p class="meta">
+                        <?php echo htmlspecialchars($job['company'] ?? ''); ?> |
+                        <?php echo htmlspecialchars($job['location'] ?? ''); ?>
+                    </p>
+                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $job['id']; ?>">View Details</a>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</div>
 
 <div class="form-card">
     <h2>Profile</h2>
