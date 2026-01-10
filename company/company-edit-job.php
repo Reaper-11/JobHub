@@ -9,16 +9,31 @@ $jobId = (int) ($_GET['id'] ?? 0);
 $msg = '';
 $msgType = 'alert-success';
 $jobCategories = [
-    "IT & Software",
-    "Marketing",
-    "Sales",
-    "Finance",
-    "Design",
+    "Administration / Management",
+    "Public Relations / Advertising",
+    "Agriculture & Livestock",
+    "Engineering / Architecture",
+    "Automotive / Automobiles",
+    "Communications / Broadcasting",
+    "Computer / Technology Management",
+    "Computer / Consulting",
+    "Computer / System Programming",
+    "Construction Services",
+    "Contractors",
     "Education",
-    "Healthcare",
+    "Electronics / Electrical",
+    "Entertainment",
     "Engineering",
-    "Part-Time",
-    "Internship",
+    "Finance / Accounting",
+    "Healthcare / Medical",
+    "Hospitality / Tourism",
+    "Information Technology (IT)",
+    "Manufacturing",
+    "Marketing / Sales",
+    "Media / Journalism",
+    "Retail / Wholesale",
+    "Security Services",
+    "Transportation / Logistics",
 ];
 
 $stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND company_id = ? LIMIT 1");
@@ -103,12 +118,31 @@ require '../header.php';
         <label>Job Category *</label>
         <select name="category" required>
             <option value="">Select category</option>
-            <?php foreach ($jobCategories as $cat): ?>
-                <option value="<?php echo htmlspecialchars($cat); ?>"
-                    <?php echo ($job['category'] ?? '') === $cat ? 'selected' : ''; ?>>
-                    <?php echo htmlspecialchars($cat); ?>
-                </option>
-            <?php endforeach; ?>
+            <option value="Administration / Management" <?php echo ($job['category'] ?? '') === 'Administration / Management' ? 'selected' : ''; ?>>Administration / Management</option>
+            <option value="Public Relations / Advertising" <?php echo ($job['category'] ?? '') === 'Public Relations / Advertising' ? 'selected' : ''; ?>>Public Relations / Advertising</option>
+            <option value="Agriculture & Livestock" <?php echo ($job['category'] ?? '') === 'Agriculture & Livestock' ? 'selected' : ''; ?>>Agriculture & Livestock</option>
+            <option value="Engineering / Architecture" <?php echo ($job['category'] ?? '') === 'Engineering / Architecture' ? 'selected' : ''; ?>>Engineering / Architecture</option>
+            <option value="Automotive / Automobiles" <?php echo ($job['category'] ?? '') === 'Automotive / Automobiles' ? 'selected' : ''; ?>>Automotive / Automobiles</option>
+            <option value="Communications / Broadcasting" <?php echo ($job['category'] ?? '') === 'Communications / Broadcasting' ? 'selected' : ''; ?>>Communications / Broadcasting</option>
+            <option value="Computer / Technology Management" <?php echo ($job['category'] ?? '') === 'Computer / Technology Management' ? 'selected' : ''; ?>>Computer / Technology Management</option>
+            <option value="Computer / Consulting" <?php echo ($job['category'] ?? '') === 'Computer / Consulting' ? 'selected' : ''; ?>>Computer / Consulting</option>
+            <option value="Computer / System Programming" <?php echo ($job['category'] ?? '') === 'Computer / System Programming' ? 'selected' : ''; ?>>Computer / System Programming</option>
+            <option value="Construction Services" <?php echo ($job['category'] ?? '') === 'Construction Services' ? 'selected' : ''; ?>>Construction Services</option>
+            <option value="Contractors" <?php echo ($job['category'] ?? '') === 'Contractors' ? 'selected' : ''; ?>>Contractors</option>
+            <option value="Education" <?php echo ($job['category'] ?? '') === 'Education' ? 'selected' : ''; ?>>Education</option>
+            <option value="Electronics / Electrical" <?php echo ($job['category'] ?? '') === 'Electronics / Electrical' ? 'selected' : ''; ?>>Electronics / Electrical</option>
+            <option value="Entertainment" <?php echo ($job['category'] ?? '') === 'Entertainment' ? 'selected' : ''; ?>>Entertainment</option>
+            <option value="Engineering" <?php echo ($job['category'] ?? '') === 'Engineering' ? 'selected' : ''; ?>>Engineering</option>
+            <option value="Finance / Accounting" <?php echo ($job['category'] ?? '') === 'Finance / Accounting' ? 'selected' : ''; ?>>Finance / Accounting</option>
+            <option value="Healthcare / Medical" <?php echo ($job['category'] ?? '') === 'Healthcare / Medical' ? 'selected' : ''; ?>>Healthcare / Medical</option>
+            <option value="Hospitality / Tourism" <?php echo ($job['category'] ?? '') === 'Hospitality / Tourism' ? 'selected' : ''; ?>>Hospitality / Tourism</option>
+            <option value="Information Technology (IT)" <?php echo ($job['category'] ?? '') === 'Information Technology (IT)' ? 'selected' : ''; ?>>Information Technology (IT)</option>
+            <option value="Manufacturing" <?php echo ($job['category'] ?? '') === 'Manufacturing' ? 'selected' : ''; ?>>Manufacturing</option>
+            <option value="Marketing / Sales" <?php echo ($job['category'] ?? '') === 'Marketing / Sales' ? 'selected' : ''; ?>>Marketing / Sales</option>
+            <option value="Media / Journalism" <?php echo ($job['category'] ?? '') === 'Media / Journalism' ? 'selected' : ''; ?>>Media / Journalism</option>
+            <option value="Retail / Wholesale" <?php echo ($job['category'] ?? '') === 'Retail / Wholesale' ? 'selected' : ''; ?>>Retail / Wholesale</option>
+            <option value="Security Services" <?php echo ($job['category'] ?? '') === 'Security Services' ? 'selected' : ''; ?>>Security Services</option>
+            <option value="Transportation / Logistics" <?php echo ($job['category'] ?? '') === 'Transportation / Logistics' ? 'selected' : ''; ?>>Transportation / Logistics</option>
         </select>
 
         <label>Salary (optional)</label>
@@ -124,7 +158,5 @@ require '../header.php';
     </form>
 </div>
 <?php require '../footer.php'; ?>
-
-
 
 

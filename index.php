@@ -1,24 +1,42 @@
 ﻿<?php
 require 'db.php';
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
-$category = isset($_GET['category']) ? trim($_GET['category']) : '';
+$filter = isset($_GET['filter']) ? trim($_GET['filter']) : '';
 $jobSearchOptions = [
-    "IT & Software",
-    "Marketing",
-    "Sales",
-    "Finance",
-    "Design",
+    "Administration / Management",
+    "Public Relations / Advertising",
+    "Agriculture & Livestock",
+    "Engineering / Architecture",
+    "Automotive / Automobiles",
+    "Communications / Broadcasting",
+    "Computer / Technology Management",
+    "Computer / Consulting",
+    "Computer / System Programming",
+    "Construction Services",
+    "Contractors",
     "Education",
-    "Healthcare",
+    "Electronics / Electrical",
+    "Entertainment",
     "Engineering",
+    "Finance / Accounting",
+    "Healthcare / Medical",
+    "Hospitality / Tourism",
+    "Information Technology (IT)",
+    "Manufacturing",
+    "Marketing / Sales",
+    "Media / Journalism",
+    "Retail / Wholesale",
+    "Security Services",
+    "Transportation / Logistics",
     "Kathmandu",
     "Lalitpur",
     "Bhaktapur",
     "Pokhara",
 ];
+$locationOptions = ["Kathmandu", "Lalitpur", "Bhaktapur", "Pokhara"];
 $showJobSearch = true;
-if ($category !== '' && !in_array($category, $jobSearchOptions, true)) {
-    $category = '';
+if ($filter !== '' && !in_array($filter, $jobSearchOptions, true)) {
+    $filter = '';
 }
 require 'header.php';
 
@@ -63,10 +81,14 @@ if ($keyword !== '') {
     $params[] = $keywordLike;
     $params[] = $keywordLike;
 }
-if ($category !== '') {
-    $jobsSql .= " AND j.category = ?";
+if ($filter !== '') {
+    if (in_array($filter, $locationOptions, true)) {
+        $jobsSql .= " AND j.location = ?";
+    } else {
+        $jobsSql .= " AND j.category = ?";
+    }
     $types .= 's';
-    $params[] = $category;
+    $params[] = $filter;
 }
 $jobsSql .= " ORDER BY popularity_score DESC, j.created_at DESC";
 $jobs = db_query_all($jobsSql, $types, $params);

@@ -18,13 +18,38 @@ $basePath = isset($basePath) ? $basePath : '';
             <?php if (!isset($_SESSION['company_id'])): ?>
                 <?php if (!empty($showJobSearch) && !empty($jobSearchOptions)): ?>
                     <form method="get" action="<?php echo htmlspecialchars($basePath); ?>index.php" class="nav-form">
-                        <select name="category" class="nav-select" onchange="if (this.value) { this.form.submit(); }">
+                        <select name="filter" class="nav-select" onchange="this.form.submit()">
                             <option value="">Search Job</option>
-                            <?php foreach ($jobSearchOptions as $option): ?>
-                                <option value="<?php echo htmlspecialchars($option); ?>" <?php echo ($category ?? '') === $option ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($option); ?>
-                                </option>
-                            <?php endforeach; ?>
+                            <option value="Administration / Management" <?php echo ($filter ?? '') === 'Administration / Management' ? 'selected' : ''; ?>>Administration / Management</option>
+                            <option value="Public Relations / Advertising" <?php echo ($filter ?? '') === 'Public Relations / Advertising' ? 'selected' : ''; ?>>Public Relations / Advertising</option>
+                            <option value="Agriculture &amp; Livestock" <?php echo ($filter ?? '') === 'Agriculture & Livestock' ? 'selected' : ''; ?>>Agriculture &amp; Livestock</option>
+                            <option value="Engineering / Architecture" <?php echo ($filter ?? '') === 'Engineering / Architecture' ? 'selected' : ''; ?>>Engineering / Architecture</option>
+                            <option value="Automotive / Automobiles" <?php echo ($filter ?? '') === 'Automotive / Automobiles' ? 'selected' : ''; ?>>Automotive / Automobiles</option>
+                            <option value="Communications / Broadcasting" <?php echo ($filter ?? '') === 'Communications / Broadcasting' ? 'selected' : ''; ?>>Communications / Broadcasting</option>
+                            <option value="Computer / Technology Management" <?php echo ($filter ?? '') === 'Computer / Technology Management' ? 'selected' : ''; ?>>Computer / Technology Management</option>
+                            <option value="Computer / Consulting" <?php echo ($filter ?? '') === 'Computer / Consulting' ? 'selected' : ''; ?>>Computer / Consulting</option>
+                            <option value="Computer / System Programming" <?php echo ($filter ?? '') === 'Computer / System Programming' ? 'selected' : ''; ?>>Computer / System Programming</option>
+                            <option value="Construction Services" <?php echo ($filter ?? '') === 'Construction Services' ? 'selected' : ''; ?>>Construction Services</option>
+                            <option value="Contractors" <?php echo ($filter ?? '') === 'Contractors' ? 'selected' : ''; ?>>Contractors</option>
+                            <option value="Education" <?php echo ($filter ?? '') === 'Education' ? 'selected' : ''; ?>>Education</option>
+                            <option value="Electronics / Electrical" <?php echo ($filter ?? '') === 'Electronics / Electrical' ? 'selected' : ''; ?>>Electronics / Electrical</option>
+                            <option value="Entertainment" <?php echo ($filter ?? '') === 'Entertainment' ? 'selected' : ''; ?>>Entertainment</option>
+                            <option value="Engineering" <?php echo ($filter ?? '') === 'Engineering' ? 'selected' : ''; ?>>Engineering</option>
+                            <option value="Finance / Accounting" <?php echo ($filter ?? '') === 'Finance / Accounting' ? 'selected' : ''; ?>>Finance / Accounting</option>
+                            <option value="Healthcare / Medical" <?php echo ($filter ?? '') === 'Healthcare / Medical' ? 'selected' : ''; ?>>Healthcare / Medical</option>
+                            <option value="Hospitality / Tourism" <?php echo ($filter ?? '') === 'Hospitality / Tourism' ? 'selected' : ''; ?>>Hospitality / Tourism</option>
+                            <option value="Information Technology (IT)" <?php echo ($filter ?? '') === 'Information Technology (IT)' ? 'selected' : ''; ?>>Information Technology (IT)</option>
+                            <option value="Manufacturing" <?php echo ($filter ?? '') === 'Manufacturing' ? 'selected' : ''; ?>>Manufacturing</option>
+                            <option value="Marketing / Sales" <?php echo ($filter ?? '') === 'Marketing / Sales' ? 'selected' : ''; ?>>Marketing / Sales</option>
+                            <option value="Media / Journalism" <?php echo ($filter ?? '') === 'Media / Journalism' ? 'selected' : ''; ?>>Media / Journalism</option>
+                            <option value="Retail / Wholesale" <?php echo ($filter ?? '') === 'Retail / Wholesale' ? 'selected' : ''; ?>>Retail / Wholesale</option>
+                            <option value="Security Services" <?php echo ($filter ?? '') === 'Security Services' ? 'selected' : ''; ?>>Security Services</option>
+                            <option value="Transportation / Logistics" <?php echo ($filter ?? '') === 'Transportation / Logistics' ? 'selected' : ''; ?>>Transportation / Logistics</option>
+                            <option value="" disabled>Locations</option>
+                            <option value="Kathmandu" <?php echo ($filter ?? '') === 'Kathmandu' ? 'selected' : ''; ?>>Kathmandu</option>
+                            <option value="Lalitpur" <?php echo ($filter ?? '') === 'Lalitpur' ? 'selected' : ''; ?>>Lalitpur</option>
+                            <option value="Bhaktapur" <?php echo ($filter ?? '') === 'Bhaktapur' ? 'selected' : ''; ?>>Bhaktapur</option>
+                            <option value="Pokhara" <?php echo ($filter ?? '') === 'Pokhara' ? 'selected' : ''; ?>>Pokhara</option>
                         </select>
                     </form>
                 <?php endif; ?>
