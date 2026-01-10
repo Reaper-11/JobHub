@@ -49,7 +49,7 @@ $jobsSql = "SELECT j.id,
             ORDER BY j.created_at DESC";
 $jobs = db_query_all($jobsSql, "i", [$cid]);
 foreach ($jobs as $row) {
-    $isClosed = is_job_closed($row) || is_job_expired($row);
+    $isClosed = is_job_closed($row);
     if ($isClosed) {
         $closedJobs++;
     } else {
@@ -137,7 +137,6 @@ require '../header.php';
     <?php foreach ($jobs as $j): ?>
         <?php
         $jobIsClosed = is_job_closed($j);
-        $jobIsExpired = is_job_expired($j);
         ?>
         <tr>
             <td><?php echo $j['id']; ?></td>
@@ -155,7 +154,7 @@ require '../header.php';
                         <input type="hidden" name="status" value="active">
                         <button class="btn btn-small btn-secondary" type="submit">Reopen</button>
                     </form>
-                <?php elseif (!$jobIsExpired): ?>
+                <?php else: ?>
                     <form class="inline-form" method="post" action="company-toggle-job.php" onsubmit="return confirm('Close this job? Applicants will no longer be able to apply.');">
                         <input type="hidden" name="id" value="<?php echo $j['id']; ?>">
                         <input type="hidden" name="status" value="closed">

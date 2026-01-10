@@ -15,13 +15,24 @@ if ($jobRes->num_rows == 0) {
     die("Job not found.");
 }
 $job = $jobRes->fetch_assoc();
-$isExpired = is_job_expired($job);
-$isClosed = is_job_closed($job);
-if ($viewStmt = $conn->prepare("UPDATE jobs SET views = views + 1 WHERE id = ?")) {
-    $viewStmt->bind_param("i", $job_id);
-    $viewStmt->execute();
-    $viewStmt->close();
+$jobStatus = strtolower((string) ($job['status'] ?? ''));
+$isClosed = $jobStatus === 'closed';
+$isInactive = $jobStatus !== '' && $jobStatus !== 'active';
+
+$deadlineValue = '';
+foreach (['application_deadline', 'deadline', 'apply_before'] as $column) {
+    if (!empty(trim((string) ($job[$column] ?? '')))) {
+        $deadlineValue = $job[$column];
+        break;
+    }
 }
+$deadlineTs = $deadlineValue !== '' ? strtotime($deadlineValue) : false;
+$deadlinePassed = $deadlineTs !== false && date('Y-m-d', $deadlineTs) < date('Y-m-d');
+if ($deadlinePassed) {
+    $isInactive = true;
+}
+
+incrementJobView($conn, $job_id);
 
 $msg = "";
 $msgType = "alert-success";
@@ -95,10 +106,10 @@ if ($currentUserId !== null && user_has_applied_job($conn, $currentUserId, $job_
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
-    if ($isExpired || $isClosed) {
+    if ($isInactive) {
         $msg = $isClosed
             ? "This job is closed and is no longer accepting applications."
-            : "This job has expired and is no longer accepting applications.";
+            : "This job is no longer accepting applications.";
         $msgType = "alert-error";
     } else {
         $uid = (int) $_SESSION['user_id'];
@@ -164,15 +175,8 @@ foreach ($postedColumns as $column) {
     }
 }
 $deadlineFormatted = '';
-$deadlineColumns = ['application_deadline', 'deadline', 'apply_before'];
-foreach ($deadlineColumns as $column) {
-    if (!empty(trim((string) ($job[$column] ?? '')))) {
-        $deadlineTs = strtotime($job[$column]);
-        if ($deadlineTs !== false) {
-            $deadlineFormatted = date('M d', $deadlineTs);
-            break;
-        }
-    }
+if ($deadlineTs !== false) {
+    $deadlineFormatted = date('M d', $deadlineTs);
 }
 ?>
 <h1><?php echo htmlspecialchars($job['title']); ?></h1>
@@ -228,11 +232,11 @@ foreach ($deadlineColumns as $column) {
     <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
 <?php endif; ?>
 
-<?php if ($isExpired || $isClosed): ?>
+<?php if ($isInactive): ?>
 <div class="alert alert-error">
     <?php echo $isClosed
         ? "This job is closed and is no longer accepting applications."
-        : "This job has expired and is no longer accepting applications."; ?>
+        : "This job is no longer accepting applications."; ?>
 </div>
 <?php elseif (isset($_SESSION['user_id'])): ?>
 <div class="form-card">

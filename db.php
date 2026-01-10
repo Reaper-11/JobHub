@@ -110,6 +110,111 @@ if (!function_exists('db_query_value')) {
     }
 }
 
+if (!function_exists('get_jobs_deadline_column')) {
+    function get_jobs_deadline_column()
+    {
+        foreach (['application_deadline', 'apply_before', 'deadline'] as $column) {
+            if (db_query_value("SHOW COLUMNS FROM jobs LIKE '$column'", '', [], '') !== '') {
+                return $column;
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('incrementJobView')) {
+    function incrementJobView($conn, $jobId)
+    {
+        $jobId = (int) $jobId;
+        if ($jobId <= 0) {
+            return false;
+        }
+        $sessionKey = 'viewed_job_' . $jobId;
+        if (isset($_SESSION[$sessionKey])) {
+            return false;
+        }
+        $stmt = $conn->prepare("UPDATE jobs SET views = views + 1 WHERE id = ?");
+        if (!$stmt) {
+            return false;
+        }
+        $stmt->bind_param("i", $jobId);
+        $ok = $stmt->execute();
+        $stmt->close();
+        if ($ok) {
+            $_SESSION[$sessionKey] = true;
+        }
+        return $ok;
+    }
+}
+
+if (!function_exists('getPopularJobs')) {
+    function getPopularJobs($conn, $limit = 20, $category = null)
+    {
+        $deadlineColumn = get_jobs_deadline_column();
+        $hasStatusColumn = db_query_value("SHOW COLUMNS FROM jobs LIKE 'status'", '', [], '') !== '';
+
+        $sql = "SELECT j.*,
+                       COALESCE(app.app_count, 0) AS applications_count,
+                       COALESCE(bm.bm_count, 0) AS bookmarks_count,
+                       COALESCE(j.views, 0) AS views_count,
+                       (COALESCE(app.app_count, 0) * 5
+                        + COALESCE(bm.bm_count, 0) * 3
+                        + COALESCE(j.views, 0) * 1) AS popularity_score
+                FROM jobs j
+                LEFT JOIN companies c ON c.id = j.company_id
+                LEFT JOIN (
+                    SELECT job_id, COUNT(*) AS app_count
+                    FROM applications
+                    GROUP BY job_id
+                ) app ON app.job_id = j.id
+                LEFT JOIN (
+                    SELECT job_id, COUNT(*) AS bm_count
+                    FROM bookmarks
+                    GROUP BY job_id
+                ) bm ON bm.job_id = j.id
+                WHERE (j.company_id IS NULL OR c.is_approved = 1)";
+
+        if ($hasStatusColumn) {
+            $sql .= " AND j.status = 'active'";
+        }
+        if ($deadlineColumn !== '') {
+            $sql .= " AND (j.$deadlineColumn IS NULL OR j.$deadlineColumn >= ?)";
+        }
+        if ($category !== null && $category !== '') {
+            $sql .= " AND j.category = ?";
+        }
+
+        $sql .= " ORDER BY popularity_score DESC, j.created_at DESC LIMIT ?";
+
+        $types = '';
+        $params = [];
+        if ($deadlineColumn !== '') {
+            $types .= 's';
+            $params[] = date('Y-m-d');
+        }
+        if ($category !== null && $category !== '') {
+            $types .= 's';
+            $params[] = $category;
+        }
+        $types .= 'i';
+        $params[] = (int) $limit;
+
+        $stmt = $conn->prepare($sql);
+        if (!$stmt) {
+            return [];
+        }
+        $stmt->bind_param($types, ...$params);
+        if (!$stmt->execute()) {
+            $stmt->close();
+            return [];
+        }
+        $result = $stmt->get_result();
+        $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
+        $stmt->close();
+        return $rows;
+    }
+}
+
 if (!function_exists('getRecommendedJobs')) {
     function getRecommendedJobs($conn, $userId)
     {
@@ -125,48 +230,10 @@ if (!function_exists('getRecommendedJobs')) {
             $stmt->close();
         }
 
-        $baseSql = "SELECT j.* FROM jobs j
-                    LEFT JOIN companies c ON c.id = j.company_id
-                    WHERE (j.company_id IS NULL OR c.is_approved = 1)";
-        $matching = [];
-        $remaining = [];
-
         if ($preferredCategory !== '') {
-            $sql = $baseSql . " AND j.category = ? ORDER BY j.created_at DESC";
-            $stmt = $conn->prepare($sql);
-            if ($stmt) {
-                $stmt->bind_param("s", $preferredCategory);
-                if ($stmt->execute()) {
-                    $result = $stmt->get_result();
-                    $matching = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
-                }
-                $stmt->close();
-            }
-
-            $sql = $baseSql . " AND j.category <> ? ORDER BY j.created_at DESC";
-            $stmt = $conn->prepare($sql);
-            if ($stmt) {
-                $stmt->bind_param("s", $preferredCategory);
-                if ($stmt->execute()) {
-                    $result = $stmt->get_result();
-                    $remaining = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
-                }
-                $stmt->close();
-            }
-        } else {
-            $sql = $baseSql . " ORDER BY j.created_at DESC";
-            $stmt = $conn->prepare($sql);
-            if ($stmt) {
-                if ($stmt->execute()) {
-                    $result = $stmt->get_result();
-                    $matching = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
-                }
-                $stmt->close();
-            }
+            return getPopularJobs($conn, 10, $preferredCategory);
         }
-
-        $recommended = array_merge($matching, $remaining);
-        return array_slice($recommended, 0, 10);
+        return getPopularJobs($conn, 10, null);
     }
 }
 
