@@ -235,5 +235,3 @@ if (!function_exists('format_salary_display')) {
     <?php endif; ?>
 </div>
 <?php require 'footer.php'; ?>
-
-
