@@ -3,16 +3,31 @@ require 'db.php';
 
 $msg = "";
 $jobCategories = [
-    "IT & Software",
-    "Marketing",
-    "Sales",
-    "Finance",
-    "Design",
+    "Administration / Management",
+    "Public Relations / Advertising",
+    "Agriculture & Livestock",
+    "Engineering / Architecture",
+    "Automotive / Automobiles",
+    "Communications / Broadcasting",
+    "Computer / Technology Management",
+    "Computer / Consulting",
+    "Computer / System Programming",
+    "Construction Services",
+    "Contractors",
     "Education",
-    "Healthcare",
+    "Electronics / Electrical",
+    "Entertainment",
     "Engineering",
-    "Part-Time",
-    "Internship",
+    "Finance / Accounting",
+    "Healthcare / Medical",
+    "Hospitality / Tourism",
+    "Information Technology (IT)",
+    "Manufacturing",
+    "Marketing / Sales",
+    "Media / Journalism",
+    "Retail / Wholesale",
+    "Security Services",
+    "Transportation / Logistics",
 ];
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -279,33 +294,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                 <div class="mb-3">
                     <label class="form-label">Prefer Job Category</label>
-                    <select name="job_category" id="job_category" class="form-select">
+                    <select name="preferred_category" id="preferred_category" class="form-select" required>
                         <option value="">Select a job category</option>
-                        <option value="Administration / Management">Administration / Management</option>
-                        <option value="Public Relations / Advertising">Public Relations / Advertising</option>
-                        <option value="Agriculture & Livestock">Agriculture & Livestock</option>
-                        <option value="Engineering / Architecture">Engineering / Architecture</option>
-                        <option value="Automotive / Automobiles">Automotive / Automobiles</option>
-                        <option value="Communications / Broadcasting">Communications / Broadcasting</option>
-                        <option value="Computer / Technology Management">Computer / Technology Management</option>
-                        <option value="Computer / Consulting">Computer / Consulting</option>
-                        <option value="Computer / System Programming">Computer / System Programming</option>
-                        <option value="Construction Services">Construction Services</option>
-                        <option value="Contractors">Contractors</option>
-                        <option value="Education">Education</option>
-                        <option value="Electronics / Electrical">Electronics / Electrical</option>
-                        <option value="Entertainment">Entertainment</option>
-                        <option value="Engineering">Engineering</option>
-                        <option value="Finance / Accounting">Finance / Accounting</option>
-                        <option value="Healthcare / Medical">Healthcare / Medical</option>
-                        <option value="Hospitality / Tourism">Hospitality / Tourism</option>
-                        <option value="Information Technology (IT)">Information Technology (IT)</option>
-                        <option value="Manufacturing">Manufacturing</option>
-                        <option value="Marketing / Sales">Marketing / Sales</option>
-                        <option value="Media / Journalism">Media / Journalism</option>
-                        <option value="Retail / Wholesale">Retail / Wholesale</option>
-                        <option value="Security Services">Security Services</option>
-                        <option value="Transportation / Logistics">Transportation / Logistics</option>
+                        <?php $selectedCategory = $_POST['preferred_category'] ?? ''; ?>
+                        <?php foreach ($jobCategories as $cat): ?>
+                            <option value="<?php echo htmlspecialchars($cat); ?>"
+                                <?php echo $selectedCategory === $cat ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($cat); ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
                 </div>
 

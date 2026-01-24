@@ -13,16 +13,31 @@ $passType = "";
 $deleteMsg = "";
 $deleteType = "";
 $jobCategories = [
-    "IT & Software",
-    "Marketing",
-    "Sales",
-    "Finance",
-    "Design",
+    "Administration / Management",
+    "Public Relations / Advertising",
+    "Agriculture & Livestock",
+    "Engineering / Architecture",
+    "Automotive / Automobiles",
+    "Communications / Broadcasting",
+    "Computer / Technology Management",
+    "Computer / Consulting",
+    "Computer / System Programming",
+    "Construction Services",
+    "Contractors",
     "Education",
-    "Healthcare",
+    "Electronics / Electrical",
+    "Entertainment",
     "Engineering",
-    "Part-Time",
-    "Internship",
+    "Finance / Accounting",
+    "Healthcare / Medical",
+    "Hospitality / Tourism",
+    "Information Technology (IT)",
+    "Manufacturing",
+    "Marketing / Sales",
+    "Media / Journalism",
+    "Retail / Wholesale",
+    "Security Services",
+    "Transportation / Logistics",
 ];
 
 // Fetch current user details
@@ -36,10 +51,13 @@ $user = $userRes ? $userRes->fetch_assoc() : [
     'profile_image' => ''
 ];
 
-$preferredCategory = trim((string) ($user['preferred_category'] ?? ''));
-$recommendedJobs = $preferredCategory !== ''
-    ? getPopularJobs($conn, 10, $preferredCategory)
-    : getPopularJobs($conn, 10, null);
+$preferenceProfile = function_exists('get_user_preferences') ? get_user_preferences($conn, $uid) : [];
+if (!empty($preferenceProfile['preferred_category'])) {
+    $user['preferred_category'] = $preferenceProfile['preferred_category'];
+}
+
+$recentKeyword = isset($_SESSION['last_search_keyword']) ? (string) $_SESSION['last_search_keyword'] : '';
+$recommendedJobs = getRecommendedJobs($conn, $uid, $recentKeyword);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -103,6 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
                 $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
                 if ($stmt->execute()) {
+                    if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
+                        $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
+                        if ($prefStmt) {
+                            $prefStmt->bind_param("is", $uid, $preferred_category);
+                            $prefStmt->execute();
+                            $prefStmt->close();
+                        }
+                    }
                     $profileMsg = "Profile updated successfully.";
                     $profileType = "alert-success";
                     $_SESSION['user_name'] = $name;
