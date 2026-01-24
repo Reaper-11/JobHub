@@ -11,6 +11,10 @@
   --card: #ffffff;
   --border: #e6e6e6;
 
+  --gray-100: #f3f4f6;
+  --gray-200: #eeeeee;
+  --gray-300: #d0d0d0;
+
   --shadow-sm: 0 0 5px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.10);
 
@@ -45,13 +49,13 @@ main {
 }
 
 .container {
-  width: 90%;
+  width: min(90%, 1100px);
   max-width: 1100px;
   margin: 0 auto;
 }
 
 .account-page {
-  background: #d0d0d0;
+  background: var(--gray-300);
 }
 
 /* ===== Topbar ===== */
@@ -286,21 +290,23 @@ button:active,
   padding: 3px 8px;
   font-size: 11px;
   border-radius: 999px;
-  background: #f7d794;
+  background: #f2c964;
+  color: #4b3b00;
   margin-left: 6px;
   font-weight: 700;
 }
 
 .meta {
   font-size: 13px;
-  color: #6b7280;
+  color: #4b5563;
   margin: 6px 0;
 }
 
 /* ===== Tables ===== */
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   margin-top: 10px;
   font-size: 14px;
   background: #fff;
@@ -311,13 +317,13 @@ table {
 
 th,
 td {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--gray-200);
   padding: 10px;
   text-align: left;
 }
 
 th {
-  background: #f3f4f6;
+  background: var(--gray-100);
   color: #374151;
 }
 
@@ -524,6 +530,14 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+/* ===== Focus Visible (Keyboard) ===== */
+a:focus-visible,
+button:focus-visible,
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ===== Responsive Touch ===== */
