@@ -166,7 +166,7 @@ $companies = $conn->query($companiesSql);
                         <form method="post" class="inline-form reject-form">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="reject">
-                            <input type="text" name="reason" class="reason-input" style="display:none;">
+                            <input type="text" name="reason" class="reason-input is-hidden">
                             <button type="submit" class="btn btn-small btn-danger">Reject</button>
                         </form>
                     <?php endif; ?>
@@ -174,7 +174,7 @@ $companies = $conn->query($companiesSql);
                         <input type="hidden" name="table" value="companies">
                         <input type="hidden" name="id" value="<?php echo $c['id']; ?>">
                         <input type="hidden" name="return" value="admin-companies.php">
-                        <input type="text" name="reason" class="reason-input" style="display:none;">
+                        <input type="text" name="reason" class="reason-input is-hidden">
                         <button type="submit" class="btn btn-danger btn-small">Delete</button>
                     </form>
                 </td>

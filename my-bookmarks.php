@@ -49,7 +49,7 @@ require 'header.php';
                 <span class="badge"><?php echo htmlspecialchars($row['type']); ?></span>
             </p>
             <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>">View Job</a>
-            <form method="post" style="display:inline;">
+            <form method="post" class="inline-form">
                 <input type="hidden" name="bookmark_id" value="<?php echo (int) $row['bookmark_id']; ?>">
                 <button type="submit" name="remove_bookmark" class="btn btn-danger btn-small"
                         onclick="return confirm('Remove this bookmark?');">Remove</button>

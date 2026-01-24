@@ -36,10 +36,10 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
                         <input type="hidden" name="table" value="users">
                         <input type="hidden" name="id" value="<?php echo $u['id']; ?>">
                         <input type="hidden" name="return" value="admin-users.php">
-                        <input class="inline-input reason-input" type="text" name="reason" style="display:none;">
+                        <input class="inline-input reason-input is-hidden" type="text" name="reason">
                         <button class="btn btn-danger btn-small delete-toggle" type="button">Remove User (Permanent)</button>
-                        <button class="btn btn-danger btn-small confirm-delete" type="submit" style="display:none;">Confirm Remove</button>
-                        <button class="btn btn-secondary btn-small cancel-delete" type="button" style="display:none;">Cancel</button>
+                        <button class="btn btn-danger btn-small confirm-delete is-hidden" type="submit">Confirm Remove</button>
+                        <button class="btn btn-secondary btn-small cancel-delete is-hidden" type="button">Cancel</button>
                     </form>
                 </td>
             </tr>

@@ -197,47 +197,47 @@ if ($deadlineTs !== false) {
 ?>
 <h1><?php echo htmlspecialchars($job['title']); ?></h1>
 <?php if ($postedText !== ''): ?>
-    <p style="color: #6b7280; font-size: 0.9em; margin: 6px 0 0;"><?php echo htmlspecialchars($postedText); ?></p>
+    <p class="meta-note"><?php echo htmlspecialchars($postedText); ?></p>
 <?php endif; ?>
 <?php if ($deadlineFormatted !== ''): ?>
-    <p style="color: #6b7280; font-size: 0.9em; margin: 2px 0 10px;">Apply before: <?php echo htmlspecialchars($deadlineFormatted); ?></p>
+    <p class="meta-note-tight">Apply before: <?php echo htmlspecialchars($deadlineFormatted); ?></p>
 <?php endif; ?>
-<div class="card" style="margin-bottom: 30px;">
+<div class="card mb-30">
     <div class="job-meta">
         <?php if (!empty($job['location'])): ?>
-            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Location</span>
-                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['location']); ?></span>
+            <div class="meta-row">
+                <span class="meta-label">Location</span>
+                <span class="meta-value"><?php echo htmlspecialchars($job['location']); ?></span>
             </div>
         <?php endif; ?>
         <?php if (!empty($job['company'])): ?>
-            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Company</span>
-                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['company']); ?></span>
+            <div class="meta-row">
+                <span class="meta-label">Company</span>
+                <span class="meta-value"><?php echo htmlspecialchars($job['company']); ?></span>
             </div>
         <?php endif; ?>
         <?php if (!empty($job['type'])): ?>
-            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Job Type</span>
+            <div class="meta-row">
+                <span class="meta-label">Job Type</span>
                 <span class="meta-value"><span class="badge"><?php echo htmlspecialchars($job['type']); ?></span></span>
             </div>
         <?php endif; ?>
-        <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-            <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Salary</span>
-            <span class="meta-value" style="font-weight:400; color:#424242;">
+        <div class="meta-row">
+            <span class="meta-label">Salary</span>
+            <span class="meta-value">
                 <?php echo !empty(trim($job['salary'] ?? '')) ? htmlspecialchars($job['salary']) : 'Negotiable'; ?>
             </span>
         </div>
         <?php if (!empty($job['category'])): ?>
-            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Category</span>
-                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['category']); ?></span>
+            <div class="meta-row">
+                <span class="meta-label">Category</span>
+                <span class="meta-value"><?php echo htmlspecialchars($job['category']); ?></span>
             </div>
         <?php endif; ?>
         <?php if (!empty($job['application_duration'])): ?>
-            <div class="meta-row" style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <span class="meta-label" style="font-weight:600; color:#2c2c2c;">Application Duration</span>
-                <span class="meta-value" style="font-weight:400; color:#424242;"><?php echo htmlspecialchars($job['application_duration']); ?></span>
+            <div class="meta-row">
+                <span class="meta-label">Application Duration</span>
+                <span class="meta-value"><?php echo htmlspecialchars($job['application_duration']); ?></span>
             </div>
         <?php endif; ?>
     </div>
@@ -258,16 +258,14 @@ if ($deadlineTs !== false) {
 <div class="form-card">
     <h3>Apply for this job</h3>
     <?php if ($formAlert !== ''): ?>
-        <?php $alertStyle = $formAlertType === 'success'
-            ? 'background:#e6f4ea;color:#1b6630;border:1px solid #9cd5a9;font-size:0.9em;padding:10px;border-radius:6px;margin-bottom:12px;'
-            : 'background:#ffecec;color:#a30000;border:1px solid #f5c6c6;font-size:0.9em;padding:10px;border-radius:6px;margin-bottom:12px;'; ?>
-        <div style="<?php echo $alertStyle; ?>"><?php echo htmlspecialchars($formAlert); ?></div>
+        <?php $alertClass = $formAlertType === 'success' ? 'alert-lite alert-lite-success' : 'alert-lite alert-lite-error'; ?>
+        <div class="<?php echo $alertClass; ?>"><?php echo htmlspecialchars($formAlert); ?></div>
     <?php endif; ?>
     <form method="post">
         <label>Cover Letter (optional)</label>
         <textarea name="cover_letter" rows="4" maxlength="500" placeholder="Briefly explain why you are a good fit for this job&hellip;" <?php echo $alreadyApplied ? 'disabled' : ''; ?>></textarea>
-        <p style="font-size:0.85em; color:#6b7280; margin-top:5px;">Max 500 characters</p>
-        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:18px;">
+        <p class="helper-text">Max 500 characters</p>
+        <div class="action-row-lg">
             <?php if ($alreadyApplied): ?>
                 <button type="button" class="btn btn-primary" disabled>Already Applied</button>
             <?php else: ?>
