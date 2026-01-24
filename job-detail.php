@@ -122,15 +122,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
             } else {
                 $cover = trim($_POST['cover_letter']);
                 $companyId = isset($job['company_id']) ? (int) $job['company_id'] : null;
+                $conn->begin_transaction();
                 $stmt = $conn->prepare(
                     "INSERT INTO applications (user_id, job_id, company_id, cover_letter) VALUES (?, ?, ?, ?)"
                 );
                 $stmt->bind_param("iiis", $uid, $job_id, $companyId, $cover);
-                if ($stmt->execute()) {
+                $insertOk = $stmt->execute();
+                $stmt->close();
+
+                $updateOk = false;
+                if ($insertOk) {
+                    $updateStmt = $conn->prepare(
+                        "UPDATE jobs SET application_count = application_count + 1 WHERE id = ?"
+                    );
+                    $updateStmt->bind_param("i", $job_id);
+                    $updateOk = $updateStmt->execute();
+                    $updateStmt->close();
+                }
+
+                if ($insertOk && $updateOk) {
+                    $conn->commit();
                     $formAlert = "Application submitted successfully";
                     $formAlertType = 'success';
                     $alreadyApplied = true;
                 } else {
+                    $conn->rollback();
                     $formAlert = "Unable to submit your application. Please try again.";
                     $formAlertType = 'error';
                 }

@@ -14,6 +14,18 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- user preferences: recommendation profile
+CREATE TABLE user_preferences (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    preferred_category VARCHAR(100),
+    preferred_skills VARCHAR(255),
+    preferred_location VARCHAR(150),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_user_pref (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- jobs: job posts
 CREATE TABLE jobs (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -28,6 +40,7 @@ CREATE TABLE jobs (
     application_duration VARCHAR(100),
     status VARCHAR(20) DEFAULT 'active',
     views INT DEFAULT 0,
+    application_count INT DEFAULT 0,
     is_approved TINYINT(1) DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
