@@ -7,18 +7,25 @@ $basePath = isset($basePath) ? $basePath : '';
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JobHub - Job Portal</title>
-    <link rel="stylesheet" href="<?php echo htmlspecialchars($basePath); ?>style.css?v=<?php echo filemtime(__DIR__ . '/style.css'); ?>">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($basePath); ?>custom.css?v=<?php echo filemtime(__DIR__ . '/custom.css'); ?>">
 </head>
 <body class="<?php echo isset($bodyClass) ? htmlspecialchars($bodyClass) : ''; ?>">
-<header class="topbar">
-    <div class="container flex-between">
-        <div class="logo">JobHub</div>
-        <nav>
+<header class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="<?php echo htmlspecialchars($basePath); ?>index.php">JobHub</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
+            aria-controls="mainNavbar" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse justify-content-end" id="mainNavbar">
+            <nav class="navbar-nav align-items-lg-center gap-1">
             <?php if (!isset($_SESSION['company_id'])): ?>
                 <?php if (!empty($showJobSearch) && !empty($jobSearchOptions)): ?>
-                    <form method="get" action="<?php echo htmlspecialchars($basePath); ?>index.php" class="nav-form">
-                        <select name="filter" class="nav-select" onchange="this.form.submit()">
+                    <form method="get" action="<?php echo htmlspecialchars($basePath); ?>index.php" class="d-flex me-lg-3 my-2 my-lg-0">
+                        <select name="filter" class="form-select form-select-sm" onchange="this.form.submit()">
                             <option value="">Search Job</option>
                             <option value="Administration / Management" <?php echo ($filter ?? '') === 'Administration / Management' ? 'selected' : ''; ?>>Administration / Management</option>
                             <option value="Public Relations / Advertising" <?php echo ($filter ?? '') === 'Public Relations / Advertising' ? 'selected' : ''; ?>>Public Relations / Advertising</option>
@@ -53,24 +60,25 @@ $basePath = isset($basePath) ? $basePath : '';
                         </select>
                     </form>
                 <?php endif; ?>
-                <a href="<?php echo htmlspecialchars($basePath); ?>index.php">Home</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>index.php">Home</a>
             <?php endif; ?>
             <?php if ($isLoggedIn && !isset($_SESSION['company_id'])): ?>
-                <a href="<?php echo htmlspecialchars($basePath); ?>user-account.php">Account</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>my-bookmarks.php">My Bookmarks</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>my-applications.php">My Applications</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>logout.php">Logout</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>user-account.php">Account</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>my-bookmarks.php">My Bookmarks</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>my-applications.php">My Applications</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>logout.php">Logout</a>
             <?php elseif (!$isLoggedIn && !isset($_SESSION['company_id'])): ?>
-                <a href="<?php echo htmlspecialchars($basePath); ?>register-choice.php">Register</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>login-choice.php">Login</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>register-choice.php">Register</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>login-choice.php">Login</a>
             <?php endif; ?>
             <?php if (isset($_SESSION['company_id'])): ?>
-                <a href="<?php echo htmlspecialchars($basePath); ?>company/company-dashboard.php">Company Dashboard</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>company/company-account.php">Company Account</a>
-                <a href="<?php echo htmlspecialchars($basePath); ?>logout.php">Logout</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>company/company-dashboard.php">Company Dashboard</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>company/company-account.php">Company Account</a>
+                <a class="nav-link text-white" href="<?php echo htmlspecialchars($basePath); ?>logout.php">Logout</a>
             <?php elseif (!$isLoggedIn): ?>
             <?php endif; ?>
-        </nav>
+            </nav>
+        </div>
     </div>
 </header>
-<main class="container">
+<main class="container py-4">

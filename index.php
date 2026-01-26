@@ -129,64 +129,53 @@ if (!function_exists('format_salary_display')) {
 }
 
 ?>
-<style>
-.job-description {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.job-description a {
-    color: #1a73e8;
-    font-size: 0.9em;
-    text-decoration: none;
-    margin-left: 6px;
-}
-</style>
-<h1>Let's find you a job.</h1>
+<h1 class="mb-4">Let's find you a job.</h1>
 
-<form method="get" class="form-card">
-    <label>Search jobs (title, company, location)</label>
-    <input type="text" name="q" value="<?php echo htmlspecialchars($keyword); ?>">
-    <button type="submit">Search</button>
+<form method="get" class="card p-3 mb-4">
+    <label class="form-label">Search jobs (title, company, location)</label>
+    <input type="text" name="q" class="form-control" value="<?php echo htmlspecialchars($keyword); ?>">
+    <button type="submit" class="btn btn-primary mt-3 align-self-start">Search</button>
 </form>
 
 <?php if (!empty($showRecommendations)): ?>
-    <h2>Recommended Jobs</h2>
-    <p class="section-subtitle">Based on your profile and recent activity</p>
-    <div class="jobs-grid">
+    <h2 class="mb-1">Recommended Jobs</h2>
+    <p class="text-muted mb-4">Based on your profile and recent activity</p>
+    <div class="row g-4 mb-4">
         <?php if (count($recommendedJobs) === 0): ?>
-            <p class="empty-state">No recommendations yet. Update your preferences or search for jobs.</p>
+            <p class="text-muted">No recommendations yet. Update your preferences or search for jobs.</p>
         <?php else: ?>
             <?php foreach ($recommendedJobs as $row): ?>
-                <div class="card">
-                    <h3><?php echo htmlspecialchars($row['title']); ?></h3>
-                    <p class="meta">
-                        <?php echo htmlspecialchars($row['company']); ?> |
-                        <?php echo htmlspecialchars($row['location']); ?>
-                        <span class="badge"><?php echo htmlspecialchars($row['type']); ?></span>
-                    </p>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body d-flex flex-column">
+                            <h3 class="h5"><?php echo htmlspecialchars($row['title']); ?></h3>
+                            <p class="text-muted mb-2">
+                                <?php echo htmlspecialchars($row['company']); ?> |
+                                <?php echo htmlspecialchars($row['location']); ?>
+                                <span class="badge text-bg-warning ms-2"><?php echo htmlspecialchars($row['type']); ?></span>
+                            </p>
                     <?php $postedText = format_posted_time($row[$postedColumn] ?? ''); ?>
                     <?php if ($postedText !== ''): ?>
-                        <p class="meta meta-tight"><?php echo htmlspecialchars($postedText); ?></p>
+                            <p class="small text-muted mb-1"><?php echo htmlspecialchars($postedText); ?></p>
                     <?php endif; ?>
                     <?php if ($deadlineColumn !== '' && !empty($row[$deadlineColumn])): ?>
                         <?php $deadlineTs = strtotime($row[$deadlineColumn]); ?>
                         <?php if ($deadlineTs !== false): ?>
-                            <p class="meta meta-compact">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
+                            <p class="small text-muted mb-1">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
                         <?php endif; ?>
                     <?php endif; ?>
                     <?php if (array_key_exists('salary', $row)): ?>
-                        <p class="meta meta-salary"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
+                            <p class="small text-muted mb-2"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
                     <?php endif; ?>
-                    <p class="job-description">
-                        <?php echo nl2br(htmlspecialchars($row['description'])); ?>
-                        <a href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
-                    </p>
-                    <div class="action-row">
-                        <a class="btn btn-small btn-outline" href="job-detail.php?id=<?php echo $row['id']; ?>">View Details</a>
-                        <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                            <p class="job-description small text-muted mb-3">
+                                <?php echo nl2br(htmlspecialchars($row['description'])); ?>
+                                <a class="link-primary text-decoration-none ms-1" href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
+                            </p>
+                            <div class="mt-auto d-flex gap-2">
+                                <a class="btn btn-outline-primary btn-sm" href="job-detail.php?id=<?php echo $row['id']; ?>">View Details</a>
+                                <a class="btn btn-primary btn-sm" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
@@ -194,79 +183,87 @@ if (!function_exists('format_salary_display')) {
     </div>
 <?php endif; ?>
 
-<h2>Popular Jobs</h2>
-<p class="section-subtitle"><?php echo htmlspecialchars($popularSubtitle); ?></p>
-<div class="jobs-grid">
+<h2 class="mb-1">Popular Jobs</h2>
+<p class="text-muted mb-4"><?php echo htmlspecialchars($popularSubtitle); ?></p>
+<div class="row g-4 mb-4">
     <?php if (count($popularJobs) === 0): ?>
-        <p class="empty-state">No jobs found. Try changing filters.</p>
+        <p class="text-muted">No jobs found. Try changing filters.</p>
     <?php else: ?>
         <?php foreach ($popularJobs as $row): ?>
-            <div class="card">
-                <h3><?php echo htmlspecialchars($row['title']); ?></h3>
-                <p class="meta">
-                    <?php echo htmlspecialchars($row['company']); ?> |
-                    <?php echo htmlspecialchars($row['location']); ?>
-                    <span class="badge"><?php echo htmlspecialchars($row['type']); ?></span>
-                </p>
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column">
+                        <h3 class="h5"><?php echo htmlspecialchars($row['title']); ?></h3>
+                        <p class="text-muted mb-2">
+                            <?php echo htmlspecialchars($row['company']); ?> |
+                            <?php echo htmlspecialchars($row['location']); ?>
+                            <span class="badge text-bg-warning ms-2"><?php echo htmlspecialchars($row['type']); ?></span>
+                        </p>
                 <?php $postedText = format_posted_time($row[$postedColumn] ?? ''); ?>
                 <?php if ($postedText !== ''): ?>
-                    <p class="meta meta-tight"><?php echo htmlspecialchars($postedText); ?></p>
+                        <p class="small text-muted mb-1"><?php echo htmlspecialchars($postedText); ?></p>
                 <?php endif; ?>
                 <?php if ($deadlineColumn !== '' && !empty($row[$deadlineColumn])): ?>
                     <?php $deadlineTs = strtotime($row[$deadlineColumn]); ?>
                     <?php if ($deadlineTs !== false): ?>
-                        <p class="meta meta-compact">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
+                        <p class="small text-muted mb-1">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
                     <?php endif; ?>
                 <?php endif; ?>
                 <?php if (array_key_exists('salary', $row)): ?>
-                    <p class="meta meta-salary"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
+                        <p class="small text-muted mb-2"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
                 <?php endif; ?>
-                <p class="job-description">
-                    <?php echo nl2br(htmlspecialchars($row['description'])); ?>
-                    <a href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
-                </p>
-                <div class="action-row">
-                    <a class="btn btn-small btn-outline" href="job-detail.php?id=<?php echo $row['id']; ?>">View Details</a>
-                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                        <p class="job-description small text-muted mb-3">
+                            <?php echo nl2br(htmlspecialchars($row['description'])); ?>
+                            <a class="link-primary text-decoration-none ms-1" href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
+                        </p>
+                        <div class="mt-auto d-flex gap-2">
+                            <a class="btn btn-outline-primary btn-sm" href="job-detail.php?id=<?php echo $row['id']; ?>">View Details</a>
+                            <a class="btn btn-primary btn-sm" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>
     <?php endif; ?>
 </div>
 
-<h2>All Latest Jobs</h2>
-<div class="jobs-grid">
+<h2 class="mb-3">All Latest Jobs</h2>
+<div class="row g-4">
     <?php if (count($latestJobs) === 0): ?>
-        <p class="empty-state">No jobs found. Try changing filters.</p>
+        <p class="text-muted">No jobs found. Try changing filters.</p>
     <?php else: ?>
         <?php foreach ($latestJobs as $row): ?>
-            <div class="card">
-                <h3><?php echo htmlspecialchars($row['title']); ?></h3>
-                <p class="meta">
-                    <?php echo htmlspecialchars($row['company']); ?> |
-                    <?php echo htmlspecialchars($row['location']); ?>
-                    <span class="badge"><?php echo htmlspecialchars($row['type']); ?></span>
-                </p>
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body d-flex flex-column">
+                        <h3 class="h5"><?php echo htmlspecialchars($row['title']); ?></h3>
+                        <p class="text-muted mb-2">
+                            <?php echo htmlspecialchars($row['company']); ?> |
+                            <?php echo htmlspecialchars($row['location']); ?>
+                            <span class="badge text-bg-warning ms-2"><?php echo htmlspecialchars($row['type']); ?></span>
+                        </p>
                 <?php $postedText = format_posted_time($row[$postedColumn] ?? ''); ?>
                 <?php if ($postedText !== ''): ?>
-                    <p class="meta meta-tight"><?php echo htmlspecialchars($postedText); ?></p>
+                        <p class="small text-muted mb-1"><?php echo htmlspecialchars($postedText); ?></p>
                 <?php endif; ?>
                 <?php if ($deadlineColumn !== '' && !empty($row[$deadlineColumn])): ?>
                     <?php $deadlineTs = strtotime($row[$deadlineColumn]); ?>
                     <?php if ($deadlineTs !== false): ?>
-                        <p class="meta meta-compact">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
+                        <p class="small text-muted mb-1">Apply before: <?php echo htmlspecialchars(date('M d', $deadlineTs)); ?></p>
                     <?php endif; ?>
                 <?php endif; ?>
                 <?php if (array_key_exists('salary', $row)): ?>
-                    <p class="meta meta-salary"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
+                        <p class="small text-muted mb-2"><?php echo htmlspecialchars(format_salary_display($row['salary'])); ?></p>
                 <?php endif; ?>
-                <p class="job-description">
-                    <?php echo nl2br(htmlspecialchars($row['description'])); ?>
-                    <a href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
-                </p>
-                <div class="action-row">
-                    <a class="btn btn-small btn-outline" href="job-detail.php?id=<?php echo $row['id']; ?>">View Details</a>
-                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                        <p class="job-description small text-muted mb-3">
+                            <?php echo nl2br(htmlspecialchars($row['description'])); ?>
+                            <a class="link-primary text-decoration-none ms-1" href="job-detail.php?id=<?php echo $row['id']; ?>">Read more</a>
+                        </p>
+                        <div class="mt-auto d-flex gap-2">
+                            <a class="btn btn-outline-primary btn-sm" href="job-detail.php?id=<?php echo $row['id']; ?>">View Details</a>
+                            <a class="btn btn-primary btn-sm" href="job-detail.php?id=<?php echo $row['id']; ?>#apply">Apply Now</a>
+                        </div>
+                    </div>
                 </div>
             </div>
         <?php endforeach; ?>

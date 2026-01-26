@@ -39,7 +39,7 @@ $msgType = "alert-success";
 if (isset($_GET['msg'])) {
     if ($_GET['msg'] === 'already_bookmarked') {
         $msg = "Already bookmarked";
-        $msgType = "alert-error";
+        $msgType = "alert-danger";
     } elseif ($_GET['msg'] === 'bookmarked') {
         $msg = "Job bookmarked successfully";
         $msgType = "alert-success";
@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
         $msg = $isClosed
             ? "This job is closed and is no longer accepting applications."
             : "This job is no longer accepting applications.";
-        $msgType = "alert-error";
+        $msgType = "alert-danger";
     } else {
         $uid = (int) $_SESSION['user_id'];
 
@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
                 exit;
             }
             $msg = "Error bookmarking job.";
-            $msgType = "alert-error";
+            $msgType = "alert-danger";
         }
     }
 }
