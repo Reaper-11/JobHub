@@ -42,51 +42,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $basePath = '../';
 require '../header.php';
 ?>
-<h1>Company Login</h1>
-<div class="form-card">
-    <?php if ($msg): ?><div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
-    <form method="post">
-        <label>Company Email</label>
-        <input type="email" name="email" placeholder="company@example.com" required>
-        <label>Password</label>
-        <input type="password" name="password" placeholder="••••••••" required>
-        <button type="submit" class="btn-login">Login</button>
-    </form>
-        <div class="register-cta">
-            Don’t have a company account? <a href="company-register.php">Register here</a>
+<h1 class="mb-3">Company Login</h1>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <?php if ($msg): ?><div class="alert alert-danger"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label">Company Email</label>
+                <input type="email" class="form-control" name="email" placeholder="company@example.com" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-control" name="password" placeholder="********" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Login</button>
+        </form>
+        <div class="mt-3 text-center text-muted small">
+            Don't have a company account? <a class="link-primary text-decoration-none" href="company-register.php">Register here</a>
         </div>
     </div>
-<style>
-
-.btn-login {
-    width: 100%;
-    margin-top: 8px;
-    padding: 10px 14px;
-    background: var(--primary);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-}
-
-.btn-login:hover {
-    background: #162c7a;
-}
-
-.register-cta {
-    margin-top: 12px;
-    text-align: center;
-    font-size: 14px;
-    color: #374151;
-}
-
-.register-cta a {
-    color: var(--primary);
-    text-decoration: none;
-}
-
-.register-cta a:hover {
-    text-decoration: underline;
-}
-</style>
+</div>
 <?php require '../footer.php'; ?>
+

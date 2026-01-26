@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require 'db.php';
 $keyword = isset($_GET['q']) ? trim($_GET['q']) : '';
 $filter = isset($_GET['filter']) ? trim($_GET['filter']) : '';

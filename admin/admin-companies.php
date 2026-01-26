@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['company_id'], $_POST[
             $reason = isset($_POST['reason']) ? trim($_POST['reason']) : '';
             if ($reason === '') {
                 $msg = "Rejection reason is required.";
-                $msgType = "alert-error";
+                $msgType = "alert-danger";
             } else {
                 $isApproved = -1;
                 $stmt = $conn->prepare("UPDATE companies SET is_approved=?, rejection_reason=? WHERE id=?");
@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['company_id'], $_POST[
                 }
             } else {
                 $msg = "Error updating company status.";
-                $msgType = "alert-error";
+                $msgType = "alert-danger";
             }
         }
     }

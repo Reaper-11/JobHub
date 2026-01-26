@@ -29,16 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rejectionReason = trim($_POST['rejection_reason'] ?? '');
     if (!$statusColumnExists) {
         $msg = "Status column is missing. Please run the database migration first.";
-        $msgType = "alert-error";
+        $msgType = "alert-danger";
     } elseif (!$reasonColumnExists) {
         $msg = "Rejection reason column is missing. Please run the database migration first.";
-        $msgType = "alert-error";
+        $msgType = "alert-danger";
     } elseif ($appId <= 0 || !isset($statusOptions[$status])) {
         $msg = "Invalid status update.";
-        $msgType = "alert-error";
+        $msgType = "alert-danger";
     } elseif ($status === 'rejected' && $rejectionReason === '') {
         $msg = "Please provide a reason for rejection.";
-        $msgType = "alert-error";
+        $msgType = "alert-danger";
     } else {
         if ($status !== 'rejected') {
             $rejectionReason = null;
@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msgType = "alert-success";
         } else {
             $msg = "Could not update status. Please try again.";
-            $msgType = "alert-error";
+            $msgType = "alert-danger";
         }
         $stmt->close();
     }

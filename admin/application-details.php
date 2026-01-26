@@ -40,9 +40,9 @@ if (!$invalidId) {
     <p><a href="admin-applications.php">&laquo; Back to Applications</a></p>
 
     <?php if ($invalidId): ?>
-        <div class="alert alert-error">Invalid application ID.</div>
+        <div class="alert alert-danger">Invalid application ID.</div>
     <?php elseif (!$application): ?>
-        <div class="alert alert-error">Application not found.</div>
+        <div class="alert alert-danger">Application not found.</div>
     <?php else: ?>
         <div class="card">
             <h3>Job Details</h3>

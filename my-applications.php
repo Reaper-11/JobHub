@@ -28,26 +28,30 @@ require 'header.php';
 function render_application_table(array $rows, $showMessage, $showReason)
 {
     if (empty($rows)) {
-        echo '<p>No applications to show.</p>';
+        echo '<p class="text-muted">No applications to show.</p>';
         return;
     }
     ?>
-    <table>
-        <tr>
-            <th>Job Title</th>
-            <th>Company</th>
-            <th>Location</th>
-            <th>Status</th>
-            <?php if ($showMessage): ?>
-                <th>Message</th>
-            <?php endif; ?>
-            <?php if ($showReason): ?>
-                <th>Rejection Reason</th>
-            <?php endif; ?>
-            <th>Applied At</th>
-            <th>Action</th>
-            <th>Cancel</th>
-        </tr>
+    <div class="table-responsive mb-4">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>Job Title</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Status</th>
+                <?php if ($showMessage): ?>
+                    <th>Message</th>
+                <?php endif; ?>
+                <?php if ($showReason): ?>
+                    <th>Rejection Reason</th>
+                <?php endif; ?>
+                <th>Applied At</th>
+                <th>Action</th>
+                <th>Cancel</th>
+            </tr>
+        </thead>
+        <tbody>
         <?php foreach ($rows as $row): ?>
             <?php $currentStatus = $row['status'] ?? 'pending'; ?>
             <tr>
@@ -70,20 +74,22 @@ function render_application_table(array $rows, $showMessage, $showReason)
                     </td>
                 <?php endif; ?>
                 <td><?php echo htmlspecialchars($row['applied_at']); ?></td>
-                <td><a class="btn btn-small" href="my-application-edit.php?id=<?php echo $row['id']; ?>">Edit</a></td>
+                <td><a class="btn btn-sm btn-outline-primary" href="my-application-edit.php?id=<?php echo $row['id']; ?>">Edit</a></td>
                 <td>
-                    <form method="post" action="my-application-cancel.php" class="inline-form">
+                    <form method="post" action="my-application-cancel.php" class="d-inline">
                         <input type="hidden" name="app_id" value="<?php echo $row['id']; ?>">
-                        <button type="submit" class="btn btn-small btn-danger">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
                     </form>
                 </td>
             </tr>
         <?php endforeach; ?>
+        </tbody>
     </table>
+    </div>
     <?php
 }
 ?>
-<h1>My Applications</h1>
+<h1 class="mb-3">My Applications</h1>
 <?php
 foreach ($rows as $row) {
     $status = strtolower($row['status'] ?? 'pending');
@@ -97,12 +103,12 @@ foreach ($rows as $row) {
 }
 ?>
 
-<h2>Approved</h2>
+<h2 class="h5 mt-4">Approved</h2>
 <?php render_application_table($approvedRows, true, false); ?>
 
-<h2>Rejected</h2>
+<h2 class="h5 mt-4">Rejected</h2>
 <?php render_application_table($rejectedRows, false, true); ?>
 
-<h2>Pending</h2>
+<h2 class="h5 mt-4">Pending</h2>
 <?php render_application_table($pendingRows, false, false); ?>
 <?php require 'footer.php'; ?>

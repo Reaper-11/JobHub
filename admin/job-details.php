@@ -31,7 +31,7 @@ $stmt->close();
     <p><a href="admin-jobs.php">&laquo; Back to Jobs</a></p>
 
     <?php if (!$job): ?>
-        <div class="alert alert-error">Job not found.</div>
+        <div class="alert alert-danger">Job not found.</div>
     <?php else: ?>
         <div class="card">
             <h2><?php echo htmlspecialchars($job['title']); ?></h2>

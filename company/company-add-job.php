@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require '../db.php';
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
@@ -75,62 +75,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $basePath = '../';
 require '../header.php';
 ?>
-<style>
-    .help-text {
-        font-size: 12px;
-        opacity: 0.8;
-        margin-top: 6px;
-        margin-bottom: 16px;
-    }
-    .salary-input::-webkit-outer-spin-button,
-    .salary-input::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-
-    .salary-input {
-        -moz-appearance: textfield;
-    }    
-    .form-actions {
-        display: flex;
-        gap: 12px;
-        margin-top: 18px;
-        flex-wrap: wrap;
-    }
-    .form-actions .btn-secondary {
-        background: #f2f4f8;
-        color: #1e2a3a;
-        border: 1px solid #cfd6e0;
-    }
-    .form-actions button {
-        flex: 1 1 180px;
-    }
-</style>
-<h1>Post New Job</h1>
-<div class="form-card">
+<h1 class="mb-3">Post New Job</h1>
+<div class="card shadow-sm">
+    <div class="card-body">
     <?php if ($msg): ?>
-        <div class="alert <?php echo strpos($msg,'successfully')!==false?'alert-success':'alert-error'; ?>">
+        <div class="alert <?php echo strpos($msg,'successfully')!==false?'alert-success':'alert-danger'; ?>">
             <?php echo htmlspecialchars($msg); ?>
         </div>
     <?php endif; ?>
 
     <form method="post">
-        <label>Job Title *</label>
-        <input type="text" name="title">
+        <div class="mb-3">
+            <label class="form-label">Job Title *</label>
+            <input type="text" class="form-control" name="title">
+        </div>
 
-        <label>Location *</label>
-        <input type="text" name="location">
+        <div class="mb-3">
+            <label class="form-label">Location *</label>
+            <input type="text" class="form-control" name="location">
+        </div>
 
-        <label>Job Type *</label>
-        <select name="type">
+        <div class="mb-3">
+            <label class="form-label">Job Type *</label>
+            <select name="type" class="form-select">
             <option value="Full-time">Full-time</option>
             <option value="Part-time">Part-time</option>
             <option value="Internship">Internship</option>
             <option value="Remote">Remote</option>
         </select>
+        </div>
 
-        <label>Job Category *</label>
-        <select name="category" required>
+        <div class="mb-3">
+            <label class="form-label">Job Category *</label>
+            <select name="category" class="form-select" required>
             <option value="">Select category</option>
             <?php $selectedCategory = $_POST['category'] ?? ''; ?>
             <option value="Administration / Management" <?php echo $selectedCategory === 'Administration / Management' ? 'selected' : ''; ?>>Administration / Management</option>
@@ -159,21 +136,29 @@ require '../header.php';
             <option value="Security Services" <?php echo $selectedCategory === 'Security Services' ? 'selected' : ''; ?>>Security Services</option>
             <option value="Transportation / Logistics" <?php echo $selectedCategory === 'Transportation / Logistics' ? 'selected' : ''; ?>>Transportation / Logistics</option>
         </select>
+        </div>
 
-        <label>Salary (optional)</label>
-        <input type="number" name="salary" id="salary" class="salary-input" placeholder="e.g. 20000">
-        <div class="help-text">Enter expected monthly salary (NPR)</div>
+        <div class="mb-3">
+            <label class="form-label">Salary (optional)</label>
+            <input type="number" class="form-control" name="salary" id="salary" placeholder="e.g. 20000">
+            <div class="form-text">Enter expected monthly salary (NPR)</div>
+        </div>
 
-        <label>Application Deadline (optional)</label>
-        <input type="date" name="application_duration">
+        <div class="mb-3">
+            <label class="form-label">Application Deadline (optional)</label>
+            <input type="date" class="form-control" name="application_duration">
+        </div>
 
-        <label>Description *</label>
-        <textarea name="description" rows="4"></textarea>
+        <div class="mb-3">
+            <label class="form-label">Description *</label>
+            <textarea name="description" class="form-control" rows="4"></textarea>
+        </div>
 
-        <div class="form-actions">
-            <button type="submit">Publish Job</button>
-            <button type="button" class="btn-secondary" onclick="window.location.href='company-dashboard.php'">Back to Dashboard</button>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary">Publish Job</button>
+            <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='company-dashboard.php'">Back to Dashboard</button>
         </div>
     </form>
+    </div>
 </div>
 <?php require '../footer.php'; ?>

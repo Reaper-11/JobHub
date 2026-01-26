@@ -36,28 +36,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $application['cover_letter'] = $cover;
     } else {
         $msg = "Could not update application.";
-        $msgType = "alert-error";
+        $msgType = "alert-danger";
     }
     $update->close();
 }
 
 require 'header.php';
 ?>
-<h1>Edit Application</h1>
-<p><a href="my-applications.php">&laquo; Back to My Applications</a></p>
+<h1 class="mb-2">Edit Application</h1>
+<p><a class="link-primary text-decoration-none" href="my-applications.php">&laquo; Back to My Applications</a></p>
 <?php if ($msg): ?>
     <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
 <?php endif; ?>
-<div class="card">
-    <p><strong>Job:</strong> <?php echo htmlspecialchars($application['title']); ?></p>
-    <p><strong>Company:</strong> <?php echo htmlspecialchars($application['company']); ?></p>
-    <p><strong>Location:</strong> <?php echo htmlspecialchars($application['location']); ?></p>
+<div class="card shadow-sm mb-3">
+    <div class="card-body">
+        <p class="mb-1"><strong>Job:</strong> <?php echo htmlspecialchars($application['title']); ?></p>
+        <p class="mb-1"><strong>Company:</strong> <?php echo htmlspecialchars($application['company']); ?></p>
+        <p class="mb-0"><strong>Location:</strong> <?php echo htmlspecialchars($application['location']); ?></p>
+    </div>
 </div>
-<div class="form-card">
-    <form method="post">
-        <label>Cover Letter</label>
-        <textarea name="cover_letter" rows="6"><?php echo htmlspecialchars($application['cover_letter'] ?? ''); ?></textarea>
-        <button type="submit">Update Application</button>
-    </form>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="post">
+            <label class="form-label">Cover Letter</label>
+            <textarea name="cover_letter" class="form-control mb-3" rows="6"><?php echo htmlspecialchars($application['cover_letter'] ?? ''); ?></textarea>
+            <button type="submit" class="btn btn-primary">Update Application</button>
+        </form>
+    </div>
 </div>
 <?php require 'footer.php'; ?>

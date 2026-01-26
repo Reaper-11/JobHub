@@ -58,10 +58,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($title === '' || $location === '' || $type === '' || $category === '' || $desc === '') {
         $msg = 'All required fields must be filled.';
-        $msgType = 'alert-error';
+        $msgType = 'alert-danger';
     } elseif (!in_array($category, $jobCategories, true)) {
         $msg = 'Invalid job category selected.';
-        $msgType = 'alert-error';
+        $msgType = 'alert-danger';
     } else {
         $companyName = $_SESSION['company_name'];
         $update = $conn->prepare(
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $job['description'] = $desc;
         } else {
             $msg = 'Could not update job. Please try again.';
-            $msgType = 'alert-error';
+            $msgType = 'alert-danger';
         }
         $update->close();
     }

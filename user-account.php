@@ -73,10 +73,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($name === '' || $email === '' || $preferred_category === '') {
             $profileMsg = "Name, email, and category are required.";
-            $profileType = "alert-error";
+            $profileType = "alert-danger";
         } elseif (!in_array($preferred_category, $jobCategories, true)) {
             $profileMsg = "Invalid job category selected.";
-            $profileType = "alert-error";
+            $profileType = "alert-danger";
         } else {
             if (isset($_FILES['cv_file']) && $_FILES['cv_file']['error'] !== UPLOAD_ERR_NO_FILE) {
                 if ($_FILES['cv_file']['error'] !== UPLOAD_ERR_OK) {
@@ -109,13 +109,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($uploadError !== '') {
                 $profileMsg = $uploadError;
-                $profileType = "alert-error";
+                $profileType = "alert-danger";
             } else {
             $emailEsc = $conn->real_escape_string($email);
             $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
             if ($check && $check->num_rows > 0) {
                 $profileMsg = "That email is already in use.";
-                $profileType = "alert-error";
+                $profileType = "alert-danger";
             } else {
                 $phoneVal = $phone === '' ? null : $phone;
                 $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $user['cv_path'] = $newCvPath;
                 } else {
                     $profileMsg = "Could not update profile. Please try again.";
-                    $profileType = "alert-error";
+                    $profileType = "alert-danger";
                 }
                 $stmt->close();
             }
@@ -153,10 +153,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($old === '' || $new === '' || $confirm === '') {
             $passMsg = "All fields are required.";
-            $passType = "alert-error";
+            $passType = "alert-danger";
         } elseif ($new !== $confirm) {
             $passMsg = "New password and confirmation do not match.";
-            $passType = "alert-error";
+            $passType = "alert-danger";
         } else {
             $res = $conn->query("SELECT password FROM users WHERE id = $uid");
             $row = $res ? $res->fetch_assoc() : null;
@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$row || !$validOld) {
                 $passMsg = "Old password is incorrect.";
-                $passType = "alert-error";
+                $passType = "alert-danger";
             } else {
                 $newHash = password_hash($new, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $passType = "alert-success";
                 } else {
                     $passMsg = "Could not update password. Please try again.";
-                    $passType = "alert-error";
+                    $passType = "alert-danger";
                 }
                 $stmt->close();
             }
@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $confirmPassword = $_POST['confirm_password'] ?? '';
         if ($confirmPassword === '') {
             $deleteMsg = "Password is required to delete your account.";
-            $deleteType = "alert-error";
+            $deleteType = "alert-danger";
         } else {
             $res = $conn->query("SELECT password FROM users WHERE id = $uid");
             $row = $res ? $res->fetch_assoc() : null;
@@ -195,7 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$row || !$validConfirm) {
                 $deleteMsg = "Password is incorrect.";
-                $deleteType = "alert-error";
+                $deleteType = "alert-danger";
             } else {
                 $cvPath = $user['cv_path'] ?? '';
                 if ($cvPath !== '' && strpos($cvPath, 'uploads/cv/') === 0) {
@@ -214,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 } else {
                     $deleteMsg = "Could not delete account. Please try again.";
-                    $deleteType = "alert-error";
+                    $deleteType = "alert-danger";
                 }
                 $stmt->close();
             }
@@ -225,97 +225,127 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $bodyClass = 'account-page';
 require 'header.php';
 ?>
-<h1>Account</h1>
+<h1 class="mb-3">Account</h1>
 
-<div class="card">
-    <h2>Recommended for You</h2>
-    <?php if (count($recommendedJobs) === 0): ?>
-        <p class="meta">No recommendations yet. Update your job preference to see more.</p>
-    <?php else: ?>
-        <div class="jobs-grid">
-            <?php foreach ($recommendedJobs as $job): ?>
-                <div class="card">
-                    <h3><?php echo htmlspecialchars($job['title'] ?? ''); ?></h3>
-                    <p class="meta">
-                        <?php echo htmlspecialchars($job['company'] ?? ''); ?> |
-                        <?php echo htmlspecialchars($job['location'] ?? ''); ?>
-                    </p>
-                    <a class="btn btn-small" href="job-detail.php?id=<?php echo $job['id']; ?>">View Details</a>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-</div>
-
-<div class="form-card">
-    <h2>Profile</h2>
-    <?php if ($profileMsg): ?>
-        <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
-    <?php endif; ?>
-    <form method="post" enctype="multipart/form-data">
-        <input type="hidden" name="action" value="profile">
-        <label>Full Name*</label>
-        <input type="text" name="name" value="<?php echo htmlspecialchars($user['name']); ?>" required>
-
-        <label>Email*</label>
-        <input type="email" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
-
-        <label>Phone (optional)</label>
-        <input type="text" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="e.g. +977-9800000000">
-
-        <label>Job Preference*</label>
-        <select name="preferred_category" required>
-            <option value="">Prefer Job Category</option>
-            <?php foreach ($jobCategories as $cat): ?>
-                <option value="<?php echo htmlspecialchars($cat); ?>"
-                    <?php echo ($user['preferred_category'] === $cat) ? "selected" : ""; ?>>
-                    <?php echo htmlspecialchars($cat); ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-
-        <label>CV (PDF only, max 5MB)</label>
-        <input type="file" name="cv_file" accept=".pdf">
-        <?php if (!empty($user['cv_path'])): ?>
-            <p class="meta">
-                Current CV: <a href="<?php echo htmlspecialchars($user['cv_path']); ?>" target="_blank">View</a>
-            </p>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Recommended for You</h2>
+        <?php if (count($recommendedJobs) === 0): ?>
+            <p class="text-muted">No recommendations yet. Update your job preference to see more.</p>
+        <?php else: ?>
+            <div class="row g-3">
+                <?php foreach ($recommendedJobs as $job): ?>
+                    <div class="col-12 col-md-6">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h3 class="h6 mb-2"><?php echo htmlspecialchars($job['title'] ?? ''); ?></h3>
+                                <p class="text-muted small mb-3">
+                                    <?php echo htmlspecialchars($job['company'] ?? ''); ?> |
+                                    <?php echo htmlspecialchars($job['location'] ?? ''); ?>
+                                </p>
+                                <a class="btn btn-outline-primary btn-sm" href="job-detail.php?id=<?php echo $job['id']; ?>">View Details</a>
+                            </div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
-
-        <button type="submit" class="btn btn-primary">Save Profile</button>
-    </form>
+    </div>
 </div>
 
-<div class="form-card">
-    <h2>Change Password</h2>
-    <?php if ($passMsg): ?>
-        <div class="alert <?php echo $passType; ?>"><?php echo htmlspecialchars($passMsg); ?></div>
-    <?php endif; ?>
-    <form method="post">
-        <input type="hidden" name="action" value="password">
-        <label>Old Password*</label>
-        <input type="password" name="old_password" placeholder="Old Password" required>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Profile</h2>
+        <?php if ($profileMsg): ?>
+            <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
+        <?php endif; ?>
+        <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="profile">
+            <div class="mb-3">
+                <label class="form-label">Full Name*</label>
+                <input type="text" class="form-control" name="name" value="<?php echo htmlspecialchars($user['name']); ?>" required>
+            </div>
 
-        <label>New Password*</label>
-        <input type="password" name="new_password" placeholder="New Password" required>
+            <div class="mb-3">
+                <label class="form-label">Email*</label>
+                <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($user['email']); ?>" required>
+            </div>
 
-        <label>Confirm Password*</label>
-        <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+            <div class="mb-3">
+                <label class="form-label">Phone (optional)</label>
+                <input type="text" class="form-control" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="e.g. +977-9800000000">
+            </div>
 
-        <button type="submit" class="btn btn-primary">Update Password</button>
-    </form>
+            <div class="mb-3">
+                <label class="form-label">Job Preference*</label>
+                <select name="preferred_category" class="form-select" required>
+                    <option value="">Prefer Job Category</option>
+                    <?php foreach ($jobCategories as $cat): ?>
+                        <option value="<?php echo htmlspecialchars($cat); ?>"
+                            <?php echo ($user['preferred_category'] === $cat) ? "selected" : ""; ?>>
+                            <?php echo htmlspecialchars($cat); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">CV (PDF only, max 5MB)</label>
+                <input type="file" class="form-control" name="cv_file" accept=".pdf">
+                <?php if (!empty($user['cv_path'])): ?>
+                    <div class="form-text">
+                        Current CV: <a class="link-primary text-decoration-none" href="<?php echo htmlspecialchars($user['cv_path']); ?>" target="_blank">View</a>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save Profile</button>
+        </form>
+    </div>
 </div>
 
-<div class="form-card">
-    <h2>Delete Account</h2>
-    <?php if ($deleteMsg): ?>
-        <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
-    <?php endif; ?>
-    <form method="post" onsubmit="return confirm('This will permanently delete your account. Continue?');">
-        <input type="hidden" name="action" value="delete">
-        <label>Confirm Password*</label>
-        <input type="password" name="confirm_password" required>
-        <button type="submit" class="btn btn-danger">Delete Account</button>
-    </form>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Change Password</h2>
+        <?php if ($passMsg): ?>
+            <div class="alert <?php echo $passType; ?>"><?php echo htmlspecialchars($passMsg); ?></div>
+        <?php endif; ?>
+        <form method="post">
+            <input type="hidden" name="action" value="password">
+            <div class="mb-3">
+                <label class="form-label">Old Password*</label>
+                <input type="password" class="form-control" name="old_password" placeholder="Old Password" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">New Password*</label>
+                <input type="password" class="form-control" name="new_password" placeholder="New Password" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Confirm Password*</label>
+                <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Update Password</button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Delete Account</h2>
+        <?php if ($deleteMsg): ?>
+            <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
+        <?php endif; ?>
+        <form method="post" onsubmit="return confirm('This will permanently delete your account. Continue?');">
+            <input type="hidden" name="action" value="delete">
+            <div class="mb-3">
+                <label class="form-label">Confirm Password*</label>
+                <input type="password" class="form-control" name="confirm_password" required>
+            </div>
+            <button type="submit" class="btn btn-danger">Delete Account</button>
+        </form>
+    </div>
 </div>
 <?php require 'footer.php'; ?>

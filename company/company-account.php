@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require '../db.php';
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
@@ -44,13 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($name === '' || $email === '') {
             $profileMsg = "Company name and email are required.";
-            $profileType = "alert-error";
+            $profileType = "alert-danger";
         } else {
             $emailEsc = $conn->real_escape_string($email);
             $check = $conn->query("SELECT id FROM companies WHERE email='$emailEsc' AND id <> $cid");
             if ($check && $check->num_rows > 0) {
                 $profileMsg = "That email is already in use.";
-                $profileType = "alert-error";
+                $profileType = "alert-danger";
             } else {
                 $stmt = $conn->prepare("UPDATE companies SET name = ?, email = ? WHERE id = ?");
                 $stmt->bind_param("ssi", $name, $email, $cid);
@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $jobUpdate->close();
                 } else {
                     $profileMsg = "Could not update profile. Please try again.";
-                    $profileType = "alert-error";
+                    $profileType = "alert-danger";
                 }
                 $stmt->close();
             }
@@ -79,10 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($old === '' || $new === '' || $confirm === '') {
             $passMsg = "All fields are required.";
-            $passType = "alert-error";
+            $passType = "alert-danger";
         } elseif ($new !== $confirm) {
             $passMsg = "New password and confirmation do not match.";
-            $passType = "alert-error";
+            $passType = "alert-danger";
         } else {
             $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
             $row = $res ? $res->fetch_assoc() : null;
@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$row || !$validOld) {
                 $passMsg = "Old password is incorrect.";
-                $passType = "alert-error";
+                $passType = "alert-danger";
             } else {
                 $newHash = password_hash($new, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $passType = "alert-success";
                 } else {
                     $passMsg = "Could not update password. Please try again.";
-                    $passType = "alert-error";
+                    $passType = "alert-danger";
                 }
                 $stmt->close();
             }
@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $confirmPassword = $_POST['confirm_password'] ?? '';
         if ($confirmPassword === '') {
             $deleteMsg = "Password is required to delete your account.";
-            $deleteType = "alert-error";
+            $deleteType = "alert-danger";
         } else {
             $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
             $row = $res ? $res->fetch_assoc() : null;
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (!$row || !$validConfirm) {
                 $deleteMsg = "Password is incorrect.";
-                $deleteType = "alert-error";
+                $deleteType = "alert-danger";
             } else {
                 $conn->query("DELETE FROM jobs WHERE company_id = $cid");
 
@@ -134,7 +134,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     exit;
                 } else {
                     $deleteMsg = "Could not delete account. Please try again.";
-                    $deleteType = "alert-error";
+                    $deleteType = "alert-danger";
                 }
                 $stmt->close();
             }

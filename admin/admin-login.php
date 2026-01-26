@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require '../db.php';
 $msg = "";
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -119,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <p class="admin-login-subtitle">Restricted Access - Admin Only</p>
         </div>
         <div class="form-card">
-            <?php if ($msg): ?><div class="alert alert-error"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
+            <?php if ($msg): ?><div class="alert alert-danger"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
             <form method="post">
                 <label>Username <span class="admin-login-required">*</span></label>
                 <input type="text" name="username" placeholder="e.g. admin" required>
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </main>
-<div class="admin-login-page-footer">Â© 2026 JobHub Admin Panel â€“ Authorized Access Only</div>
+<div class="admin-login-page-footer">© 2026 JobHub Admin Panel – Authorized Access Only</div>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var form = document.querySelector('form');

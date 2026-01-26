@@ -36,58 +36,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $basePath = '../';
 require '../header.php';
 ?>
-<h1>Company Registration</h1>
-<div class="form-card">
-    <?php if ($msg): ?>
-        <div class="alert <?php echo strpos($msg,'registered')!==false?'alert-success':'alert-error'; ?>">
-            <?php echo htmlspecialchars($msg); ?>
-        </div>
-    <?php endif; ?>
-    <form method="post">
-        <label>Company Name *</label>
-        <input type="text" name="name" placeholder="e.g. JobHub Pvt. Ltd." required>
+<h1 class="mb-3">Company Registration</h1>
+<div class="card shadow-sm">
+    <div class="card-body">
+        <?php if ($msg): ?>
+            <div class="alert <?php echo strpos($msg,'registered')!==false?'alert-success':'alert-danger'; ?>">
+                <?php echo htmlspecialchars($msg); ?>
+            </div>
+        <?php endif; ?>
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label">Company Name *</label>
+                <input type="text" class="form-control" name="name" placeholder="e.g. JobHub Pvt. Ltd." required>
+            </div>
 
-        <label>Company Email *</label>
-        <input type="email" name="email" placeholder="company@example.com" required>
+            <div class="mb-3">
+                <label class="form-label">Company Email *</label>
+                <input type="email" class="form-control" name="email" placeholder="company@example.com" required>
+            </div>
 
-        <label>Password *</label>
-        <input type="password" name="password" placeholder="••••••••" required>
+            <div class="mb-3">
+                <label class="form-label">Password *</label>
+                <input type="password" class="form-control" name="password" placeholder="********" required>
+            </div>
 
-        <label>Website</label>
-        <input type="url" name="website" placeholder="https://company.com">
+            <div class="mb-3">
+                <label class="form-label">Website</label>
+                <input type="url" class="form-control" name="website" placeholder="https://company.com">
+            </div>
 
-        <label>Location</label>
-        <input type="text" name="location" placeholder="Kathmandu, Nepal">
+            <div class="mb-3">
+                <label class="form-label">Location</label>
+                <input type="text" class="form-control" name="location" placeholder="Kathmandu, Nepal">
+            </div>
 
-        <button type="submit" class="btn-register">Register Company</button>
-    </form>
-    <p class="meta">Already have an account? <a href="company-login.php">Login</a></p>
+            <button type="submit" class="btn btn-primary w-100">Register Company</button>
+        </form>
+        <p class="text-muted small mt-3">Already have an account? <a class="link-primary text-decoration-none" href="company-login.php">Login</a></p>
+    </div>
 </div>
-<style>
-input[type="url"] {
-    width: 100%;
-    padding: 10px 12px;
-    margin: 6px 0 12px;
-    border: 1px solid #d1d5db;
-    border-radius: var(--radius-sm);
-    background: #fff;
-    color: #111827;
-}
-
-.btn-register {
-    width: 100%;
-    margin-top: 10px;
-    padding: 10px 14px;
-    background: var(--primary);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-}
-
-.btn-register:hover {
-    background: #162c7a;
-}
-</style>
 <?php require '../footer.php'; ?>
+
 

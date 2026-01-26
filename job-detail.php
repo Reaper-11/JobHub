@@ -195,53 +195,43 @@ if ($deadlineTs !== false) {
     $deadlineFormatted = date('M d', $deadlineTs);
 }
 ?>
-<h1><?php echo htmlspecialchars($job['title']); ?></h1>
+<h1 class="mb-2"><?php echo htmlspecialchars($job['title']); ?></h1>
 <?php if ($postedText !== ''): ?>
-    <p class="meta-note"><?php echo htmlspecialchars($postedText); ?></p>
+    <p class="text-muted mb-1"><?php echo htmlspecialchars($postedText); ?></p>
 <?php endif; ?>
 <?php if ($deadlineFormatted !== ''): ?>
-    <p class="meta-note-tight">Apply before: <?php echo htmlspecialchars($deadlineFormatted); ?></p>
+    <p class="text-muted">Apply before: <?php echo htmlspecialchars($deadlineFormatted); ?></p>
 <?php endif; ?>
-<div class="card mb-30">
-    <div class="job-meta">
-        <?php if (!empty($job['location'])): ?>
-            <div class="meta-row">
-                <span class="meta-label">Location</span>
-                <span class="meta-value"><?php echo htmlspecialchars($job['location']); ?></span>
-            </div>
-        <?php endif; ?>
-        <?php if (!empty($job['company'])): ?>
-            <div class="meta-row">
-                <span class="meta-label">Company</span>
-                <span class="meta-value"><?php echo htmlspecialchars($job['company']); ?></span>
-            </div>
-        <?php endif; ?>
-        <?php if (!empty($job['type'])): ?>
-            <div class="meta-row">
-                <span class="meta-label">Job Type</span>
-                <span class="meta-value"><span class="badge"><?php echo htmlspecialchars($job['type']); ?></span></span>
-            </div>
-        <?php endif; ?>
-        <div class="meta-row">
-            <span class="meta-label">Salary</span>
-            <span class="meta-value">
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <dl class="row mb-3">
+            <?php if (!empty($job['location'])): ?>
+                <dt class="col-sm-4 text-muted">Location</dt>
+                <dd class="col-sm-8"><?php echo htmlspecialchars($job['location']); ?></dd>
+            <?php endif; ?>
+            <?php if (!empty($job['company'])): ?>
+                <dt class="col-sm-4 text-muted">Company</dt>
+                <dd class="col-sm-8"><?php echo htmlspecialchars($job['company']); ?></dd>
+            <?php endif; ?>
+            <?php if (!empty($job['type'])): ?>
+                <dt class="col-sm-4 text-muted">Job Type</dt>
+                <dd class="col-sm-8"><span class="badge text-bg-warning"><?php echo htmlspecialchars($job['type']); ?></span></dd>
+            <?php endif; ?>
+            <dt class="col-sm-4 text-muted">Salary</dt>
+            <dd class="col-sm-8">
                 <?php echo !empty(trim($job['salary'] ?? '')) ? htmlspecialchars($job['salary']) : 'Negotiable'; ?>
-            </span>
-        </div>
-        <?php if (!empty($job['category'])): ?>
-            <div class="meta-row">
-                <span class="meta-label">Category</span>
-                <span class="meta-value"><?php echo htmlspecialchars($job['category']); ?></span>
-            </div>
-        <?php endif; ?>
-        <?php if (!empty($job['application_duration'])): ?>
-            <div class="meta-row">
-                <span class="meta-label">Application Duration</span>
-                <span class="meta-value"><?php echo htmlspecialchars($job['application_duration']); ?></span>
-            </div>
-        <?php endif; ?>
+            </dd>
+            <?php if (!empty($job['category'])): ?>
+                <dt class="col-sm-4 text-muted">Category</dt>
+                <dd class="col-sm-8"><?php echo htmlspecialchars($job['category']); ?></dd>
+            <?php endif; ?>
+            <?php if (!empty($job['application_duration'])): ?>
+                <dt class="col-sm-4 text-muted">Application Duration</dt>
+                <dd class="col-sm-8"><?php echo htmlspecialchars($job['application_duration']); ?></dd>
+            <?php endif; ?>
+        </dl>
+        <p class="mb-0"><?php echo nl2br(htmlspecialchars($job['description'])); ?></p>
     </div>
-    <p><?php echo nl2br(htmlspecialchars($job['description'])); ?></p>
 </div>
 
 <?php if ($msg): ?>
@@ -249,35 +239,37 @@ if ($deadlineTs !== false) {
 <?php endif; ?>
 
 <?php if ($isInactive): ?>
-<div class="alert alert-error">
+<div class="alert alert-warning">
     <?php echo $isClosed
         ? "This job is closed and is no longer accepting applications."
         : "This job is no longer accepting applications."; ?>
 </div>
 <?php elseif (isset($_SESSION['user_id'])): ?>
-<div class="form-card">
-    <h3>Apply for this job</h3>
+<div class="card shadow-sm">
+    <div class="card-body">
+    <h3 class="h5 mb-3">Apply for this job</h3>
     <?php if ($formAlert !== ''): ?>
-        <?php $alertClass = $formAlertType === 'success' ? 'alert-lite alert-lite-success' : 'alert-lite alert-lite-error'; ?>
-        <div class="<?php echo $alertClass; ?>"><?php echo htmlspecialchars($formAlert); ?></div>
+        <?php $alertClass = $formAlertType === 'success' ? 'alert-success' : 'alert-danger'; ?>
+        <div class="alert <?php echo $alertClass; ?>"><?php echo htmlspecialchars($formAlert); ?></div>
     <?php endif; ?>
     <form method="post">
-        <label>Cover Letter (optional)</label>
-        <textarea name="cover_letter" rows="4" maxlength="500" placeholder="Briefly explain why you are a good fit for this job&hellip;" <?php echo $alreadyApplied ? 'disabled' : ''; ?>></textarea>
-        <p class="helper-text">Max 500 characters</p>
-        <div class="action-row-lg">
+        <label class="form-label">Cover Letter (optional)</label>
+        <textarea name="cover_letter" class="form-control" rows="4" maxlength="500" placeholder="Briefly explain why you are a good fit for this job&hellip;" <?php echo $alreadyApplied ? 'disabled' : ''; ?>></textarea>
+        <div class="form-text mb-3">Max 500 characters</div>
+        <div class="d-flex flex-wrap gap-2">
             <?php if ($alreadyApplied): ?>
                 <button type="button" class="btn btn-primary" disabled>Already Applied</button>
             <?php else: ?>
                 <button type="submit" name="apply" class="btn btn-primary">Apply Now</button>
             <?php endif; ?>
-            <button type="submit" name="bookmark" class="btn btn-secondary">Bookmark</button>
+            <button type="submit" name="bookmark" class="btn btn-outline-secondary">Bookmark</button>
         </div>
     </form>
+    </div>
 </div>
 <?php else: ?>
-<div class="alert alert-error">
-    Please <a href="login.php">login</a> to apply or bookmark this job.
+<div class="alert alert-warning">
+    Please <a class="link-primary text-decoration-none" href="login.php">login</a> to apply or bookmark this job.
 </div>
 <?php endif; ?>
 
