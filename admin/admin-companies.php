@@ -69,57 +69,48 @@ $companies = $conn->query($companiesSql);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Companies - JobHub</title>
-    <link rel="stylesheet" href="../style.css">
-    <style>
-        .status-tabs {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 12px 0 18px;
-        }
-        .status-tab {
-            display: inline-flex;
-            align-items: center;
-            padding: 8px 14px;
-            border-radius: 999px;
-            border: 1px solid #dfe3eb;
-            background: #f7f8fb;
-            color: #2c2f36;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .status-tab.active {
-            background: #e0e7f1;
-            border-color: #c7d2e3;
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../custom.css?v=<?php echo filemtime(__DIR__ . '/../custom.css'); ?>">
 </head>
 <body>
-<main class="container">
-    <h1>Manage Companies</h1>
-    <p><a href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
+<main class="container py-4">
+    <h1 class="mb-2">Manage Companies</h1>
+    <p><a class="link-primary text-decoration-none" href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
 
     <?php if ($msg): ?><div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
 
-    <div class="status-tabs">
-        <a class="status-tab <?php echo $statusFilter === 'pending' ? 'active' : ''; ?>" href="admin-companies.php?status=pending">Pending</a>
-        <a class="status-tab <?php echo $statusFilter === 'approved' ? 'active' : ''; ?>" href="admin-companies.php?status=approved">Approved</a>
-        <a class="status-tab <?php echo $statusFilter === 'rejected' ? 'active' : ''; ?>" href="admin-companies.php?status=rejected">Rejected</a>
-        <a class="status-tab <?php echo $statusFilter === 'all' ? 'active' : ''; ?>" href="admin-companies.php?status=all">All</a>
-    </div>
+    <ul class="nav nav-pills mb-3">
+        <li class="nav-item">
+            <a class="nav-link <?php echo $statusFilter === 'pending' ? 'active' : ''; ?>" href="admin-companies.php?status=pending">Pending</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?php echo $statusFilter === 'approved' ? 'active' : ''; ?>" href="admin-companies.php?status=approved">Approved</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?php echo $statusFilter === 'rejected' ? 'active' : ''; ?>" href="admin-companies.php?status=rejected">Rejected</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link <?php echo $statusFilter === 'all' ? 'active' : ''; ?>" href="admin-companies.php?status=all">All</a>
+        </li>
+    </ul>
 
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Company</th>
-            <th>Email</th>
-            <th>Website</th>
-            <th>Location</th>
-            <th>Status</th>
-            <th>Registered At</th>
-            <th>Actions</th>
-        </tr>
+    <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>Website</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Registered At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
         <?php while ($c = $companies->fetch_assoc()): ?>
             <tr>
                 <td><?php echo $c['id']; ?></td>
@@ -146,42 +137,45 @@ $companies = $conn->query($companiesSql);
                 <td><?php echo htmlspecialchars($c['created_at']); ?></td>
                 <td>
                     <?php if ($statusValue === 1): ?>
-                        <form method="post" class="inline-form">
+                        <form method="post" class="d-inline">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="unapprove">
-                            <button type="submit" class="btn btn-small btn-secondary">Set Pending</button>
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Set Pending</button>
                         </form>
                     <?php elseif ($statusValue === -1): ?>
-                        <form method="post" class="inline-form">
+                        <form method="post" class="d-inline">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="approve">
-                            <button type="submit" class="btn btn-small">Approve</button>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Approve</button>
                         </form>
                     <?php else: ?>
-                        <form method="post" class="inline-form">
+                        <form method="post" class="d-inline">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="approve">
-                            <button type="submit" class="btn btn-small">Approve</button>
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Approve</button>
                         </form>
-                        <form method="post" class="inline-form reject-form">
+                        <form method="post" class="d-inline reject-form">
                             <input type="hidden" name="company_id" value="<?php echo $c['id']; ?>">
                             <input type="hidden" name="action" value="reject">
-                            <input type="text" name="reason" class="reason-input is-hidden">
-                            <button type="submit" class="btn btn-small btn-danger">Reject</button>
+                            <input type="text" name="reason" class="reason-input form-control form-control-sm d-inline-block" style="display: none;">
+                            <button type="submit" class="btn btn-sm btn-danger">Reject</button>
                         </form>
                     <?php endif; ?>
-                    <form method="get" action="admin-delete.php" class="inline-form delete-form">
+                    <form method="get" action="admin-delete.php" class="d-inline delete-form">
                         <input type="hidden" name="table" value="companies">
                         <input type="hidden" name="id" value="<?php echo $c['id']; ?>">
                         <input type="hidden" name="return" value="admin-companies.php">
-                        <input type="text" name="reason" class="reason-input is-hidden">
-                        <button type="submit" class="btn btn-danger btn-small">Delete</button>
+                        <input type="text" name="reason" class="reason-input form-control form-control-sm d-inline-block" style="display: none;">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                     </form>
                 </td>
             </tr>
         <?php endwhile; ?>
+        </tbody>
     </table>
+    </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.reject-form').forEach(function (form) {

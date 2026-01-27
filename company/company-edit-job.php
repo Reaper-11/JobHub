@@ -90,21 +90,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $basePath = '../';
 require '../header.php';
 ?>
-<h1>Edit Job</h1>
-<p><a href="company-dashboard.php">&laquo; Back to Dashboard</a></p>
+<h1 class="mb-2">Edit Job</h1>
+<p><a class="link-primary text-decoration-none" href="company-dashboard.php">&laquo; Back to Dashboard</a></p>
 <?php if ($msg): ?>
     <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
 <?php endif; ?>
-<div class="form-card">
+<div class="card shadow-sm">
+    <div class="card-body">
     <form method="post">
-        <label>Job Title *</label>
-        <input type="text" name="title" value="<?php echo htmlspecialchars($job['title']); ?>">
+        <div class="mb-3">
+            <label class="form-label">Job Title *</label>
+            <input type="text" class="form-control" name="title" value="<?php echo htmlspecialchars($job['title']); ?>">
+        </div>
 
-        <label>Location *</label>
-        <input type="text" name="location" value="<?php echo htmlspecialchars($job['location']); ?>">
+        <div class="mb-3">
+            <label class="form-label">Location *</label>
+            <input type="text" class="form-control" name="location" value="<?php echo htmlspecialchars($job['location']); ?>">
+        </div>
 
-        <label>Job Type *</label>
-        <select name="type">
+        <div class="mb-3">
+            <label class="form-label">Job Type *</label>
+            <select name="type" class="form-select">
             <?php
             $types = ['Full-time', 'Part-time', 'Internship', 'Remote'];
             foreach ($types as $t):
@@ -114,9 +120,11 @@ require '../header.php';
                 </option>
             <?php endforeach; ?>
         </select>
+        </div>
 
-        <label>Job Category *</label>
-        <select name="category" required>
+        <div class="mb-3">
+            <label class="form-label">Job Category *</label>
+            <select name="category" class="form-select" required>
             <option value="">Select category</option>
             <option value="Administration / Management" <?php echo ($job['category'] ?? '') === 'Administration / Management' ? 'selected' : ''; ?>>Administration / Management</option>
             <option value="Public Relations / Advertising" <?php echo ($job['category'] ?? '') === 'Public Relations / Advertising' ? 'selected' : ''; ?>>Public Relations / Advertising</option>
@@ -144,18 +152,26 @@ require '../header.php';
             <option value="Security Services" <?php echo ($job['category'] ?? '') === 'Security Services' ? 'selected' : ''; ?>>Security Services</option>
             <option value="Transportation / Logistics" <?php echo ($job['category'] ?? '') === 'Transportation / Logistics' ? 'selected' : ''; ?>>Transportation / Logistics</option>
         </select>
+        </div>
 
-        <label>Salary (optional)</label>
-        <input type="text" name="salary" value="<?php echo htmlspecialchars($job['salary']); ?>">
+        <div class="mb-3">
+            <label class="form-label">Salary (optional)</label>
+            <input type="text" class="form-control" name="salary" value="<?php echo htmlspecialchars($job['salary']); ?>">
+        </div>
 
-        <label>Application Duration (optional)</label>
-        <input type="text" name="application_duration" value="<?php echo htmlspecialchars($job['application_duration'] ?? ''); ?>">
+        <div class="mb-3">
+            <label class="form-label">Application Duration (optional)</label>
+            <input type="text" class="form-control" name="application_duration" value="<?php echo htmlspecialchars($job['application_duration'] ?? ''); ?>">
+        </div>
 
-        <label>Description *</label>
-        <textarea name="description" rows="4"><?php echo htmlspecialchars($job['description']); ?></textarea>
+        <div class="mb-3">
+            <label class="form-label">Description *</label>
+            <textarea name="description" class="form-control" rows="4"><?php echo htmlspecialchars($job['description']); ?></textarea>
+        </div>
 
-        <button type="submit">Update Job</button>
+        <button type="submit" class="btn btn-primary">Update Job</button>
     </form>
+    </div>
 </div>
 <?php require '../footer.php'; ?>
 

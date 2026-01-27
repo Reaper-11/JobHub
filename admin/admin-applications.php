@@ -19,87 +19,65 @@ $res = $conn->query($sql);
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Applications - JobHub</title>
-    <link rel="stylesheet" href="../style.css">
-    <style>
-        .application-chips {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 12px;
-            margin: 12px 0 18px;
-        }
-        .application-chip {
-            background: #fff;
-            border-radius: 12px;
-            border: 1px solid #e2e6ef;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
-            padding: 12px 16px;
-        }
-        .chip-label {
-            margin: 0 0 6px;
-            color: #5a6575;
-            font-size: 0.9rem;
-        }
-        .chip-value {
-            margin: 0;
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
-        .chip-approved .chip-value {
-            color: #1f7a3d;
-        }
-        .chip-rejected .chip-value {
-            color: #b23b3b;
-        }
-        .chip-pending .chip-value {
-            color: #b26a00;
-        }
-        @media (max-width: 900px) {
-            .application-chips {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-        @media (max-width: 600px) {
-            .application-chips {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../custom.css?v=<?php echo filemtime(__DIR__ . '/../custom.css'); ?>">
 </head>
 <body>
-<main class="container">
-    <h1>Job Applications</h1>
-    <p><a href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
+<main class="container py-4">
+    <h1 class="mb-2">Job Applications</h1>
+    <p><a class="link-primary text-decoration-none" href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
 
-    <div class="application-chips">
-        <div class="application-chip">
-            <p class="chip-label">Total Applications</p>
-            <p class="chip-value"><?php echo $totalApplications; ?></p>
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total Applications</div>
+                    <div class="h4 mb-0"><?php echo $totalApplications; ?></div>
+                </div>
+            </div>
         </div>
-        <div class="application-chip chip-approved">
-            <p class="chip-label">Approved</p>
-            <p class="chip-value"><?php echo $approvedCount; ?></p>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Approved</div>
+                    <div class="h4 text-success mb-0"><?php echo $approvedCount; ?></div>
+                </div>
+            </div>
         </div>
-        <div class="application-chip chip-rejected">
-            <p class="chip-label">Rejected</p>
-            <p class="chip-value"><?php echo $rejectedCount; ?></p>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Rejected</div>
+                    <div class="h4 text-danger mb-0"><?php echo $rejectedCount; ?></div>
+                </div>
+            </div>
         </div>
-        <div class="application-chip chip-pending">
-            <p class="chip-label">Pending</p>
-            <p class="chip-value"><?php echo $pendingCount; ?></p>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Pending</div>
+                    <div class="h4 text-warning mb-0"><?php echo $pendingCount; ?></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Job</th>
-            <th>User</th>
-            <th>Email</th>
-            <th>Status</th>
-            <th>Applied At</th>
-            <th>Details</th>
-        </tr>
+    <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Job</th>
+                <th>User</th>
+                <th>Email</th>
+                <th>Status</th>
+                <th>Applied At</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
         <?php while ($a = $res->fetch_assoc()): ?>
             <tr>
                 <td><?php echo $a['id']; ?></td>
@@ -109,13 +87,16 @@ $res = $conn->query($sql);
                 <td><?php echo htmlspecialchars(ucfirst($a['status'] ?? 'pending')); ?></td>
                 <td><?php echo htmlspecialchars($a['applied_at']); ?></td>
                 <td>
-                    <a class="btn btn-secondary btn-small" href="application-details.php?id=<?php echo $a['id']; ?>">
+                    <a class="btn btn-outline-secondary btn-sm" href="application-details.php?id=<?php echo $a['id']; ?>">
                         View Application
                     </a>
                 </td>
             </tr>
         <?php endwhile; ?>
+        </tbody>
     </table>
+    </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

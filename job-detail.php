@@ -18,6 +18,11 @@ $job = $jobRes->fetch_assoc();
 $jobStatus = strtolower((string) ($job['status'] ?? ''));
 $isClosed = $jobStatus === 'closed';
 $isInactive = $jobStatus !== '' && $jobStatus !== 'active';
+$deadlineTs = job_expiration_timestamp($job['created_at'] ?? '', $job['application_duration'] ?? '');
+$isExpired = $deadlineTs !== null && time() > $deadlineTs;
+if ($isExpired) {
+    $isInactive = true;
+}
 
 $deadlineValue = '';
 foreach (['application_deadline', 'deadline', 'apply_before'] as $column) {
@@ -26,11 +31,7 @@ foreach (['application_deadline', 'deadline', 'apply_before'] as $column) {
         break;
     }
 }
-$deadlineTs = $deadlineValue !== '' ? strtotime($deadlineValue) : false;
-$deadlinePassed = $deadlineTs !== false && date('Y-m-d', $deadlineTs) < date('Y-m-d');
-if ($deadlinePassed) {
-    $isInactive = true;
-}
+$deadlineValueTs = $deadlineValue !== '' ? strtotime($deadlineValue) : false;
 
 incrementJobView($conn, $job_id);
 
@@ -107,9 +108,13 @@ if ($currentUserId !== null && user_has_applied_job($conn, $currentUserId, $job_
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SESSION['user_id'])) {
     if ($isInactive) {
-        $msg = $isClosed
-            ? "This job is closed and is no longer accepting applications."
-            : "This job is no longer accepting applications.";
+        if ($isExpired) {
+            $msg = "Application deadline has expired.";
+        } elseif ($isClosed) {
+            $msg = "This job is closed and is no longer accepting applications.";
+        } else {
+            $msg = "This job is no longer accepting applications.";
+        }
         $msgType = "alert-danger";
     } else {
         $uid = (int) $_SESSION['user_id'];
@@ -191,11 +196,18 @@ foreach ($postedColumns as $column) {
     }
 }
 $deadlineFormatted = '';
-if ($deadlineTs !== false) {
+if ($deadlineTs !== null) {
     $deadlineFormatted = date('M d', $deadlineTs);
+} elseif ($deadlineValueTs !== false) {
+    $deadlineFormatted = date('M d', $deadlineValueTs);
 }
 ?>
-<h1 class="mb-2"><?php echo htmlspecialchars($job['title']); ?></h1>
+<h1 class="mb-2">
+    <?php echo htmlspecialchars($job['title']); ?>
+    <span class="badge <?php echo $isExpired ? 'text-bg-danger' : 'text-bg-success'; ?> ms-2">
+        <?php echo $isExpired ? 'Expired' : 'Open'; ?>
+    </span>
+</h1>
 <?php if ($postedText !== ''): ?>
     <p class="text-muted mb-1"><?php echo htmlspecialchars($postedText); ?></p>
 <?php endif; ?>
@@ -240,9 +252,15 @@ if ($deadlineTs !== false) {
 
 <?php if ($isInactive): ?>
 <div class="alert alert-warning">
-    <?php echo $isClosed
-        ? "This job is closed and is no longer accepting applications."
-        : "This job is no longer accepting applications."; ?>
+    <?php
+    if ($isExpired) {
+        echo "Application deadline has expired.";
+    } elseif ($isClosed) {
+        echo "This job is closed and is no longer accepting applications.";
+    } else {
+        echo "This job is no longer accepting applications.";
+    }
+    ?>
 </div>
 <?php elseif (isset($_SESSION['user_id'])): ?>
 <div class="card shadow-sm">

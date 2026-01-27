@@ -17,125 +17,115 @@ $rejectedCompanies = $conn->query("SELECT COUNT(*) c FROM companies WHERE is_app
 <head>
     <meta charset="UTF-8">
     <title>Admin Dashboard - JobHub</title>
-    <link rel="stylesheet" href="../style.css">
-    <style>
-        .quick-actions-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 18px;
-            margin-top: 12px;
-        }
-        .quick-action-card {
-            display: block;
-            padding: 18px;
-            border-radius: 12px;
-            border: 1px solid #e2e6ef;
-            background: #fff;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
-            color: inherit;
-            text-decoration: none;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
-        }
-        .quick-action-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
-            background-color: #f7f9fc;
-        }
-        .quick-action-title {
-            margin: 0 0 6px;
-            font-weight: 700;
-        }
-        .quick-action-text {
-            margin: 0;
-            color: #5a6575;
-            font-size: 0.92rem;
-        }
-        .approval-list {
-            list-style: none;
-            padding: 0;
-            margin: 12px 0 16px;
-        }
-        .approval-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #edf0f5;
-        }
-        .approval-item:last-child {
-            border-bottom: none;
-        }
-        .approval-value {
-            font-weight: 700;
-            color: #2d5d8a;
-        }
-        @media (max-width: 980px) {
-            .quick-actions-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-        }
-        @media (max-width: 640px) {
-            .quick-actions-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../custom.css?v=<?php echo filemtime(__DIR__ . '/../custom.css'); ?>">
 </head>
 <body>
-<main class="container">
-    <h1>Admin Dashboard</h1>
-    <div class="card flex-between">
-        <p>Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?></p>
-        <a class="btn btn-secondary btn-small" href="../logout.php">Logout</a>
+<main class="container py-4">
+    <h1 class="mb-3">Admin Dashboard</h1>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <p class="mb-0">Welcome, <?php echo htmlspecialchars($_SESSION['admin_username']); ?></p>
+            <a class="btn btn-outline-secondary btn-sm" href="../logout.php">Logout</a>
+        </div>
     </div>
 
-    <div class="jobs-grid">
-        <div class="card"><h3>Total Jobs</h3><p><?php echo $jobsCount; ?></p></div>
-        <div class="card"><h3>Total Users</h3><p><?php echo $usersCount; ?></p></div>
-        <div class="card"><h3>Total Applications</h3><p><?php echo $appCount; ?></p></div>
-        <div class="card"><h3>Total Companies</h3><p><?php echo $companyCount; ?></p></div>
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total Jobs</div>
+                    <div class="h4 mb-0"><?php echo $jobsCount; ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total Users</div>
+                    <div class="h4 mb-0"><?php echo $usersCount; ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total Applications</div>
+                    <div class="h4 mb-0"><?php echo $appCount; ?></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-md-6 col-lg-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Total Companies</div>
+                    <div class="h4 mb-0"><?php echo $companyCount; ?></div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="card">
-        <h3>Company Approval</h3>
-        <ul class="approval-list">
-            <li class="approval-item">
-                <span>Pending Companies</span>
-                <span class="approval-value"><?php echo $pendingCompanies; ?></span>
-            </li>
-            <li class="approval-item">
-                <span>Approved Companies</span>
-                <span class="approval-value"><?php echo $approvedCompanies; ?></span>
-            </li>
-            <li class="approval-item">
-                <span>Rejected Companies</span>
-                <span class="approval-value"><?php echo $rejectedCompanies; ?></span>
-            </li>
-        </ul>
-        <a class="btn btn-secondary btn-small" href="admin-companies.php">Review Pending Companies</a>
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <h2 class="h5">Company Approval</h2>
+            <ul class="list-group list-group-flush mb-3">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Pending Companies
+                    <span class="badge text-bg-warning"><?php echo $pendingCompanies; ?></span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Approved Companies
+                    <span class="badge text-bg-success"><?php echo $approvedCompanies; ?></span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    Rejected Companies
+                    <span class="badge text-bg-danger"><?php echo $rejectedCompanies; ?></span>
+                </li>
+            </ul>
+            <a class="btn btn-outline-secondary btn-sm" href="admin-companies.php">Review Pending Companies</a>
+        </div>
     </div>
 
-    <div class="card">
-        <h3>Quick Actions</h3>
-        <div class="quick-actions-grid">
-            <a class="quick-action-card" href="admin-jobs.php">
-                <h4 class="quick-action-title">View Jobs</h4>
-                <p class="quick-action-text">View all job listings posted by approved companies.</p>
-            </a>
-            <a class="quick-action-card" href="admin-companies.php">
-                <h4 class="quick-action-title">Manage Companies</h4>
-                <p class="quick-action-text">Approve or reject company accounts.</p>
-            </a>
-            <a class="quick-action-card" href="admin-users.php">
-                <h4 class="quick-action-title">View Users</h4>
-                <p class="quick-action-text">View registered users and basic details.</p>
-            </a>
-            <a class="quick-action-card" href="admin-applications.php">
-                <h4 class="quick-action-title">View Applications</h4>
-                <p class="quick-action-text">View job applications submitted by users.</p>
-            </a>
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h2 class="h5">Quick Actions</h2>
+            <div class="row g-3">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <a class="card h-100 text-decoration-none text-body" href="admin-jobs.php">
+                        <div class="card-body">
+                            <h3 class="h6 mb-1">View Jobs</h3>
+                            <p class="text-muted small mb-0">View all job listings posted by approved companies.</p>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <a class="card h-100 text-decoration-none text-body" href="admin-companies.php">
+                        <div class="card-body">
+                            <h3 class="h6 mb-1">Manage Companies</h3>
+                            <p class="text-muted small mb-0">Approve or reject company accounts.</p>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <a class="card h-100 text-decoration-none text-body" href="admin-users.php">
+                        <div class="card-body">
+                            <h3 class="h6 mb-1">View Users</h3>
+                            <p class="text-muted small mb-0">View registered users and basic details.</p>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <a class="card h-100 text-decoration-none text-body" href="admin-applications.php">
+                        <div class="card-body">
+                            <h3 class="h6 mb-1">View Applications</h3>
+                            <p class="text-muted small mb-0">View job applications submitted by users.</p>
+                        </div>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

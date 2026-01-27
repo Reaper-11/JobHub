@@ -146,108 +146,87 @@ $basePath = '../';
 $bodyClass = 'account-page';
 require '../header.php';
 ?>
-<style>
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.btn-back {
-    background: var(--primary);
-    color: #fff;
-    border-radius: var(--radius-sm);
-    padding: 9px 14px;
-}
-
-.btn-back:hover {
-    background: #162c7a;
-}
-
-.input-readonly {
-    background: #f3f4f6;
-    color: #6b7280;
-}
-
-.account-card {
-    margin-bottom: 28px;
-    padding: 26px;
-}
-
-.account-card.delete-card {
-    border: 1px solid #f1b5b5;
-    background: #fff5f5;
-}
-
-@media (max-width: 600px) {
-    .page-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-}
-</style>
-
-<div class="page-header">
-    <h1>Company Account</h1>
-    <a class="btn btn-back" href="company-dashboard.php">Back to Dashboard</a>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="mb-0">Company Account</h1>
+    <a class="btn btn-outline-secondary" href="company-dashboard.php">Back to Dashboard</a>
 </div>
 
-<div class="form-card account-card">
-    <h2>Profile</h2>
-    <?php if ($profileMsg): ?>
-        <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
-    <?php endif; ?>
-    <form method="post">
-        <input type="hidden" name="action" value="profile">
-        <label>Company Name*</label>
-        <input type="text" name="name" value="<?php echo htmlspecialchars($company['name']); ?>" required>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Profile</h2>
+        <?php if ($profileMsg): ?>
+            <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
+        <?php endif; ?>
+        <form method="post">
+            <input type="hidden" name="action" value="profile">
+            <div class="mb-3">
+                <label class="form-label">Company Name*</label>
+                <input type="text" class="form-control" name="name" value="<?php echo htmlspecialchars($company['name']); ?>" required>
+            </div>
 
-        <label>Email*</label>
-        <input type="email" name="email" value="<?php echo htmlspecialchars($company['email']); ?>" required>
+            <div class="mb-3">
+                <label class="form-label">Email*</label>
+                <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($company['email']); ?>" required>
+            </div>
 
-        <label>Company Status</label>
-        <input type="text" value="<?php echo $companyStatusLabel; ?>" class="input-readonly" disabled>
+            <div class="mb-3">
+                <label class="form-label">Company Status</label>
+                <input type="text" class="form-control bg-light text-muted" value="<?php echo $companyStatusLabel; ?>" readonly>
+            </div>
 
-        <label>Joined Date</label>
-        <input type="text" value="<?php echo htmlspecialchars($joinedDate); ?>" class="input-readonly" disabled>
+            <div class="mb-3">
+                <label class="form-label">Joined Date</label>
+                <input type="text" class="form-control bg-light text-muted" value="<?php echo htmlspecialchars($joinedDate); ?>" readonly>
+            </div>
 
-        <button type="submit" class="btn btn-primary">Save Profile</button>
-    </form>
+            <button type="submit" class="btn btn-primary">Save Profile</button>
+        </form>
+    </div>
 </div>
 
-<div class="form-card account-card">
-    <h2>Change Password</h2>
-    <?php if ($passMsg): ?>
-        <div class="alert <?php echo $passType; ?>"><?php echo htmlspecialchars($passMsg); ?></div>
-    <?php endif; ?>
-    <form method="post">
-        <input type="hidden" name="action" value="password">
-        <label>Old Password*</label>
-        <input type="password" name="old_password" placeholder="Old Password" required>
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Change Password</h2>
+        <?php if ($passMsg): ?>
+            <div class="alert <?php echo $passType; ?>"><?php echo htmlspecialchars($passMsg); ?></div>
+        <?php endif; ?>
+        <form method="post">
+            <input type="hidden" name="action" value="password">
+            <div class="mb-3">
+                <label class="form-label">Old Password*</label>
+                <input type="password" class="form-control" name="old_password" placeholder="Old Password" required>
+            </div>
 
-        <label>New Password*</label>
-        <input type="password" name="new_password" placeholder="New Password" required>
+            <div class="mb-3">
+                <label class="form-label">New Password*</label>
+                <input type="password" class="form-control" name="new_password" placeholder="New Password" required>
+            </div>
 
-        <label>Confirm Password*</label>
-        <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+            <div class="mb-3">
+                <label class="form-label">Confirm Password*</label>
+                <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required>
+            </div>
 
-        <button type="submit" class="btn btn-primary">Update Password</button>
-    </form>
+            <button type="submit" class="btn btn-primary">Update Password</button>
+        </form>
+    </div>
 </div>
 
-<div class="form-card account-card delete-card">
-    <h2>Delete Account</h2>
-    <?php if ($deleteMsg): ?>
-        <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
-    <?php endif; ?>
-    <form method="post" onsubmit="return confirm('This will permanently delete your company account and jobs. Continue?');">
-        <input type="hidden" name="action" value="delete">
-        <label>Confirm Password*</label>
-        <input type="password" name="confirm_password" required>
-        <button type="submit" class="btn btn-danger">Delete Company</button>
-    </form>
+<div class="card shadow-sm mb-4 border border-danger-subtle bg-danger-subtle">
+    <div class="card-body">
+        <h2 class="h5">Delete Account</h2>
+        <?php if ($deleteMsg): ?>
+            <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
+        <?php endif; ?>
+        <form method="post" onsubmit="return confirm('This will permanently delete your company account and jobs. Continue?');">
+            <input type="hidden" name="action" value="delete">
+            <div class="mb-3">
+                <label class="form-label">Confirm Password*</label>
+                <input type="password" class="form-control" name="confirm_password" required>
+            </div>
+            <button type="submit" class="btn btn-danger">Delete Company</button>
+        </form>
+    </div>
 </div>
 <?php require '../footer.php'; ?>
 

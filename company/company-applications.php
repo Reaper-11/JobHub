@@ -80,8 +80,8 @@ if ($res) {
 $basePath = '../';
 require '../header.php';
 ?>
-<h1>Applications</h1>
-<p><a href="company-dashboard.php">&laquo; Back to Dashboard</a></p>
+<h1 class="mb-2">Applications</h1>
+<p><a class="link-primary text-decoration-none" href="company-dashboard.php">&laquo; Back to Dashboard</a></p>
 <?php if ($msg): ?>
     <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
 <?php endif; ?>
@@ -89,21 +89,25 @@ require '../header.php';
 function render_company_applications_table(array $rows, array $statusOptions, $basePath)
 {
     if (empty($rows)) {
-        echo '<p>No applications to show.</p>';
+        echo '<p class="text-muted">No applications to show.</p>';
         return;
     }
     ?>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Job</th>
-            <th>User</th>
-            <th>Email</th>
-            <th>CV</th>
-            <th>Status</th>
-            <th>Applied At</th>
-            <th>Action</th>
-        </tr>
+    <div class="table-responsive mb-4">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Job</th>
+                <th>User</th>
+                <th>Email</th>
+                <th>CV</th>
+                <th>Status</th>
+                <th>Applied At</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
         <?php foreach ($rows as $a): ?>
             <?php $currentStatus = $a['status'] ?? 'pending'; ?>
             <tr>
@@ -113,30 +117,32 @@ function render_company_applications_table(array $rows, array $statusOptions, $b
                 <td><?php echo htmlspecialchars($a['email']); ?></td>
                 <td>
                     <?php if (!empty($a['cv_path'])): ?>
-                        <a class="btn btn-small" href="<?php echo htmlspecialchars($basePath . $a['cv_path']); ?>" target="_blank">View CV</a>
+                        <a class="btn btn-sm btn-outline-primary" href="<?php echo htmlspecialchars($basePath . $a['cv_path']); ?>" target="_blank">View CV</a>
                     <?php else: ?>
-                        <span class="meta">No CV</span>
+                        <span class="text-muted small">No CV</span>
                     <?php endif; ?>
                 </td>
                 <td><?php echo htmlspecialchars($statusOptions[$currentStatus] ?? ucfirst($currentStatus)); ?></td>
                 <td><?php echo htmlspecialchars($a['applied_at']); ?></td>
                 <td>
-                    <form method="post" class="inline-form">
+                    <form method="post" class="d-grid gap-2">
                         <input type="hidden" name="app_id" value="<?php echo $a['id']; ?>">
-                        <select name="status">
+                        <select name="status" class="form-select form-select-sm">
                             <?php foreach ($statusOptions as $value => $label): ?>
                                 <option value="<?php echo $value; ?>" <?php echo $currentStatus === $value ? 'selected' : ''; ?>>
                                     <?php echo $label; ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <textarea name="rejection_reason" rows="2" placeholder="Reason (required if rejected)"><?php echo htmlspecialchars($a['rejection_reason'] ?? ''); ?></textarea>
-                        <button type="submit" class="btn btn-small btn-secondary">Update</button>
+                        <textarea name="rejection_reason" class="form-control form-control-sm" rows="2" placeholder="Reason (required if rejected)"><?php echo htmlspecialchars($a['rejection_reason'] ?? ''); ?></textarea>
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Update</button>
                     </form>
                 </td>
             </tr>
         <?php endforeach; ?>
+        </tbody>
     </table>
+    </div>
     <?php
 }
 
@@ -152,12 +158,12 @@ foreach ($rows as $row) {
 }
 ?>
 
-<h2>Approved</h2>
+<h2 class="h5 mt-4">Approved</h2>
 <?php render_company_applications_table($approvedRows, $statusOptions, $basePath); ?>
 
-<h2>Rejected</h2>
+<h2 class="h5 mt-4">Rejected</h2>
 <?php render_company_applications_table($rejectedRows, $statusOptions, $basePath); ?>
 
-<h2>Pending</h2>
+<h2 class="h5 mt-4">Pending</h2>
 <?php render_company_applications_table($pendingRows, $statusOptions, $basePath); ?>
 <?php require '../footer.php'; ?>

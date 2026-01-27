@@ -57,27 +57,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_job'])) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Job - JobHub</title>
-    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../custom.css?v=<?php echo filemtime(__DIR__ . '/../custom.css'); ?>">
 </head>
 <body>
-<main class="container">
-    <h1>Edit Job</h1>
-    <p><a href="admin-jobs.php">&laquo; Back to Jobs</a></p>
+<main class="container py-4">
+    <h1 class="mb-2">Edit Job</h1>
+    <p><a class="link-primary text-decoration-none" href="admin-jobs.php">&laquo; Back to Jobs</a></p>
 
     <?php if ($msg): ?><div class="alert alert-success"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
 
-    <div class="form-card">
+    <div class="card shadow-sm">
+        <div class="card-body">
         <form method="post">
             <input type="hidden" name="update_job" value="1">
-            <label>Job Title</label>
-            <input type="text" name="title" value="<?php echo htmlspecialchars($job['title']); ?>" required>
-            <label>Company</label>
-            <input type="text" name="company" value="<?php echo htmlspecialchars($job['company']); ?>" required>
-            <label>Location</label>
-            <input type="text" name="location" value="<?php echo htmlspecialchars($job['location']); ?>" required>
-            <label>Job Type</label>
-            <select name="type" required>
+            <div class="mb-3">
+                <label class="form-label">Job Title</label>
+                <input type="text" class="form-control" name="title" value="<?php echo htmlspecialchars($job['title']); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Company</label>
+                <input type="text" class="form-control" name="company" value="<?php echo htmlspecialchars($job['company']); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Location</label>
+                <input type="text" class="form-control" name="location" value="<?php echo htmlspecialchars($job['location']); ?>" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Job Type</label>
+                <select name="type" class="form-select" required>
                 <?php
                 $types = ['Full-time', 'Part-time', 'Internship', 'Remote'];
                 foreach ($types as $t):
@@ -87,17 +97,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_job'])) {
                     </option>
                 <?php endforeach; ?>
             </select>
-            <label>Salary (optional)</label>
-            <input type="text" name="salary" value="<?php echo htmlspecialchars($job['salary']); ?>">
-            <label>Description</label>
-            <textarea name="description" rows="4" required><?php echo htmlspecialchars($job['description']); ?></textarea>
-            <label>
-                <input type="checkbox" name="is_approved" value="1" <?php echo $job['is_approved'] ? 'checked' : ''; ?>>
-                Approved
-            </label>
-            <button type="submit">Save Changes</button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Salary (optional)</label>
+                <input type="text" class="form-control" name="salary" value="<?php echo htmlspecialchars($job['salary']); ?>">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="4" required><?php echo htmlspecialchars($job['description']); ?></textarea>
+            </div>
+            <div class="form-check mb-3">
+                <input type="checkbox" class="form-check-input" name="is_approved" value="1" id="job-approved" <?php echo $job['is_approved'] ? 'checked' : ''; ?>>
+                <label class="form-check-label" for="job-approved">Approved</label>
+            </div>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
         </form>
+        </div>
     </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -80,86 +80,67 @@ if ($stmt) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Job Details - JobHub</title>
-    <link rel="stylesheet" href="../style.css">
-    <style>
-        .filter-bar {
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08);
-            padding: 16px;
-            margin: 12px 0 18px;
-        }
-        .filter-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            align-items: end;
-        }
-        .filter-actions {
-            margin-top: 12px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        @media (max-width: 900px) {
-            .filter-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../custom.css?v=<?php echo filemtime(__DIR__ . '/../custom.css'); ?>">
 </head>
 <body>
-<main class="container">
-    <h1>Job Details</h1>
-    <p><a href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
+<main class="container py-4">
+    <h1 class="mb-2">Job Details</h1>
+    <p><a class="link-primary text-decoration-none" href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
 
-    <form class="filter-bar" method="get" action="admin-jobs.php">
-        <div class="filter-grid">
-            <div>
-                <label for="filter-q">Search</label>
-                <input type="text" id="filter-q" name="q" placeholder="Search job title..." value="<?php echo htmlspecialchars($q); ?>">
+    <form class="card shadow-sm mb-4" method="get" action="admin-jobs.php">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-lg-4">
+                    <label class="form-label" for="filter-q">Search</label>
+                    <input type="text" class="form-control" id="filter-q" name="q" placeholder="Search job title..." value="<?php echo htmlspecialchars($q); ?>">
+                </div>
+                <div class="col-12 col-lg-4">
+                    <label class="form-label" for="filter-company">Company</label>
+                    <select id="filter-company" name="company" class="form-select">
+                        <option value="all">All Companies</option>
+                        <?php foreach ($companyRows as $company): ?>
+                            <?php $companyId = (int) $company['id']; ?>
+                            <option value="<?php echo $companyId; ?>" <?php echo ($companyFilter !== '' && (int) $companyFilter === $companyId) ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($company['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-12 col-lg-4">
+                    <label class="form-label" for="filter-location">Location</label>
+                    <select id="filter-location" name="location" class="form-select">
+                        <option value="all">All Locations</option>
+                        <?php foreach ($locationRows as $location): ?>
+                            <option value="<?php echo htmlspecialchars($location); ?>" <?php echo $locationFilter === $location ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($location); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
             </div>
-            <div>
-                <label for="filter-company">Company</label>
-                <select id="filter-company" name="company">
-                    <option value="all">All Companies</option>
-                    <?php foreach ($companyRows as $company): ?>
-                        <?php $companyId = (int) $company['id']; ?>
-                        <option value="<?php echo $companyId; ?>" <?php echo ($companyFilter !== '' && (int) $companyFilter === $companyId) ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($company['name']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                <a class="btn btn-outline-secondary btn-sm" href="admin-jobs.php">Reset</a>
             </div>
-            <div>
-                <label for="filter-location">Location</label>
-                <select id="filter-location" name="location">
-                    <option value="all">All Locations</option>
-                    <?php foreach ($locationRows as $location): ?>
-                        <option value="<?php echo htmlspecialchars($location); ?>" <?php echo $locationFilter === $location ? 'selected' : ''; ?>>
-                            <?php echo htmlspecialchars($location); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
-        <div class="filter-actions">
-            <button type="submit" class="btn btn-secondary btn-small">Filter</button>
-            <a href="admin-jobs.php">Reset</a>
         </div>
     </form>
 
-    <h3>All Jobs</h3>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Title</th>
-            <th>Company</th>
-            <th>Location</th>
-            <th>Details</th>
-        </tr>
+    <h3 class="h5 mb-3">All Jobs</h3>
+    <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Title</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
         <?php while ($j = $jobs->fetch_assoc()): ?>
             <tr>
                 <td><?php echo $j['id']; ?></td>
@@ -167,12 +148,15 @@ if ($stmt) {
                 <td><?php echo htmlspecialchars($j['company']); ?></td>
                 <td><?php echo htmlspecialchars($j['location']); ?></td>
                 <td>
-                    <a class="btn btn-secondary btn-small"
+                    <a class="btn btn-outline-secondary btn-sm"
                        href="job-details.php?id=<?php echo $j['id']; ?>">View Details</a>
                 </td>
             </tr>
         <?php endwhile; ?>
+        </tbody>
     </table>
+    </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

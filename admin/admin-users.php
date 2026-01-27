@@ -10,21 +10,27 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Users - JobHub</title>
-    <link rel="stylesheet" href="../style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="../custom.css?v=<?php echo filemtime(__DIR__ . '/../custom.css'); ?>">
 </head>
 <body>
-<main class="container">
-    <h1>Manage Users</h1>
-    <p><a href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
-    <table>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Registered At</th>
-            <th>Action</th>
-        </tr>
+<main class="container py-4">
+    <h1 class="mb-2">Manage Users</h1>
+    <p><a class="link-primary text-decoration-none" href="admin-dashboard.php">&laquo; Back to Dashboard</a></p>
+    <div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Registered At</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
         <?php while ($u = $users->fetch_assoc()): ?>
             <tr>
                 <td><?php echo $u['id']; ?></td>
@@ -32,20 +38,23 @@ $users = $conn->query("SELECT * FROM users ORDER BY created_at DESC");
                 <td><?php echo htmlspecialchars($u['email']); ?></td>
                 <td><?php echo htmlspecialchars($u['created_at']); ?></td>
                 <td>
-                    <form class="inline-form delete-user-form" method="post" action="admin-delete.php">
+                    <form class="d-inline delete-user-form" method="post" action="admin-delete.php">
                         <input type="hidden" name="table" value="users">
                         <input type="hidden" name="id" value="<?php echo $u['id']; ?>">
                         <input type="hidden" name="return" value="admin-users.php">
-                        <input class="inline-input reason-input is-hidden" type="text" name="reason">
-                        <button class="btn btn-danger btn-small delete-toggle" type="button">Remove User (Permanent)</button>
-                        <button class="btn btn-danger btn-small confirm-delete is-hidden" type="submit">Confirm Remove</button>
-                        <button class="btn btn-secondary btn-small cancel-delete is-hidden" type="button">Cancel</button>
+                        <input class="form-control form-control-sm d-inline-block reason-input" style="display: none;" type="text" name="reason">
+                        <button class="btn btn-sm btn-danger delete-toggle" type="button">Remove User (Permanent)</button>
+                        <button class="btn btn-sm btn-danger confirm-delete" style="display: none;" type="submit">Confirm Remove</button>
+                        <button class="btn btn-sm btn-outline-secondary cancel-delete" style="display: none;" type="button">Cancel</button>
                     </form>
                 </td>
             </tr>
         <?php endwhile; ?>
+        </tbody>
     </table>
+    </div>
 </main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.delete-user-form').forEach(function (form) {
