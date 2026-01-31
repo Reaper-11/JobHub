@@ -1,146 +1,158 @@
 <?php
+// register.php
 require 'db.php';
+require 'header.php';
 
-$msg = "";
-$jobCategories = [
-    "Administration / Management",
-    "Public Relations / Advertising",
-    "Agriculture & Livestock",
-    "Engineering / Architecture",
-    "Automotive / Automobiles",
-    "Communications / Broadcasting",
-    "Computer / Technology Management",
-    "Computer / Consulting",
-    "Computer / System Programming",
-    "Construction Services",
-    "Contractors",
-    "Education",
-    "Electronics / Electrical",
-    "Entertainment",
-    "Engineering",
-    "Finance / Accounting",
-    "Healthcare / Medical",
-    "Hospitality / Tourism",
-    "Information Technology (IT)",
-    "Manufacturing",
-    "Marketing / Sales",
-    "Media / Journalism",
-    "Retail / Wholesale",
-    "Security Services",
-    "Transportation / Logistics",
+$msg = '';
+$msg_type = 'alert-danger';
+
+$job_categories = [
+    "Administration / Management", "Public Relations / Advertising", "Agriculture & Livestock",
+    "Engineering / Architecture", "Information Technology (IT)", "Marketing / Sales",
+    "Finance / Accounting", "Healthcare / Medical", "Education", "Hospitality / Tourism",
+    // ... add the rest as needed
 ];
 
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-
-    $name  = trim($_POST["name"] ?? "");
-    $email = trim($_POST["email"] ?? "");
-    $phone = trim($_POST["phone"] ?? "");
-    $pass  = $_POST["password"] ?? "";
-    $preferred_category = trim($_POST["preferred_category"] ?? "");
-
-    if ($name === "" || $email === "" || $pass === "" || $preferred_category === "") {
-        $msg = "Please fill all required fields.";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $msg = "Please enter a valid email address.";
-    } elseif (!in_array($preferred_category, $jobCategories, true)) {
-        $msg = "Invalid job category selected.";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $msg = "Invalid request. Please try again.";
     } else {
+        $name      = trim($_POST['name'] ?? '');
+        $email     = trim($_POST['email'] ?? '');
+        $phone     = trim($_POST['phone'] ?? '');
+        $password  = $_POST['password'] ?? '';
+        $category  = trim($_POST['preferred_category'] ?? '');
 
-        $emailEsc = $conn->real_escape_string($email);
-        $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' LIMIT 1");
+        // Basic validation
+        if (empty($name) || empty($email) || empty($password) || empty($category)) {
+            $msg = "All required fields must be filled.";
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $msg = "Please enter a valid email address.";
+        } elseif ($phone !== '') {
+            // Keep only digits
+            $digits = preg_replace('/\D+/', '', $phone);
 
-        if ($check && $check->num_rows > 0) {
-            $msg = "Email already registered. Please login.";
-        } else {
-
-            $nameEsc  = $conn->real_escape_string($name);
-            $phoneEsc = $conn->real_escape_string($phone);
-            $prefEsc  = $conn->real_escape_string($preferred_category);
-
-            $hash = password_hash($pass, PASSWORD_DEFAULT);
-
-            $sql = "INSERT INTO users (name, email, phone, password, preferred_category)
-                    VALUES ('$nameEsc', '$emailEsc', '$phoneEsc', '$hash', '$prefEsc')";
-
-            if ($conn->query($sql)) {
-                // Optional: auto-login after registration
-                $_SESSION["user_id"] = $conn->insert_id;
-                $_SESSION["user_name"] = $name;
-                $_SESSION["preferred_category"] = $preferred_category;
-
-                header("Location: index.php");
-                exit;
-            } else {
-                $msg = "Registration failed. Please try again.";
+            // If user enters +977XXXXXXXXXX or 977XXXXXXXXXX
+            if (strlen($digits) === 13 && substr($digits, 0, 3) === '977') {
+                $digits = substr($digits, 3);
             }
+
+            if (strlen($digits) !== 10) {
+                $msg = "Phone number must be exactly 10 digits.";
+            } else {
+                $phone = $digits;
+            }
+        } elseif (strlen($password) < 8) {
+            $msg = "Password must be at least 8 characters long.";
+        } elseif (!in_array($category, $job_categories)) {
+            $msg = "Invalid job category selected.";
+        } else {
+            // Check if email exists
+            $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            if ($stmt->get_result()->num_rows > 0) {
+                $msg = "This email is already registered.";
+            } else {
+                $hash = password_hash($password, PASSWORD_DEFAULT);
+
+                $stmt = $conn->prepare("
+                    INSERT INTO users (name, email, phone, password, preferred_category, role, created_at)
+                    VALUES (?, ?, ?, ?, ?, 'seeker', NOW())
+                ");
+                $stmt->bind_param("sssss", $name, $email, $phone, $hash, $category);
+
+                if ($stmt->execute()) {
+                    $user_id = $conn->insert_id;
+
+                    $_SESSION['user_id']   = $user_id;
+                    $_SESSION['user_name'] = $name;
+                    $_SESSION['role']      = 'seeker';
+
+                    header("Location: index.php?welcome=1");
+                    exit;
+                } else {
+                    $msg = "Registration failed. Please try again later.";
+                }
+            }
+            $stmt->close();
         }
     }
 }
 ?>
-<?php require 'header.php'; ?>
+
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
-        <h1 class="h3 mb-3">Job Seeker Registration</h1>
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4 p-md-5">
+                <h2 class="h4 mb-4 text-center">Create Job Seeker Account</h2>
 
-        <?php if ($msg): ?>
-            <div class="alert alert-danger">
-                <?php echo htmlspecialchars($msg); ?>
-            </div>
-        <?php endif; ?>
+                <?php if ($msg): ?>
+                    <div class="alert <?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
+                <?php endif; ?>
 
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <form method="POST">
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+
                     <div class="mb-3">
-                        <label class="form-label">Full Name<span class="text-danger ms-1">*</span></label>
-                        <input class="form-control" type="text" name="name" placeholder="e.g. Ram Khadka" required
-                               value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                        <label class="form-label">Full Name <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required
+                               value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Email<span class="text-danger ms-1">*</span></label>
-                        <input class="form-control" type="email" name="email" placeholder="e.g. ramesh@gmail.com" required
-                               value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                        <label class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" name="email" class="form-control" required
+                               value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Phone</label>
-                        <input class="form-control" type="tel" name="phone" placeholder="98XXXXXXXX"
-                               value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                        <input
+                            type="tel"
+                            name="phone"
+                            class="form-control"
+                            inputmode="numeric"
+                            maxlength="10"
+                            pattern="[0-9]{10}"
+                            oninput="this.value=this.value.replace(/\D/g,'').slice(0,10);"
+                            placeholder="98XXXXXXXX"
+                            value="<?= htmlspecialchars($_POST['phone'] ?? '') ?>"
+                        >
+                        <div class="form-text">Must be exactly 10 digits.</div>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Location</label>
-                        <input class="form-control" type="text" name="location" id="location" placeholder="Kathmandu, Nepal" autocomplete="address-level2">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Password<span class="text-danger ms-1">*</span></label>
-                        <input class="form-control" type="password" name="password" placeholder="Remember your password" required minlength="8">
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Prefer Job Category</label>
-                        <select name="preferred_category" id="preferred_category" class="form-select" required>
-                            <option value="">Select a job category</option>
-                            <?php $selectedCategory = $_POST['preferred_category'] ?? ''; ?>
-                            <?php foreach ($jobCategories as $cat): ?>
-                                <option value="<?php echo htmlspecialchars($cat); ?>"
-                                    <?php echo $selectedCategory === $cat ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($cat); ?>
+                        <label class="form-label">Preferred Job Category <span class="text-danger">*</span></label>
+                        <select name="preferred_category" class="form-select" required>
+                            <option value="">Select category...</option>
+                            <?php foreach ($job_categories as $cat): ?>
+                                <option value="<?= htmlspecialchars($cat) ?>"
+                                    <?= ($_POST['preferred_category'] ?? '') === $cat ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($cat) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
 
-                    <button class="btn btn-primary w-100" type="submit">Create Account</button>
+                    <div class="mb-4">
+                        <label class="form-label">Password <span class="text-danger">*</span></label>
+                        <input type="password" name="password" class="form-control" required minlength="8">
+                        <div class="form-text">Minimum 8 characters</div>
+                    </div>
 
-                    <div class="mt-2 text-muted small">
-                        Already have an account? <a class="link-primary text-decoration-none" href="login.php">Login</a>
+                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                        Create Account
+                    </button>
+
+                    <div class="text-center small">
+                        Already have an account?
+                        <a href="login.php" class="text-primary">Sign in</a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
 <?php require 'footer.php'; ?>

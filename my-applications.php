@@ -1,114 +1,83 @@
 <?php
+// my-applications.php
 require 'db.php';
+require 'header.php';
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
-$uid = (int) $_SESSION['user_id'];
 
-$sql = "SELECT a.*, j.title, j.company, j.location
+$user_id = (int)$_SESSION['user_id'];
+
+$sql = "SELECT a.id, a.status, a.cover_letter, a.applied_at,
+               j.title, j.company, j.location, j.type
         FROM applications a
-        JOIN jobs j ON j.id = a.job_id
-        WHERE a.user_id = $uid
+        JOIN jobs j ON a.job_id = j.id
+        WHERE a.user_id = ?
         ORDER BY a.applied_at DESC";
-$res = $conn->query($sql);
-$rows = [];
-$approvedRows = [];
-$rejectedRows = [];
-$pendingRows = [];
-if ($res) {
-    while ($row = $res->fetch_assoc()) {
-        $rows[] = $row;
-    }
-}
 
-require 'header.php';
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$applications = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
-<?php
-function render_application_table(array $rows, $showMessage, $showReason)
-{
-    if (empty($rows)) {
-        echo '<p class="text-muted">No applications to show.</p>';
-        return;
-    }
-    ?>
-    <div class="table-responsive mb-4">
-    <table class="table table-striped table-hover align-middle">
-        <thead>
-            <tr>
-                <th>Job Title</th>
-                <th>Company</th>
-                <th>Location</th>
-                <th>Status</th>
-                <?php if ($showMessage): ?>
-                    <th>Message</th>
-                <?php endif; ?>
-                <?php if ($showReason): ?>
-                    <th>Rejection Reason</th>
-                <?php endif; ?>
-                <th>Applied At</th>
-                <th>Action</th>
-                <th>Cancel</th>
-            </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($rows as $row): ?>
-            <?php $currentStatus = $row['status'] ?? 'pending'; ?>
-            <tr>
-                <td><a href="job-detail.php?id=<?php echo $row['job_id']; ?>">
-                    <?php echo htmlspecialchars($row['title']); ?></a></td>
-                <td><?php echo htmlspecialchars($row['company']); ?></td>
-                <td><?php echo htmlspecialchars($row['location']); ?></td>
-                <td><?php echo htmlspecialchars(ucfirst($currentStatus)); ?></td>
-                <?php if ($showMessage): ?>
+
+<h1 class="mb-4">My Applications</h1>
+
+<?php if (empty($applications)): ?>
+    <div class="alert alert-info">
+        You haven't applied to any jobs yet.
+        <a href="index.php" class="alert-link">Browse jobs</a>
+    </div>
+<?php else: ?>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Job Title</th>
+                    <th>Company</th>
+                    <th>Location</th>
+                    <th>Status</th>
+                    <th>Applied On</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($applications as $app): ?>
+                <tr>
                     <td>
-                        <?php echo $currentStatus === 'approved' ? 'Check your mail for further details.' : ''; ?>
+                        <a href="job-detail.php?id=<?= $app['job_id'] ?>" class="text-decoration-none">
+                            <?= htmlspecialchars($app['title']) ?>
+                        </a>
                     </td>
-                <?php endif; ?>
-                <?php if ($showReason): ?>
+                    <td><?= htmlspecialchars($app['company']) ?></td>
+                    <td><?= htmlspecialchars($app['location']) ?></td>
                     <td>
                         <?php
-                        $reason = $row['rejection_reason'] ?? '';
-                        echo ($currentStatus === 'rejected' && $reason !== '') ? htmlspecialchars($reason) : '';
+                        $status = strtolower($app['status'] ?? 'pending');
+                        $badge = match($status) {
+                            'pending'    => 'bg-warning',
+                            'reviewed'   => 'bg-info',
+                            'shortlisted'=> 'bg-primary',
+                            'rejected'   => 'bg-danger',
+                            'accepted'   => 'bg-success',
+                            default      => 'bg-secondary'
+                        };
                         ?>
+                        <span class="badge <?= $badge ?>"><?= ucfirst($status) ?></span>
                     </td>
-                <?php endif; ?>
-                <td><?php echo htmlspecialchars($row['applied_at']); ?></td>
-                <td><a class="btn btn-sm btn-outline-primary" href="my-application-edit.php?id=<?php echo $row['id']; ?>">Edit</a></td>
-                <td>
-                    <form method="post" action="my-application-cancel.php" class="d-inline">
-                        <input type="hidden" name="app_id" value="<?php echo $row['id']; ?>">
-                        <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
-                    </form>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
+                    <td><?= date('M d, Y', strtotime($app['applied_at'])) ?></td>
+                    <td>
+                        <a href="my-application-edit.php?id=<?= $app['id'] ?>" 
+                           class="btn btn-sm btn-outline-primary">Edit Cover Letter</a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
     </div>
-    <?php
-}
-?>
-<h1 class="mb-3">My Applications</h1>
-<?php
-foreach ($rows as $row) {
-    $status = strtolower($row['status'] ?? 'pending');
-    if ($status === 'approved') {
-        $approvedRows[] = $row;
-    } elseif ($status === 'rejected') {
-        $rejectedRows[] = $row;
-    } else {
-        $pendingRows[] = $row;
-    }
-}
-?>
+<?php endif; ?>
 
-<h2 class="h5 mt-4">Approved</h2>
-<?php render_application_table($approvedRows, true, false); ?>
-
-<h2 class="h5 mt-4">Rejected</h2>
-<?php render_application_table($rejectedRows, false, true); ?>
-
-<h2 class="h5 mt-4">Pending</h2>
-<?php render_application_table($pendingRows, false, false); ?>
 <?php require 'footer.php'; ?>

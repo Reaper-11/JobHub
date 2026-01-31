@@ -74,6 +74,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($name === '' || $email === '' || $preferred_category === '') {
             $profileMsg = "Name, email, and category are required.";
             $profileType = "alert-danger";
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $profileMsg = "Please enter a valid email address.";
+            $profileType = "alert-danger";
+        } elseif ($phone !== '') {
+            // Keep only digits
+            $digits = preg_replace('/\D+/', '', $phone);
+
+            // If user enters +977XXXXXXXXXX or 977XXXXXXXXXX
+            if (strlen($digits) === 13 && substr($digits, 0, 3) === '977') {
+                $digits = substr($digits, 3);
+            }
+
+            if (strlen($digits) !== 10) {
+                $profileMsg = "Phone number must be exactly 10 digits.";
+                $profileType = "alert-danger";
+            } else {
+                $phone = $digits;
+            }
         } elseif (!in_array($preferred_category, $jobCategories, true)) {
             $profileMsg = "Invalid job category selected.";
             $profileType = "alert-danger";
@@ -111,39 +129,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $profileMsg = $uploadError;
                 $profileType = "alert-danger";
             } else {
-            $emailEsc = $conn->real_escape_string($email);
-            $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
-            if ($check && $check->num_rows > 0) {
-                $profileMsg = "That email is already in use.";
-                $profileType = "alert-danger";
-            } else {
-                $phoneVal = $phone === '' ? null : $phone;
-                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
-                $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
-                if ($stmt->execute()) {
-                    if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
-                        $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
-                        if ($prefStmt) {
-                            $prefStmt->bind_param("is", $uid, $preferred_category);
-                            $prefStmt->execute();
-                            $prefStmt->close();
-                        }
-                    }
-                    $profileMsg = "Profile updated successfully.";
-                    $profileType = "alert-success";
-                    $_SESSION['user_name'] = $name;
-                    $_SESSION['preferred_category'] = $preferred_category;
-                    $user['name'] = $name;
-                    $user['email'] = $email;
-                    $user['phone'] = $phone;
-                    $user['preferred_category'] = $preferred_category;
-                    $user['cv_path'] = $newCvPath;
-                } else {
-                    $profileMsg = "Could not update profile. Please try again.";
+                $emailEsc = $conn->real_escape_string($email);
+                $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
+                if ($check && $check->num_rows > 0) {
+                    $profileMsg = "That email is already in use.";
                     $profileType = "alert-danger";
+                } else {
+                    $phoneVal = $phone === '' ? null : $phone;
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
+                    $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
+                    if ($stmt->execute()) {
+                        if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
+                            $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
+                            if ($prefStmt) {
+                                $prefStmt->bind_param("is", $uid, $preferred_category);
+                                $prefStmt->execute();
+                                $prefStmt->close();
+                            }
+                        }
+                        $profileMsg = "Profile updated successfully.";
+                        $profileType = "alert-success";
+                        $_SESSION['user_name'] = $name;
+                        $_SESSION['preferred_category'] = $preferred_category;
+                        $user['name'] = $name;
+                        $user['email'] = $email;
+                        $user['phone'] = $phone;
+                        $user['preferred_category'] = $preferred_category;
+                        $user['cv_path'] = $newCvPath;
+                    } else {
+                        $profileMsg = "Could not update profile. Please try again.";
+                        $profileType = "alert-danger";
+                    }
+                    $stmt->close();
                 }
-                $stmt->close();
-            }
             }
         }
     } elseif ($action === 'password') {
@@ -273,7 +291,18 @@ require 'header.php';
 
             <div class="mb-3">
                 <label class="form-label">Phone (optional)</label>
-                <input type="text" class="form-control" name="phone" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="e.g. +977-9800000000">
+                <input
+                    type="tel"
+                    class="form-control"
+                    name="phone"
+                    value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>"
+                    inputmode="numeric"
+                    maxlength="10"
+                    pattern="[0-9]{10}"
+                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,10);"
+                    placeholder="98XXXXXXXX"
+                >
+                <div class="form-text">Must be exactly 10 digits.</div>
             </div>
 
             <div class="mb-3">

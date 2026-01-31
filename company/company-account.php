@@ -1,232 +1,250 @@
 <?php
+// company/company-account.php
 require '../db.php';
+
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
     exit;
 }
 
-$cid = (int) $_SESSION['company_id'];
-$profileMsg = "";
-$profileType = "";
-$passMsg = "";
-$passType = "";
-$deleteMsg = "";
-$deleteType = "";
+$cid = (int)$_SESSION['company_id'];
+$msg = $msg_type = '';
+$pass_msg = $pass_type = '';
+$delete_msg = $delete_type = '';
 
-$company = ['name' => '', 'email' => '', 'is_approved' => 0, 'created_at' => null];
-$companyStmt = $conn->prepare("SELECT name, email, is_approved, created_at FROM companies WHERE id = ?");
-$companyStmt->bind_param("i", $cid);
-if ($companyStmt->execute()) {
-    $companyRes = $companyStmt->get_result();
-    if ($companyRes) {
-        $row = $companyRes->fetch_assoc();
-        if ($row) {
-            $company = $row;
+// Fetch current company data
+$stmt = $conn->prepare("SELECT name, email, website, location, logo_path FROM companies WHERE id = ?");
+$stmt->bind_param("i", $cid);
+$stmt->execute();
+$company = $stmt->get_result()->fetch_assoc() ?? [];
+$stmt->close();
+
+// Update profile
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'profile' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
+    $name    = trim($_POST['name'] ?? '');
+    $email   = trim($_POST['email'] ?? '');
+    $website = trim($_POST['website'] ?? '');
+    $location = trim($_POST['location'] ?? '');
+
+    if (empty($name) || empty($email)) {
+        $msg = "Name and email are required.";
+        $msg_type = 'danger';
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $msg = "Invalid email format.";
+        $msg_type = 'danger';
+    } else {
+        // Check email uniqueness (exclude self)
+        $check = $conn->prepare("SELECT id FROM companies WHERE email = ? AND id != ?");
+        $check->bind_param("si", $email, $cid);
+        $check->execute();
+        if ($check->get_result()->num_rows > 0) {
+            $msg = "This email is already used by another company.";
+            $msg_type = 'danger';
+        } else {
+            $stmt = $conn->prepare("UPDATE companies SET name = ?, email = ?, website = ?, location = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->bind_param("ssssi", $name, $email, $website, $location, $cid);
+            if ($stmt->execute()) {
+                $msg = "Profile updated successfully.";
+                $msg_type = 'success';
+                $company['name'] = $name;
+                $company['email'] = $email;
+                $company['website'] = $website;
+                $company['location'] = $location;
+            } else {
+                $msg = "Update failed. Please try again.";
+                $msg_type = 'danger';
+            }
+            $stmt->close();
         }
+        $check->close();
     }
 }
-$companyStmt->close();
-$companyStatusLabel = ((int) ($company['is_approved'] ?? 0) === 1) ? 'Approved' : 'Pending';
-$joinedDate = '';
-if (!empty($company['created_at'])) {
-    $joinedTs = strtotime($company['created_at']);
-    if ($joinedTs !== false) {
-        $joinedDate = date('d M Y', $joinedTs);
-    }
-}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
+// Change password
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'password' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
+    $current = $_POST['current_password'] ?? '';
+    $new     = $_POST['new_password'] ?? '';
+    $confirm = $_POST['confirm_password'] ?? '';
 
-    if ($action === 'profile') {
-        $name = trim($_POST['name'] ?? '');
-        $email = trim($_POST['email'] ?? '');
+    if (empty($current) || empty($new) || empty($confirm)) {
+        $pass_msg = "All password fields are required.";
+        $pass_type = 'danger';
+    } elseif ($new !== $confirm) {
+        $pass_msg = "New passwords do not match.";
+        $pass_type = 'danger';
+    } elseif (strlen($new) < 8) {
+        $pass_msg = "New password must be at least 8 characters.";
+        $pass_type = 'danger';
+    } else {
+        $stmt = $conn->prepare("SELECT password FROM companies WHERE id = ?");
+        $stmt->bind_param("i", $cid);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $stmt->close();
 
-        if ($name === '' || $email === '') {
-            $profileMsg = "Company name and email are required.";
-            $profileType = "alert-danger";
-        } else {
-            $emailEsc = $conn->real_escape_string($email);
-            $check = $conn->query("SELECT id FROM companies WHERE email='$emailEsc' AND id <> $cid");
-            if ($check && $check->num_rows > 0) {
-                $profileMsg = "That email is already in use.";
-                $profileType = "alert-danger";
+        if ($row && password_verify($current, $row['password'])) {
+            $newHash = password_hash($new, PASSWORD_DEFAULT);
+            $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
+            $stmt->bind_param("si", $newHash, $cid);
+            if ($stmt->execute()) {
+                $pass_msg = "Password changed successfully.";
+                $pass_type = 'success';
             } else {
-                $stmt = $conn->prepare("UPDATE companies SET name = ?, email = ? WHERE id = ?");
-                $stmt->bind_param("ssi", $name, $email, $cid);
-                if ($stmt->execute()) {
-                    $profileMsg = "Company profile updated successfully.";
-                    $profileType = "alert-success";
-                    $_SESSION['company_name'] = $name;
-                    $company['name'] = $name;
-                    $company['email'] = $email;
-
-                    $jobUpdate = $conn->prepare("UPDATE jobs SET company = ? WHERE company_id = ?");
-                    $jobUpdate->bind_param("si", $name, $cid);
-                    $jobUpdate->execute();
-                    $jobUpdate->close();
-                } else {
-                    $profileMsg = "Could not update profile. Please try again.";
-                    $profileType = "alert-danger";
-                }
-                $stmt->close();
+                $pass_msg = "Failed to update password.";
+                $pass_type = 'danger';
             }
-        }
-    } elseif ($action === 'password') {
-        $old = $_POST['old_password'] ?? '';
-        $new = $_POST['new_password'] ?? '';
-        $confirm = $_POST['confirm_password'] ?? '';
-
-        if ($old === '' || $new === '' || $confirm === '') {
-            $passMsg = "All fields are required.";
-            $passType = "alert-danger";
-        } elseif ($new !== $confirm) {
-            $passMsg = "New password and confirmation do not match.";
-            $passType = "alert-danger";
+            $stmt->close();
         } else {
-            $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
-            $row = $res ? $res->fetch_assoc() : null;
-            $storedHash = $row['password'] ?? '';
-            $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($old));
-            $validOld = password_verify($old, $storedHash) || $legacyMatch;
-
-            if (!$row || !$validOld) {
-                $passMsg = "Old password is incorrect.";
-                $passType = "alert-danger";
-            } else {
-                $newHash = password_hash($new, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
-                $stmt->bind_param("si", $newHash, $cid);
-                if ($stmt->execute()) {
-                    $passMsg = "Password updated successfully.";
-                    $passType = "alert-success";
-                } else {
-                    $passMsg = "Could not update password. Please try again.";
-                    $passType = "alert-danger";
-                }
-                $stmt->close();
-            }
-        }
-    } elseif ($action === 'delete') {
-        $confirmPassword = $_POST['confirm_password'] ?? '';
-        if ($confirmPassword === '') {
-            $deleteMsg = "Password is required to delete your account.";
-            $deleteType = "alert-danger";
-        } else {
-            $res = $conn->query("SELECT password FROM companies WHERE id = $cid");
-            $row = $res ? $res->fetch_assoc() : null;
-            $storedHash = $row['password'] ?? '';
-            $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($confirmPassword));
-            $validConfirm = password_verify($confirmPassword, $storedHash) || $legacyMatch;
-
-            if (!$row || !$validConfirm) {
-                $deleteMsg = "Password is incorrect.";
-                $deleteType = "alert-danger";
-            } else {
-                $conn->query("DELETE FROM jobs WHERE company_id = $cid");
-
-                $stmt = $conn->prepare("DELETE FROM companies WHERE id = ?");
-                $stmt->bind_param("i", $cid);
-                if ($stmt->execute()) {
-                    session_unset();
-                    session_destroy();
-                    header("Location: ../index.php");
-                    exit;
-                } else {
-                    $deleteMsg = "Could not delete account. Please try again.";
-                    $deleteType = "alert-danger";
-                }
-                $stmt->close();
-            }
+            $pass_msg = "Current password is incorrect.";
+            $pass_type = 'danger';
         }
     }
 }
 
-$basePath = '../';
-$bodyClass = 'account-page';
-require '../header.php';
+// Delete account (very dangerous – confirm twice)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
+    $confirm_pass = $_POST['confirm_password'] ?? '';
+
+    $stmt = $conn->prepare("SELECT password FROM companies WHERE id = ?");
+    $stmt->bind_param("i", $cid);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+
+    if ($row && password_verify($confirm_pass, $row['password'])) {
+        // Delete related jobs first
+        $conn->prepare("DELETE FROM jobs WHERE company_id = ?")->bind_param("i", $cid)->execute();
+        // Delete company
+        $stmt = $conn->prepare("DELETE FROM companies WHERE id = ?");
+        $stmt->bind_param("i", $cid);
+        if ($stmt->execute()) {
+            session_destroy();
+            header("Location: ../index.php?msg=company_deleted");
+            exit;
+        } else {
+            $delete_msg = "Failed to delete account.";
+            $delete_type = 'danger';
+        }
+        $stmt->close();
+    } else {
+        $delete_msg = "Incorrect password.";
+        $delete_type = 'danger';
+    }
+}
 ?>
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="mb-0">Company Account</h1>
-    <a class="btn btn-outline-secondary" href="company-dashboard.php">Back to Dashboard</a>
-</div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h2 class="h5">Profile</h2>
-        <?php if ($profileMsg): ?>
-            <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
-        <?php endif; ?>
-        <form method="post">
-            <input type="hidden" name="action" value="profile">
-            <div class="mb-3">
-                <label class="form-label">Company Name*</label>
-                <input type="text" class="form-control" name="name" value="<?php echo htmlspecialchars($company['name']); ?>" required>
+<?php require 'company-header.php'; ?>
+
+<h1 class="mb-4">Company Account Settings</h1>
+
+<div class="row g-4">
+    <!-- Profile Update -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Company Profile</h5>
             </div>
+            <div class="card-body">
+                <?php if ($msg): ?>
+                    <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
+                <?php endif; ?>
 
-            <div class="mb-3">
-                <label class="form-label">Email*</label>
-                <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($company['email']); ?>" required>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                    <input type="hidden" name="action" value="profile">
+
+                    <div class="mb-3">
+                        <label class="form-label">Company Name *</label>
+                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($company['name'] ?? '') ?>" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Email *</label>
+                        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($company['email'] ?? '') ?>" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Website</label>
+                        <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($company['website'] ?? '') ?>">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Location</label>
+                        <input type="text" name="location" class="form-control" value="<?= htmlspecialchars($company['location'] ?? '') ?>">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                </form>
             </div>
+        </div>
+    </div>
 
-            <div class="mb-3">
-                <label class="form-label">Company Status</label>
-                <input type="text" class="form-control bg-light text-muted" value="<?php echo $companyStatusLabel; ?>" readonly>
+    <!-- Password Change -->
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Change Password</h5>
             </div>
+            <div class="card-body">
+                <?php if ($pass_msg): ?>
+                    <div class="alert alert-<?= $pass_type ?>"><?= htmlspecialchars($pass_msg) ?></div>
+                <?php endif; ?>
 
-            <div class="mb-3">
-                <label class="form-label">Joined Date</label>
-                <input type="text" class="form-control bg-light text-muted" value="<?php echo htmlspecialchars($joinedDate); ?>" readonly>
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                    <input type="hidden" name="action" value="password">
+
+                    <div class="mb-3">
+                        <label class="form-label">Current Password *</label>
+                        <input type="password" name="current_password" class="form-control" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">New Password *</label>
+                        <input type="password" name="new_password" class="form-control" required minlength="8">
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Confirm New Password *</label>
+                        <input type="password" name="confirm_password" class="form-control" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Change Password</button>
+                </form>
             </div>
+        </div>
+    </div>
 
-            <button type="submit" class="btn btn-primary">Save Profile</button>
-        </form>
+    <!-- Delete Account (last resort) -->
+    <div class="col-12">
+        <div class="card shadow-sm border-danger">
+            <div class="card-header bg-danger-subtle text-danger">
+                <h5 class="mb-0">Delete Company Account</h5>
+            </div>
+            <div class="card-body">
+                <?php if ($delete_msg): ?>
+                    <div class="alert alert-<?= $delete_type ?>"><?= htmlspecialchars($delete_msg) ?></div>
+                <?php endif; ?>
+
+                <p class="text-danger fw-bold">Warning: This action is permanent and cannot be undone.</p>
+                <p>All your posted jobs and data will be deleted.</p>
+
+                <form method="post" onsubmit="return confirm('Are you absolutely sure? This will delete your company account FOREVER.');">
+                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                    <input type="hidden" name="action" value="delete">
+
+                    <div class="mb-3">
+                        <label class="form-label">Confirm your password to proceed *</label>
+                        <input type="password" name="confirm_password" class="form-control" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger">Delete My Company Account</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h2 class="h5">Change Password</h2>
-        <?php if ($passMsg): ?>
-            <div class="alert <?php echo $passType; ?>"><?php echo htmlspecialchars($passMsg); ?></div>
-        <?php endif; ?>
-        <form method="post">
-            <input type="hidden" name="action" value="password">
-            <div class="mb-3">
-                <label class="form-label">Old Password*</label>
-                <input type="password" class="form-control" name="old_password" placeholder="Old Password" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">New Password*</label>
-                <input type="password" class="form-control" name="new_password" placeholder="New Password" required>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Confirm Password*</label>
-                <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Update Password</button>
-        </form>
-    </div>
-</div>
-
-<div class="card shadow-sm mb-4 border border-danger-subtle bg-danger-subtle">
-    <div class="card-body">
-        <h2 class="h5">Delete Account</h2>
-        <?php if ($deleteMsg): ?>
-            <div class="alert <?php echo $deleteType; ?>"><?php echo htmlspecialchars($deleteMsg); ?></div>
-        <?php endif; ?>
-        <form method="post" onsubmit="return confirm('This will permanently delete your company account and jobs. Continue?');">
-            <input type="hidden" name="action" value="delete">
-            <div class="mb-3">
-                <label class="form-label">Confirm Password*</label>
-                <input type="password" class="form-control" name="confirm_password" required>
-            </div>
-            <button type="submit" class="btn btn-danger">Delete Company</button>
-        </form>
-    </div>
-</div>
 <?php require '../footer.php'; ?>
-

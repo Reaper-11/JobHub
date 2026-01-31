@@ -1,66 +1,93 @@
 <?php
+// company/company-login.php
 require '../db.php';
-$msg = "";
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = trim($_POST['email']);
-    $pass  = $_POST['password'];
-    $emailEsc = $conn->real_escape_string($email);
-    $res = $conn->query(
-        "SELECT id, name, is_approved, rejection_reason, password FROM companies WHERE email='$emailEsc' LIMIT 1"
-    );
-    if ($res && $res->num_rows == 1) {
-        $row = $res->fetch_assoc();
-        $storedHash = $row['password'] ?? '';
-        $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($pass));
-        $valid = password_verify($pass, $storedHash) || $legacyMatch;
+require '../header.php';
 
-        if ($valid) {
-            if ($legacyMatch) {
-                $newHash = password_hash($pass, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
-                $stmt->bind_param("si", $newHash, $row['id']);
-                $stmt->execute();
-                $stmt->close();
-            }
-            if ((int) $row['is_approved'] === -1) {
-                $reason = trim((string) ($row['rejection_reason'] ?? ''));
-                $msg = $reason !== '' ? "Company account rejected: $reason" : "Company account rejected. Contact admin.";
-            } else {
-                $_SESSION['company_id']   = $row['id'];
-                $_SESSION['company_name'] = $row['name'];
-                $_SESSION['company_approved'] = (int) $row['is_approved'];
-                header("Location: company-dashboard.php");
-                exit;
-            }
-        } else {
-            $msg = "Invalid company email or password.";
-        }
+$msg = $msg_type = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $msg = "Invalid request.";
+        $msg_type = 'danger';
     } else {
-        $msg = "Invalid company email or password.";
+        $email = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if (empty($email) || empty($password)) {
+            $msg = "Email and password are required.";
+            $msg_type = 'danger';
+        } else {
+            $stmt = $conn->prepare("
+                SELECT id, name, password, is_approved, rejection_reason 
+                FROM companies 
+                WHERE email = ? 
+                LIMIT 1
+            ");
+            $stmt->bind_param("s", $email);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $company = $result->fetch_assoc();
+            $stmt->close();
+
+            if ($company && password_verify($password, $company['password'])) {
+                if ($company['is_approved'] == -1) {
+                    $reason = $company['rejection_reason'] ? "Reason: " . htmlspecialchars($company['rejection_reason']) : "";
+                    $msg = "Your account was rejected. $reason";
+                    $msg_type = 'danger';
+                } elseif ($company['is_approved'] == 0) {
+                    $msg = "Your account is still pending approval.";
+                    $msg_type = 'warning';
+                } else {
+                    $_SESSION['company_id'] = $company['id'];
+                    $_SESSION['company_name'] = $company['name'];
+
+                    session_regenerate_id(true);
+
+                    header("Location: company-dashboard.php");
+                    exit;
+                }
+            } else {
+                $msg = "Invalid email or password.";
+                $msg_type = 'danger';
+            }
+        }
     }
 }
-$basePath = '../';
-require '../header.php';
 ?>
-<h1 class="mb-3">Company Login</h1>
-<div class="card shadow-sm">
-    <div class="card-body">
-        <?php if ($msg): ?><div class="alert alert-danger"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
-        <form method="post">
-            <div class="mb-3">
-                <label class="form-label">Company Email</label>
-                <input type="email" class="form-control" name="email" placeholder="company@example.com" required>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-5">
+                <h2 class="h4 mb-4 text-center">Company Login</h2>
+
+                <?php if ($msg): ?>
+                    <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
+                <?php endif; ?>
+
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+
+                    <div class="mb-3">
+                        <label class="form-label">Company Email</label>
+                        <input type="email" name="email" class="form-control" required autofocus>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">Login</button>
+                </form>
+
+                <div class="text-center mt-3 small">
+                    Don't have a company account? 
+                    <a href="company-register.php" class="text-primary">Register here</a>
+                </div>
             </div>
-            <div class="mb-3">
-                <label class="form-label">Password</label>
-                <input type="password" class="form-control" name="password" placeholder="********" required>
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Login</button>
-        </form>
-        <div class="mt-3 text-center text-muted small">
-            Don't have a company account? <a class="link-primary text-decoration-none" href="company-register.php">Register here</a>
         </div>
     </div>
 </div>
-<?php require '../footer.php'; ?>
 
+<?php require '../footer.php'; ?>

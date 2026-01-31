@@ -1,66 +1,119 @@
 <?php
+// my-bookmarks.php
 require 'db.php';
+require 'header.php';
+
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
 }
-$uid = (int) $_SESSION['user_id'];
-$msg = "";
-$msgType = "alert-success";
+
+$user_id = (int)$_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_bookmark'])) {
-    $bookmarkId = (int) ($_POST['bookmark_id'] ?? 0);
-    if ($bookmarkId > 0) {
-        $stmt = $conn->prepare("DELETE FROM bookmarks WHERE id = ? AND user_id = ?");
-        $stmt->bind_param("ii", $bookmarkId, $uid);
-        if ($stmt->execute()) {
-            $msg = "Bookmark removed.";
-            $msgType = "alert-success";
-        } else {
-            $msg = "Could not remove bookmark. Please try again.";
-            $msgType = "alert-danger";
-        }
-        $stmt->close();
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $alert = "Invalid request.";
+        $alert_type = 'danger';
     } else {
-        $msg = "Invalid bookmark selection.";
-        $msgType = "alert-danger";
+        $bookmark_id = (int)($_POST['bookmark_id'] ?? 0);
+        if ($bookmark_id > 0) {
+            $stmt = $conn->prepare("DELETE FROM bookmarks WHERE id = ? AND user_id = ?");
+            $stmt->bind_param("ii", $bookmark_id, $user_id);
+            if ($stmt->execute()) {
+                $alert = "Bookmark removed successfully.";
+                $alert_type = 'success';
+            } else {
+                $alert = "Could not remove bookmark.";
+                $alert_type = 'danger';
+            }
+            $stmt->close();
+        }
     }
 }
 
-$sql = "SELECT j.*, b.id AS bookmark_id FROM bookmarks b
-        JOIN jobs j ON j.id = b.job_id
-        WHERE b.user_id = $uid AND j.is_approved=1
+// Fetch bookmarked jobs
+$sql = "SELECT b.id AS bookmark_id, b.created_at AS bookmarked_at,
+               j.id, j.title, j.company, j.location, j.type, j.category,
+               j.salary, j.created_at AS posted_at
+        FROM bookmarks b
+        JOIN jobs j ON b.job_id = j.id
+        LEFT JOIN companies c ON j.company_id = c.id
+        WHERE b.user_id = ?
+          AND j.status = 'active'
+          AND (j.company_id IS NULL OR c.is_approved = 1)
         ORDER BY b.created_at DESC";
-$res = $conn->query($sql);
 
-require 'header.php';
+$stmt = $conn->prepare($sql);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$bookmarks = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 ?>
-<h1 class="mb-3">My Bookmarked Jobs</h1>
-<?php if ($msg): ?>
-    <div class="alert <?php echo $msgType; ?>"><?php echo htmlspecialchars($msg); ?></div>
+
+<h1 class="mb-4">My Bookmarked Jobs</h1>
+
+<?php if (isset($alert)): ?>
+    <div class="alert alert-<?= htmlspecialchars($alert_type) ?>">
+        <?= htmlspecialchars($alert) ?>
+    </div>
 <?php endif; ?>
-<div class="row g-4">
-    <?php while ($row = $res->fetch_assoc()): ?>
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body d-flex flex-column">
-                    <h3 class="h5"><?php echo htmlspecialchars($row['title']); ?></h3>
-                    <p class="text-muted mb-3">
-                        <?php echo htmlspecialchars($row['company']); ?> |
-                        <?php echo htmlspecialchars($row['location']); ?>
-                        <span class="badge text-bg-warning ms-2"><?php echo htmlspecialchars($row['type']); ?></span>
-                    </p>
-                    <div class="mt-auto d-flex gap-2">
-                        <a class="btn btn-outline-primary btn-sm" href="job-detail.php?id=<?php echo $row['id']; ?>">View Job</a>
-                        <form method="post" class="d-inline">
-                            <input type="hidden" name="bookmark_id" value="<?php echo (int) $row['bookmark_id']; ?>">
-                            <button type="submit" name="remove_bookmark" class="btn btn-danger btn-sm"
-                                    onclick="return confirm('Remove this bookmark?');">Remove</button>
-                        </form>
+
+<?php if (empty($bookmarks)): ?>
+    <div class="alert alert-info">
+        You haven't bookmarked any jobs yet.<br>
+        <a href="index.php" class="alert-link">Browse open positions</a>
+    </div>
+<?php else: ?>
+    <div class="row g-4">
+        <?php foreach ($bookmarks as $job): ?>
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm position-relative">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title mb-2">
+                            <a href="job-detail.php?id=<?= $job['id'] ?>" class="text-decoration-none text-dark">
+                                <?= htmlspecialchars($job['title']) ?>
+                            </a>
+                        </h5>
+
+                        <p class="text-muted mb-2 small">
+                            <?= htmlspecialchars($job['company']) ?> • 
+                            <?= htmlspecialchars($job['location']) ?>
+                            <span class="badge bg-light text-dark ms-2 border">
+                                <?= htmlspecialchars($job['type'] ?? 'Full-time') ?>
+                            </span>
+                        </p>
+
+                        <?php if (!empty($job['salary'])): ?>
+                            <p class="small mb-2">
+                                <strong>Salary:</strong> <?= htmlspecialchars($job['salary']) ?>
+                            </p>
+                        <?php endif; ?>
+
+                        <p class="small text-muted mb-3">
+                            Bookmarked <?= date('M d, Y', strtotime($job['bookmarked_at'])) ?>
+                        </p>
+
+                        <div class="mt-auto d-flex gap-2">
+                            <a href="job-detail.php?id=<?= $job['id'] ?>" 
+                               class="btn btn-outline-primary btn-sm flex-grow-1">
+                                View Details
+                            </a>
+
+                            <form method="post" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                <input type="hidden" name="bookmark_id" value="<?= $job['bookmark_id'] ?>">
+                                <input type="hidden" name="remove_bookmark" value="1">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                        onclick="return confirm('Remove this bookmark?');">
+                                    Remove
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    <?php endwhile; ?>
-</div>
+        <?php endforeach; ?>
+    </div>
+<?php endif; ?>
+
 <?php require 'footer.php'; ?>
