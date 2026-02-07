@@ -52,6 +52,17 @@ if ($user_id) {
     $stmt->execute();
     $already_bookmarked = $stmt->get_result()->num_rows > 0;
     $stmt->close();
+
+    // Log job view (if tracking table exists)
+    $check = $conn->query("SHOW TABLES LIKE 'job_views'");
+    if ($check && $check->num_rows > 0) {
+        $viewStmt = $conn->prepare("INSERT INTO job_views (user_id, job_id, viewed_at) VALUES (?, ?, NOW())");
+        if ($viewStmt) {
+            $viewStmt->bind_param("ii", $user_id, $job_id);
+            $viewStmt->execute();
+            $viewStmt->close();
+        }
+    }
 }
 
 // Handle POST actions (apply / bookmark)

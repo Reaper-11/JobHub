@@ -1,22 +1,47 @@
 <?php
 // company/company-header.php
-require '../db.php';
+require_once '../db.php';
 
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
     exit;
 }
 
+$hasSidebarLayout = true;
+
 $cid = (int)$_SESSION['company_id'];
 
 // Fetch company status once
-$stmt = $conn->prepare("SELECT name, is_approved FROM companies WHERE id = ?");
+$stmt = $conn->prepare("SELECT name, is_approved, rejection_reason, operational_state, restriction_reason, restricted_at FROM companies WHERE id = ?");
 $stmt->bind_param("i", $cid);
 $stmt->execute();
-$company = $stmt->get_result()->fetch_assoc() ?? ['name' => 'Company', 'is_approved' => 0];
+$company = $stmt->get_result()->fetch_assoc() ?? [
+    'name' => 'Company',
+    'is_approved' => 0,
+    'rejection_reason' => null,
+    'operational_state' => 'active',
+    'restriction_reason' => null,
+    'restricted_at' => null,
+];
 $stmt->close();
 
 $isApproved = (int)$company['is_approved'] === 1;
+$isRejected = (int)$company['is_approved'] === -1;
+$operationalState = $company['operational_state'] ?? 'active';
+$restrictionReason = $company['restriction_reason'] ?? '';
+$restrictedAt = $company['restricted_at'] ?? null;
+$rejectionReason = $company['rejection_reason'] ?? '';
+$canPostJobs = $isApproved && $operationalState === 'active';
+
+$approvalBadge = $isApproved
+    ? '<span class="badge bg-success">Approved</span>'
+    : ($isRejected ? '<span class="badge bg-danger">Rejected</span>' : '<span class="badge bg-warning text-dark">Pending</span>');
+
+$stateBadge = match ($operationalState) {
+    'on_hold' => '<span class="badge bg-warning text-dark">On Hold</span>',
+    'suspended' => '<span class="badge bg-danger">Suspended</span>',
+    default => '<span class="badge bg-success">Active</span>',
+};
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -39,12 +64,13 @@ $isApproved = (int)$company['is_approved'] === 1;
 <div class="d-flex">
     <!-- Company Sidebar -->
     <div class="company-sidebar col-auto p-3">
-        <h4 class="text-white mb-4">JobHub Company</h4>
+        <h4 class="text-white mb-4">Company Dashboard</h4>
         <div class="mb-3 p-2 bg-dark rounded text-center">
             <?= htmlspecialchars($company['name']) ?><br>
-            <small class="badge <?= $isApproved ? 'bg-success' : 'bg-warning' ?>">
-                <?= $isApproved ? 'Approved' : 'Pending Approval' ?>
-            </small>
+            <div class="d-flex flex-column gap-1 align-items-center">
+                <small><?= $approvalBadge ?></small>
+                <small><?= $stateBadge ?></small>
+            </div>
         </div>
         <hr class="text-white-50">
         <ul class="nav flex-column">

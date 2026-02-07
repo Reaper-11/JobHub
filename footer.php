@@ -1,9 +1,12 @@
 </main>
+<?php if (!empty($hasSidebarLayout)) : ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <footer class="bg-dark text-white py-4 mt-auto">
     <div class="container text-center">
-        <p class="mb-1">© <?= date('Y') ?> JobHub - A Simple & Practical Job Portal for Nepal</p>
-        <small class="text-muted">Made with ❤️ in Kathmandu</small>
+        <p class="mb-0">&copy; <?= date('Y') ?> JobHub - A Simple & Practical Job Portal for Nepal</p>
     </div>
 </footer>
 

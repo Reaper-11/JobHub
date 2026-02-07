@@ -4,6 +4,8 @@ if (!isset($_SESSION['admin_id'])) {
     header("Location: admin-login.php");
     exit;
 }
+
+$hasSidebarLayout = true;
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -25,7 +27,7 @@ if (!isset($_SESSION['admin_id'])) {
 <div class="d-flex">
     <!-- Sidebar -->
     <div class="sidebar col-auto p-3">
-        <h4 class="text-white mb-4">JobHub Admin</h4>
+        <h4 class="text-white mb-4">Admin Panel</h4>
         <hr class="text-white-50">
         <ul class="nav flex-column">
             <li class="nav-item">

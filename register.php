@@ -1,20 +1,24 @@
 <?php
 // register.php
 require 'db.php';
-require 'header.php';
+
+$debug = isset($_GET['debug']);
+if ($debug) {
+    error_reporting(E_ALL);
+    ini_set('display_errors', 1);
+}
 
 $msg = '';
 $msg_type = 'alert-danger';
+$debug_info = [];
 
-$job_categories = [
-    "Administration / Management", "Public Relations / Advertising", "Agriculture & Livestock",
-    "Engineering / Architecture", "Information Technology (IT)", "Marketing / Sales",
-    "Finance / Accounting", "Healthcare / Medical", "Education", "Hospitality / Tourism",
-    // ... add the rest as needed
-];
+$job_categories = require __DIR__ . '/includes/categories.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+    $debug_info[] = "method=POST";
+    $csrf_ok = validate_csrf_token($_POST['csrf_token'] ?? '');
+    $debug_info[] = "csrf_ok=" . ($csrf_ok ? 'yes' : 'no');
+    if (!$csrf_ok) {
         $msg = "Invalid request. Please try again.";
     } else {
         $name      = trim($_POST['name'] ?? '');
@@ -22,13 +26,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone     = trim($_POST['phone'] ?? '');
         $password  = $_POST['password'] ?? '';
         $category  = trim($_POST['preferred_category'] ?? '');
+        $debug_info[] = "name_len=" . strlen($name);
+        $debug_info[] = "email=" . $email;
+        $debug_info[] = "phone=" . $phone;
+        $debug_info[] = "category=" . $category;
+        $debug_info[] = "password_len=" . strlen($password);
 
         // Basic validation
+        $has_error = false;
         if (empty($name) || empty($email) || empty($password) || empty($category)) {
             $msg = "All required fields must be filled.";
+            $has_error = true;
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $msg = "Please enter a valid email address.";
-        } elseif ($phone !== '') {
+            $has_error = true;
+        }
+
+        if (!$has_error && $phone !== '') {
             // Keep only digits
             $digits = preg_replace('/\D+/', '', $phone);
 
@@ -39,47 +53,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (strlen($digits) !== 10) {
                 $msg = "Phone number must be exactly 10 digits.";
+                $has_error = true;
             } else {
                 $phone = $digits;
             }
-        } elseif (strlen($password) < 8) {
+        }
+
+        if (!$has_error && strlen($password) < 8) {
             $msg = "Password must be at least 8 characters long.";
-        } elseif (!in_array($category, $job_categories)) {
+            $has_error = true;
+        }
+
+        if (!$has_error && !in_array($category, $job_categories, true)) {
             $msg = "Invalid job category selected.";
-        } else {
+            $has_error = true;
+        }
+
+        if (!$has_error) {
             // Check if email exists
             $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            if ($stmt->get_result()->num_rows > 0) {
-                $msg = "This email is already registered.";
+            if (!$stmt) {
+                $msg = "Prepare failed: " . $conn->error;
             } else {
-                $hash = password_hash($password, PASSWORD_DEFAULT);
-
-                $stmt = $conn->prepare("
-                    INSERT INTO users (name, email, phone, password, preferred_category, role, created_at)
-                    VALUES (?, ?, ?, ?, ?, 'seeker', NOW())
-                ");
-                $stmt->bind_param("sssss", $name, $email, $phone, $hash, $category);
-
-                if ($stmt->execute()) {
-                    $user_id = $conn->insert_id;
-
-                    $_SESSION['user_id']   = $user_id;
-                    $_SESSION['user_name'] = $name;
-                    $_SESSION['role']      = 'seeker';
-
-                    header("Location: index.php?welcome=1");
-                    exit;
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $stmt->store_result();
+                $debug_info[] = "email_check_rows=" . $stmt->num_rows;
+                if ($stmt->num_rows > 0) {
+                    $msg = "This email is already registered.";
                 } else {
-                    $msg = "Registration failed. Please try again later.";
+                    $hash = password_hash($password, PASSWORD_DEFAULT);
+
+                    $insert = $conn->prepare("
+                        INSERT INTO users (name, email, phone, password, preferred_category, role, created_at)
+                        VALUES (?, ?, ?, ?, ?, 'seeker', NOW())
+                    ");
+                    if (!$insert) {
+                        $msg = "Prepare failed: " . $conn->error;
+                    } else {
+                        $insert->bind_param("sssss", $name, $email, $phone, $hash, $category);
+                        if ($insert->execute()) {
+                            $user_id = $conn->insert_id;
+                            $debug_info[] = "insert_ok=yes";
+
+                            $_SESSION['user_id']   = $user_id;
+                            $_SESSION['user_name'] = $name;
+                            $_SESSION['role']      = 'seeker';
+
+                            header("Location: index.php?welcome=1");
+                            exit;
+                        } else {
+                            // Log the DB error for debugging without exposing it to users
+                            error_log("Job seeker registration failed: " . $insert->error);
+                            $debug_info[] = "insert_ok=no";
+                            $msg = $debug ? ("Registration failed: " . $insert->error) : "Registration failed. Please try again later.";
+                        }
+                        $insert->close();
+                    }
                 }
+                $stmt->close();
             }
-            $stmt->close();
         }
+    }
+    if ($debug && $msg === '') {
+        $msg = "Debug: form submitted but no success or error was detected.";
     }
 }
 ?>
+
+<?php require 'header.php'; ?>
 
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
@@ -87,11 +129,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card-body p-4 p-md-5">
                 <h2 class="h4 mb-4 text-center">Create Job Seeker Account</h2>
 
+                <?php if ($debug): ?>
+                    <div class="alert alert-info">Debug mode is ON.</div>
+                    <div class="alert alert-secondary">
+                        <?= htmlspecialchars(implode(' | ', $debug_info)) ?>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($msg): ?>
                     <div class="alert <?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
                 <?php endif; ?>
 
-                <form method="post">
+                <form method="post" action="<?= htmlspecialchars($_SERVER['REQUEST_URI']) ?>">
                     <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
 
                     <div class="mb-3">

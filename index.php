@@ -5,14 +5,7 @@ require 'header.php';
 $keyword = trim($_GET['q'] ?? '');
 $filter  = trim($_GET['filter'] ?? '');
 
-$categories = [
-    "Administration / Management", "Public Relations / Advertising", "Agriculture & Livestock",
-    "Engineering / Architecture", "Automotive / Automobiles", "Communications / Broadcasting",
-    "Computer / Technology Management", "Information Technology (IT)", "Marketing / Sales",
-    // ... add all your categories
-];
-
-$locations = ["Kathmandu", "Lalitpur", "Bhaktapur", "Pokhara"];
+$categories = require __DIR__ . '/includes/categories.php';
 
 $sql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
         FROM jobs j
@@ -30,12 +23,8 @@ if ($keyword) {
     $params = [$like, $like, $like];
 }
 
-if ($filter && in_array($filter, array_merge($categories, $locations))) {
-    if (in_array($filter, $locations)) {
-        $sql .= " AND j.location = ?";
-    } else {
-        $sql .= " AND j.category = ?";
-    }
+if ($filter && in_array($filter, $categories, true)) {
+    $sql .= " AND j.category = ?";
     $types .= 's';
     $params[] = $filter;
 }
@@ -44,6 +33,10 @@ $sql .= " ORDER BY application_count DESC, j.created_at DESC LIMIT 50";
 
 $jobs = db_query_all($sql, $types, $params);
 ?>
+
+<?php if (isset($_GET['welcome']) && $_GET['welcome'] === '1'): ?>
+    <div class="alert alert-success">Account created successfully. You are now signed in.</div>
+<?php endif; ?>
 
 <h1 class="mb-4">Find Your Next Job</h1>
 
@@ -54,21 +47,12 @@ $jobs = db_query_all($sql, $types, $params);
         </div>
         <div class="col-md-4">
             <select name="filter" class="form-select" onchange="this.form.submit()">
-                <option value="">All Categories & Locations</option>
-                <optgroup label="Categories">
-                    <?php foreach ($categories as $cat): ?>
-                        <option value="<?= htmlspecialchars($cat) ?>" <?= $filter === $cat ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($cat) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </optgroup>
-                <optgroup label="Locations">
-                    <?php foreach ($locations as $loc): ?>
-                        <option value="<?= htmlspecialchars($loc) ?>" <?= $filter === $loc ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($loc) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </optgroup>
+                <option value="" disabled <?= $filter === '' ? 'selected' : '' ?>>Select category...</option>
+                <?php foreach ($categories as $cat): ?>
+                    <option value="<?= htmlspecialchars($cat) ?>" <?= $filter === $cat ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($cat) ?>
+                    </option>
+                <?php endforeach; ?>
             </select>
         </div>
         <div class="col-md-2">

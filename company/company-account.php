@@ -140,6 +140,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 <h1 class="mb-4">Company Account Settings</h1>
 
 <div class="row g-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                <div>
+                    <div class="text-muted small">Approval Status</div>
+                    <div><?= $approvalBadge ?></div>
+                </div>
+                <div>
+                    <div class="text-muted small">Account State</div>
+                    <div><?= $stateBadge ?></div>
+                </div>
+                <?php if (!empty($restrictionReason)): ?>
+                    <div>
+                        <div class="text-muted small">Restriction Reason</div>
+                        <div><?= htmlspecialchars($restrictionReason) ?></div>
+                    </div>
+                <?php endif; ?>
+                <?php if (!empty($restrictedAt)): ?>
+                    <div>
+                        <div class="text-muted small">Restricted At</div>
+                        <div><?= htmlspecialchars($restrictedAt) ?></div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
     <!-- Profile Update -->
     <div class="col-lg-6">
         <div class="card shadow-sm">

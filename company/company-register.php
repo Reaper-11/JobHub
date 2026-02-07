@@ -16,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $website  = trim($_POST['website'] ?? '');
         $location = trim($_POST['location'] ?? '');
 
-        if (empty($name) || empty($email) || empty($password)) {
-            $msg = "Company name, email and password are required.";
+        if (empty($name) || empty($email) || empty($password) || empty($location)) {
+            $msg = "Company name, email, password, and location are required.";
             $msg_type = 'danger';
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $msg = "Invalid email format.";
@@ -47,11 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['company_id'] = $company_id;
                     $_SESSION['company_name'] = $name;
 
-                    $msg = "Company registered successfully! Waiting for admin approval.";
-                    $msg_type = 'success';
-
-                    // Optional: redirect to dashboard after registration
-                    // header("Location: company-dashboard.php");
+                    header("Location: company-dashboard.php");
+                    exit;
                 } else {
                     $msg = "Registration failed. Try again later.";
                     $msg_type = 'danger';
@@ -98,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label">Location (optional)</label>
-                        <input type="text" name="location" class="form-control" placeholder="e.g. Kathmandu, Nepal">
+                        <label class="form-label">Location <span class="text-danger">*</span></label>
+                        <input type="text" name="location" class="form-control" placeholder="e.g. Kathmandu, Nepal" required>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">Register Company</button>

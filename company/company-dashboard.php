@@ -29,9 +29,25 @@ $recentJobs = db_query_all("
 <?php if (!$isApproved): ?>
     <div class="alert alert-warning pending-banner">
         <strong>Your account is pending approval.</strong><br>
-        Our team will review your company details shortly. You can post jobs, but they won't be visible publicly until approved.
+        The Admin will review your company details shortly. You cannot post jobs until approved.
         <?php if (!empty($rejectionReason)): ?>
             <br><strong>Previous rejection reason:</strong> <?= htmlspecialchars($rejectionReason) ?>
+        <?php endif; ?>
+    </div>
+<?php elseif ($operationalState === 'on_hold'): ?>
+    <div class="alert alert-warning pending-banner">
+        <strong>Your company is currently on hold.</strong><br>
+        You cannot post jobs until the hold is lifted.
+        <?php if (!empty($restrictionReason)): ?>
+            <br><strong>Reason:</strong> <?= htmlspecialchars($restrictionReason) ?>
+        <?php endif; ?>
+    </div>
+<?php elseif ($operationalState === 'suspended'): ?>
+    <div class="alert alert-danger pending-banner">
+        <strong>Your company account is suspended.</strong><br>
+        You cannot post jobs due to policy violations.
+        <?php if (!empty($restrictionReason)): ?>
+            <br><strong>Reason:</strong> <?= htmlspecialchars($restrictionReason) ?>
         <?php endif; ?>
     </div>
 <?php endif; ?>
@@ -109,9 +125,12 @@ $recentJobs = db_query_all("
 </div>
 
 <div class="text-center mt-4">
-    <a href="company-add-job.php" class="btn btn-lg btn-primary">
+    <a href="company-add-job.php" class="btn btn-lg btn-primary <?= $canPostJobs ? '' : 'disabled' ?>">
         Post a New Job
     </a>
+    <?php if (!$canPostJobs): ?>
+        <div class="small text-muted mt-2">Job posting is disabled until your account is approved and active.</div>
+    <?php endif; ?>
 </div>
 
 <?php require '../footer.php'; ?>

@@ -9,7 +9,32 @@ if (!isset($_SESSION['company_id'])) {
 
 $cid = (int)$_SESSION['company_id'];
 $msg = $msg_type = '';
-$categories = [ /* your full list here */ ];
+$categoryError = '';
+$categories = require __DIR__ . '/../includes/categories.php';
+$category = '';
+
+$statusStmt = $conn->prepare("SELECT is_approved, operational_state, restriction_reason FROM companies WHERE id = ?");
+$statusStmt->bind_param("i", $cid);
+$statusStmt->execute();
+$companyStatus = $statusStmt->get_result()->fetch_assoc() ?? ['is_approved' => 0, 'operational_state' => 'active', 'restriction_reason' => null];
+$statusStmt->close();
+
+$isApproved = (int)($companyStatus['is_approved'] ?? 0) === 1;
+$operationalState = $companyStatus['operational_state'] ?? 'active';
+$restrictionReason = $companyStatus['restriction_reason'] ?? '';
+$canPostJobs = $isApproved && $operationalState === 'active';
+
+$blockMsg = '';
+if (!$isApproved) {
+    $blockMsg = "Your company is not approved yet. You cannot post jobs until approval.";
+} elseif ($operationalState === 'on_hold') {
+    $blockMsg = "Your company is currently on hold. Please contact support or wait for admin review.";
+} elseif ($operationalState === 'suspended') {
+    $blockMsg = "Your company account is suspended due to policy violations.";
+}
+if ($blockMsg !== '' && $restrictionReason) {
+    $blockMsg .= " Reason: " . $restrictionReason;
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $title = trim($_POST['title'] ?? '');
@@ -20,9 +45,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $duration = trim($_POST['application_duration'] ?? '');
     $description = trim($_POST['description'] ?? '');
 
-    if (empty($title) || empty($location) || empty($category) || empty($description)) {
+    if (!$canPostJobs) {
+        $msg = $blockMsg !== '' ? $blockMsg : "Your company is not allowed to post jobs at this time.";
+        $msg_type = 'danger';
+    } elseif (empty($title) || empty($location) || empty($category) || empty($description)) {
         $msg = "Required fields are missing.";
         $msg_type = 'danger';
+        if (empty($category)) {
+            $categoryError = "Please select a category.";
+        }
+    } elseif (!in_array($category, $categories, true)) {
+        $msg = "Please correct the errors below.";
+        $msg_type = 'danger';
+        $categoryError = "Invalid category selected.";
     } else {
         $stmt = $conn->prepare("
             INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, description, status, created_at)
@@ -46,6 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 <?php require 'company-header.php'; ?>
 
 <h1 class="mb-4">Post a New Job</h1>
+
+<?php if ($blockMsg): ?>
+    <div class="alert alert-danger"><?= htmlspecialchars($blockMsg) ?></div>
+<?php endif; ?>
 
 <?php if ($msg): ?>
     <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
@@ -80,11 +119,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <div class="mb-3">
                 <label class="form-label">Category *</label>
                 <select name="category" class="form-select" required>
-                    <option value="">Select category...</option>
+                    <option value="" disabled <?= $category === '' ? 'selected' : '' ?>>Select category...</option>
                     <?php foreach ($categories as $cat): ?>
-                        <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                        <option value="<?= htmlspecialchars($cat) ?>" <?= ($category ?? '') === $cat ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($cat) ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($categoryError): ?>
+                    <div class="text-danger small mt-1"><?= htmlspecialchars($categoryError) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">
@@ -102,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <textarea name="description" class="form-control" rows="6" required></textarea>
             </div>
 
-            <button type="submit" class="btn btn-primary">Publish Job</button>
+            <button type="submit" class="btn btn-primary" <?= $canPostJobs ? '' : 'disabled' ?>>Publish Job</button>
             <a href="company-dashboard.php" class="btn btn-outline-secondary ms-2">Cancel</a>
         </form>
     </div>

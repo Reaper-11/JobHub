@@ -1,5 +1,6 @@
 <?php
 require 'db.php';
+require 'includes/recommendation.php';
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");
     exit;
@@ -12,33 +13,9 @@ $passMsg = "";
 $passType = "";
 $deleteMsg = "";
 $deleteType = "";
-$jobCategories = [
-    "Administration / Management",
-    "Public Relations / Advertising",
-    "Agriculture & Livestock",
-    "Engineering / Architecture",
-    "Automotive / Automobiles",
-    "Communications / Broadcasting",
-    "Computer / Technology Management",
-    "Computer / Consulting",
-    "Computer / System Programming",
-    "Construction Services",
-    "Contractors",
-    "Education",
-    "Electronics / Electrical",
-    "Entertainment",
-    "Engineering",
-    "Finance / Accounting",
-    "Healthcare / Medical",
-    "Hospitality / Tourism",
-    "Information Technology (IT)",
-    "Manufacturing",
-    "Marketing / Sales",
-    "Media / Journalism",
-    "Retail / Wholesale",
-    "Security Services",
-    "Transportation / Logistics",
-];
+$jobCategories = require __DIR__ . '/includes/categories.php';
+$legacyCategoryWarning = false;
+$preferredValue = '';
 
 // Fetch current user details
 $userRes = $conn->query("SELECT name, email, phone, preferred_category, cv_path, profile_image FROM users WHERE id = $uid");
@@ -55,22 +32,50 @@ $preferenceProfile = function_exists('get_user_preferences') ? get_user_preferen
 if (!empty($preferenceProfile['preferred_category'])) {
     $user['preferred_category'] = $preferenceProfile['preferred_category'];
 }
+$preferredValue = $user['preferred_category'] ?? '';
+if ($preferredValue !== '' && !in_array($preferredValue, $jobCategories, true)) {
+    $legacyCategoryWarning = true;
+    $preferredValue = 'Other';
+}
 
-$recentKeyword = isset($_SESSION['last_search_keyword']) ? (string) $_SESSION['last_search_keyword'] : '';
-$recommendedJobs = getRecommendedJobs($conn, $uid, $recentKeyword);
+$recommendedJobs = recommendJobs($conn, $uid, 10);
+$debugUpload = isset($_GET['debug_upload']) || isset($_POST['debug_upload']);
+$profileDebug = [];
+$uploadError = '';
+$cvMoved = null;
+$dbPrepareOk = null;
+$dbExecuteOk = null;
+$dbStmtError = '';
+$dbAffected = null;
+$finalCvPath = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (empty($_POST) && empty($_FILES)) {
+        $profileMsg = "Upload failed before processing. The request was likely too large for the server limits.";
+        $profileType = "alert-danger";
+        $profileMsg .= " (upload_max_filesize=" . ini_get('upload_max_filesize') . ", post_max_size=" . ini_get('post_max_size') . ")";
+    }
+
     $action = $_POST['action'] ?? '';
+    if ($action === '' && $profileMsg === '') {
+        $profileMsg = "No action received. Please try saving your profile again.";
+        $profileType = "alert-danger";
+    }
 
     if ($action === 'profile') {
         $name = trim($_POST['name'] ?? '');
         $email = trim($_POST['email'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
         $preferred_category = trim($_POST['preferred_category'] ?? '');
+        if ($preferred_category !== '') {
+            $preferredValue = $preferred_category;
+            $legacyCategoryWarning = false;
+        }
+
         $currentCv = $user['cv_path'] ?? '';
-        $uploadError = '';
         $newCvPath = $currentCv;
 
+        // Validation
         if ($name === '' || $email === '' || $preferred_category === '') {
             $profileMsg = "Name, email, and category are required.";
             $profileType = "alert-danger";
@@ -78,14 +83,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $profileMsg = "Please enter a valid email address.";
             $profileType = "alert-danger";
         } elseif ($phone !== '') {
-            // Keep only digits
             $digits = preg_replace('/\D+/', '', $phone);
-
-            // If user enters +977XXXXXXXXXX or 977XXXXXXXXXX
             if (strlen($digits) === 13 && substr($digits, 0, 3) === '977') {
                 $digits = substr($digits, 3);
             }
-
             if (strlen($digits) !== 10) {
                 $profileMsg = "Phone number must be exactly 10 digits.";
                 $profileType = "alert-danger";
@@ -95,10 +96,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (!in_array($preferred_category, $jobCategories, true)) {
             $profileMsg = "Invalid job category selected.";
             $profileType = "alert-danger";
-        } else {
+        }
+
+        // Upload (only if validation passed)
+        if ($profileMsg === '') {
             if (isset($_FILES['cv_file']) && $_FILES['cv_file']['error'] !== UPLOAD_ERR_NO_FILE) {
                 if ($_FILES['cv_file']['error'] !== UPLOAD_ERR_OK) {
-                    $uploadError = "Could not upload CV. Please try again.";
+                    $uploadErrorMap = [
+                        UPLOAD_ERR_INI_SIZE => 'The uploaded file exceeds the server limit (upload_max_filesize).',
+                        UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the form limit (MAX_FILE_SIZE).',
+                        UPLOAD_ERR_PARTIAL => 'The uploaded file was only partially uploaded.',
+                        UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder on the server.',
+                        UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
+                        UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload.',
+                    ];
+                    $errCode = (int) $_FILES['cv_file']['error'];
+                    $errMsg = $uploadErrorMap[$errCode] ?? 'Unknown upload error.';
+                    $uploadError = "Could not upload CV. Error code {$errCode}: {$errMsg}";
                 } else {
                     $maxBytes = 5 * 1024 * 1024;
                     $fileSize = (int) $_FILES['cv_file']['size'];
@@ -117,28 +131,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $destPath = $uploadDir . '/' . $fileName;
                             if (move_uploaded_file($_FILES['cv_file']['tmp_name'], $destPath)) {
                                 $newCvPath = 'uploads/cv/' . $fileName;
+                                $cvMoved = true;
                             } else {
                                 $uploadError = "Could not save CV file.";
+                                $cvMoved = false;
                             }
                         }
                     }
                 }
             }
+        }
 
-            if ($uploadError !== '') {
-                $profileMsg = $uploadError;
+        if ($uploadError !== '') {
+            $profileMsg = $uploadError;
+            $profileType = "alert-danger";
+        }
+
+        // DB update (only if validation/upload passed)
+        if ($profileMsg === '') {
+            $emailEsc = $conn->real_escape_string($email);
+            $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
+            if ($check && $check->num_rows > 0) {
+                $profileMsg = "That email is already in use.";
                 $profileType = "alert-danger";
             } else {
-                $emailEsc = $conn->real_escape_string($email);
-                $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
-                if ($check && $check->num_rows > 0) {
-                    $profileMsg = "That email is already in use.";
+                $phoneVal = $phone === '' ? null : $phone;
+                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
+                $dbPrepareOk = $stmt ? true : false;
+                if (!$stmt) {
+                    $dbStmtError = $conn->error ?? '';
+                    $profileMsg = "Could not update profile. Please try again.";
                     $profileType = "alert-danger";
                 } else {
-                    $phoneVal = $phone === '' ? null : $phone;
-                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
                     $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
-                    if ($stmt->execute()) {
+                    $dbExecuteOk = $stmt->execute();
+                    $dbAffected = $stmt->affected_rows;
+                    $finalCvPath = $newCvPath;
+                    if ($dbExecuteOk) {
                         if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
                             $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
                             if ($prefStmt) {
@@ -163,6 +192,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->close();
                 }
             }
+        }
+
+        if ($profileMsg === '') {
+            $profileMsg = "Profile save did not complete. Check the debug panel for details.";
+            $profileType = "alert-danger";
+        }
+
+        if ($debugUpload) {
+            $profileDebug = [
+                'action' => $action,
+                'name' => $name,
+                'email' => $email,
+                'preferred_category' => $preferred_category,
+                'upload_error' => $uploadError,
+                'profile_msg' => $profileMsg,
+                'profile_type' => $profileType,
+                'db_error' => $conn->error ?? '',
+                'cv_moved' => $cvMoved === null ? 'n/a' : ($cvMoved ? 'yes' : 'no'),
+                'db_prepare_ok' => $dbPrepareOk === null ? 'n/a' : ($dbPrepareOk ? 'yes' : 'no'),
+                'db_execute_ok' => $dbExecuteOk === null ? 'n/a' : ($dbExecuteOk ? 'yes' : 'no'),
+                'db_affected_rows' => $dbAffected === null ? 'n/a' : (string) $dbAffected,
+                'final_cv_path' => $finalCvPath,
+                'user_cv_path' => $user['cv_path'] ?? '',
+                'conn_errno' => (string) ($conn->errno ?? ''),
+            ];
         }
     } elseif ($action === 'password') {
         $old = $_POST['old_password'] ?? '';
@@ -276,9 +330,57 @@ require 'header.php';
         <h2 class="h5">Profile</h2>
         <?php if ($profileMsg): ?>
             <div class="alert <?php echo $profileType; ?>"><?php echo htmlspecialchars($profileMsg); ?></div>
+        <?php elseif ($legacyCategoryWarning): ?>
+            <div class="alert alert-warning">Your previous job category is no longer available. Please confirm a new category.</div>
         <?php endif; ?>
-        <form method="post" enctype="multipart/form-data">
+        <?php if ($debugUpload): ?>
+            <?php
+                $uploadDir = __DIR__ . '/uploads/cv';
+                $tmpDir = ini_get('upload_tmp_dir');
+                $tmpDir = $tmpDir !== '' ? $tmpDir : sys_get_temp_dir();
+                $fileInfo = $_FILES['cv_file'] ?? null;
+                $fileError = $fileInfo['error'] ?? null;
+            ?>
+            <div class="alert alert-secondary small">
+                <div>Debug upload: enabled</div>
+                <div>request method: <?php echo htmlspecialchars($_SERVER['REQUEST_METHOD']); ?></div>
+                <div>file_uploads: <?php echo ini_get('file_uploads'); ?></div>
+                <div>upload_max_filesize: <?php echo ini_get('upload_max_filesize'); ?></div>
+                <div>post_max_size: <?php echo ini_get('post_max_size'); ?></div>
+                <div>upload_tmp_dir: <?php echo htmlspecialchars($tmpDir); ?></div>
+                <div>cv upload dir: <?php echo htmlspecialchars($uploadDir); ?></div>
+                <div>cv dir exists: <?php echo is_dir($uploadDir) ? 'yes' : 'no'; ?></div>
+                <div>cv dir writable: <?php echo is_writable($uploadDir) ? 'yes' : 'no'; ?></div>
+                <div>cv_file present: <?php echo $fileInfo ? 'yes' : 'no'; ?></div>
+                <?php if ($fileInfo): ?>
+                    <div>cv_file name: <?php echo htmlspecialchars($fileInfo['name'] ?? ''); ?></div>
+                    <div>cv_file size: <?php echo (int) ($fileInfo['size'] ?? 0); ?></div>
+                    <div>cv_file error: <?php echo $fileError === null ? 'n/a' : (int) $fileError; ?></div>
+                <?php endif; ?>
+                <?php if (!empty($profileDebug)): ?>
+                    <div>action: <?php echo htmlspecialchars($profileDebug['action'] ?? ''); ?></div>
+                    <div>name: <?php echo htmlspecialchars($profileDebug['name'] ?? ''); ?></div>
+                    <div>email: <?php echo htmlspecialchars($profileDebug['email'] ?? ''); ?></div>
+                    <div>preferred_category: <?php echo htmlspecialchars($profileDebug['preferred_category'] ?? ''); ?></div>
+                    <div>upload_error: <?php echo htmlspecialchars($profileDebug['upload_error'] ?? ''); ?></div>
+                    <div>profile_msg: <?php echo htmlspecialchars($profileDebug['profile_msg'] ?? ''); ?></div>
+                    <div>profile_type: <?php echo htmlspecialchars($profileDebug['profile_type'] ?? ''); ?></div>
+                    <div>db_error: <?php echo htmlspecialchars($profileDebug['db_error'] ?? ''); ?></div>
+                    <div>conn_errno: <?php echo htmlspecialchars($profileDebug['conn_errno'] ?? ''); ?></div>
+                    <div>cv_moved: <?php echo htmlspecialchars($profileDebug['cv_moved'] ?? ''); ?></div>
+                    <div>db_prepare_ok: <?php echo htmlspecialchars($profileDebug['db_prepare_ok'] ?? ''); ?></div>
+                    <div>db_execute_ok: <?php echo htmlspecialchars($profileDebug['db_execute_ok'] ?? ''); ?></div>
+                    <div>db_affected_rows: <?php echo htmlspecialchars($profileDebug['db_affected_rows'] ?? ''); ?></div>
+                    <div>final_cv_path: <?php echo htmlspecialchars($profileDebug['final_cv_path'] ?? ''); ?></div>
+                    <div>user_cv_path: <?php echo htmlspecialchars($profileDebug['user_cv_path'] ?? ''); ?></div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+        <form method="post" enctype="multipart/form-data" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>">
             <input type="hidden" name="action" value="profile">
+            <?php if ($debugUpload): ?>
+                <input type="hidden" name="debug_upload" value="1">
+            <?php endif; ?>
             <div class="mb-3">
                 <label class="form-label">Full Name*</label>
                 <input type="text" class="form-control" name="name" value="<?php echo htmlspecialchars($user['name']); ?>" required>
@@ -311,7 +413,7 @@ require 'header.php';
                     <option value="">Prefer Job Category</option>
                     <?php foreach ($jobCategories as $cat): ?>
                         <option value="<?php echo htmlspecialchars($cat); ?>"
-                            <?php echo ($user['preferred_category'] === $cat) ? "selected" : ""; ?>>
+                            <?php echo ($preferredValue === $cat) ? "selected" : ""; ?>>
                             <?php echo htmlspecialchars($cat); ?>
                         </option>
                     <?php endforeach; ?>

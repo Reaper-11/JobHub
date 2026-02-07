@@ -34,9 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $reason = $company['rejection_reason'] ? "Reason: " . htmlspecialchars($company['rejection_reason']) : "";
                     $msg = "Your account was rejected. $reason";
                     $msg_type = 'danger';
-                } elseif ($company['is_approved'] == 0) {
-                    $msg = "Your account is still pending approval.";
-                    $msg_type = 'warning';
                 } else {
                     $_SESSION['company_id'] = $company['id'];
                     $_SESSION['company_name'] = $company['name'];
