@@ -497,19 +497,13 @@ function recommend_is_expired($job): bool {
 }
 
 function recommend_table_exists($pdo, $table): bool {
-    $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
-    if (!$stmt) {
+    $table = trim((string) $table);
+    if ($table === '') {
         return false;
     }
-    $stmt->bind_param("s", $table);
-    if (!$stmt->execute()) {
-        $stmt->close();
-        return false;
-    }
-    $res = $stmt->get_result();
-    $exists = $res && $res->num_rows > 0;
-    $stmt->close();
-    return $exists;
+    $safe = $pdo->real_escape_string($table);
+    $res = $pdo->query("SHOW TABLES LIKE '{$safe}'");
+    return $res && $res->num_rows > 0;
 }
 
 function recommend_table_columns($pdo, $table): array {
