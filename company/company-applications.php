@@ -18,8 +18,8 @@ $params = $job_id > 0 ? [$cid, $job_id] : [$cid];
 $types  = $job_id > 0 ? "ii" : "i";
 
 $applications = db_query_all("
-    SELECT a.id, a.status, a.cover_letter, a.applied_at,
-           u.name AS user_name, u.email AS user_email,
+    SELECT a.id, a.status, a.cover_letter, a.cv_path, a.applied_at,
+           u.name AS user_name, u.email AS user_email, u.cv_path AS user_cv_path,
            j.title AS job_title
     FROM applications a
     JOIN users u ON u.id = a.user_id
@@ -32,29 +32,27 @@ $msg = $msg_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $app_id = (int)($_POST['app_id'] ?? 0);
     $new_status = trim($_POST['status'] ?? '');
-    $reason = trim($_POST['rejection_reason'] ?? '');
+    $allowed_statuses = ['pending', 'shortlisted', 'approved', 'rejected'];
 
-    if ($app_id > 0 && in_array($new_status, ['approved', 'rejected', 'pending'])) {
-        if ($new_status === 'rejected' && empty($reason)) {
-            $msg = "Rejection reason is required.";
-            $msg_type = 'danger';
+    if ($app_id > 0 && in_array($new_status, $allowed_statuses, true)) {
+        $stmt = $conn->prepare("
+            UPDATE applications
+            SET status = ?, updated_at = NOW()
+            WHERE id = ? AND job_id IN (SELECT id FROM jobs WHERE company_id = ?)
+        ");
+        $stmt->bind_param("sii", $new_status, $app_id, $cid);
+
+        if ($stmt->execute()) {
+            $msg = "Application status updated.";
+            $msg_type = 'success';
         } else {
-            $stmt = $conn->prepare("
-                UPDATE applications 
-                SET status = ?, rejection_reason = ?, updated_at = NOW() 
-                WHERE id = ? AND job_id IN (SELECT id FROM jobs WHERE company_id = ?)
-            ");
-            $stmt->bind_param("ssii", $new_status, $reason, $app_id, $cid);
-
-            if ($stmt->execute()) {
-                $msg = "Application status updated.";
-                $msg_type = 'success';
-            } else {
-                $msg = "Update failed.";
-                $msg_type = 'danger';
-            }
-            $stmt->close();
+            $msg = "Update failed.";
+            $msg_type = 'danger';
         }
+        $stmt->close();
+    } else {
+        $msg = "Invalid status selection.";
+        $msg_type = 'danger';
     }
 }
 ?>
@@ -78,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <tr>
                     <th>Applicant</th>
                     <th>Email</th>
+                    <th>CV</th>
                     <th>Job Title</th>
                     <th>Status</th>
                     <th>Applied</th>
@@ -89,63 +88,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <tr>
                     <td><?= htmlspecialchars($app['user_name']) ?></td>
                     <td><?= htmlspecialchars($app['user_email']) ?></td>
+                    <td>
+                        <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
+                        <?php if (!empty($cvPath)): ?>
+                            <a class="btn btn-sm btn-outline-secondary" href="../<?= htmlspecialchars($cvPath) ?>" target="_blank" rel="noopener">View CV</a>
+                        <?php else: ?>
+                            <span class="text-muted">N/A</span>
+                        <?php endif; ?>
+                    </td>
                     <td><?= htmlspecialchars($app['job_title']) ?></td>
                     <td>
                         <span class="badge <?= match(strtolower($app['status'] ?? 'pending')) {
-                            'approved' => 'bg-success',
-                            'rejected' => 'bg-danger',
-                            default    => 'bg-warning'
+                            'shortlisted' => 'bg-primary',
+                            'approved'    => 'bg-success',
+                            'rejected'    => 'bg-danger',
+                            default       => 'bg-warning'
                         } ?>">
                             <?= ucfirst($app['status'] ?? 'Pending') ?>
                         </span>
                     </td>
                     <td><?= date('M d, Y', strtotime($app['applied_at'])) ?></td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary" 
+                        <a class="btn btn-sm btn-outline-secondary me-2" href="company-application-details.php?id=<?= $app['id'] ?>">
+                            View Details
+                        </a>
+                        <button class="btn btn-sm btn-outline-primary"
                                 data-bs-toggle="modal" 
                                 data-bs-target="#statusModal<?= $app['id'] ?>">
                             Update Status
                         </button>
                     </td>
                 </tr>
-
-                <!-- Status Update Modal -->
-                <div class="modal fade" id="statusModal<?= $app['id'] ?>" tabindex="-1">
-                    <div class="modal-dialog">
-                        <form method="post" class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Update Application Status</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                            </div>
-                            <div class="modal-body">
-                                <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                <input type="hidden" name="app_id" value="<?= $app['id'] ?>">
-
-                                <div class="mb-3">
-                                    <label class="form-label">New Status</label>
-                                    <select name="status" class="form-select" required>
-                                        <option value="pending">Pending</option>
-                                        <option value="approved">Approved</option>
-                                        <option value="rejected">Rejected</option>
-                                    </select>
-                                </div>
-
-                                <div class="mb-3 rejection-reason" style="display:none;">
-                                    <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
-                                    <textarea name="rejection_reason" class="form-control" rows="3"></textarea>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary">Save</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
             <?php endforeach; ?>
             </tbody>
         </table>
     </div>
+
+    <?php foreach ($applications as $app): ?>
+        <!-- Status Update Modal -->
+        <div class="modal fade" id="statusModal<?= $app['id'] ?>" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="post" class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Update Application Status</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                        <input type="hidden" name="app_id" value="<?= $app['id'] ?>">
+
+                        <div class="mb-3">
+                            <label class="form-label">New Status</label>
+                            <select name="status" class="form-select" required>
+                                <option value="pending">Pending</option>
+                                <option value="shortlisted">Shortlisted</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endforeach; ?>
 <?php endif; ?>
 
 <?php require '../footer.php'; ?>

@@ -1,6 +1,7 @@
 <?php
 // my-application-edit.php
 require 'db.php';
+$bodyClass = 'user-ui';
 require 'header.php';
 
 if (!isset($_SESSION['user_id']) || !isset($_GET['id']) || !is_numeric($_GET['id'])) {

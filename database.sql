@@ -6,6 +6,9 @@ USE JobHub;
 
 -- clean re-import
 DROP TABLE IF EXISTS bookmarks;
+DROP TABLE IF EXISTS job_view_logs;
+DROP TABLE IF EXISTS job_search_logs;
+DROP TABLE IF EXISTS saved_jobs;
 DROP TABLE IF EXISTS applications;
 DROP TABLE IF EXISTS job_skills;
 DROP TABLE IF EXISTS jobs;
@@ -65,6 +68,7 @@ CREATE TABLE users (
     preferred_category VARCHAR(120) NULL,
     preferred_location VARCHAR(200) NULL,
     preferred_job_type VARCHAR(60) NULL,
+    experience_level VARCHAR(40) NULL,
     skills TEXT NULL,
     cv_path VARCHAR(255) NULL,
     profile_image VARCHAR(255) NULL,
@@ -85,6 +89,7 @@ CREATE TABLE jobs (
     category VARCHAR(120) NULL,
     salary VARCHAR(120) NULL,
     application_duration VARCHAR(60) NULL,
+    experience_level VARCHAR(40) NULL,
     description TEXT NOT NULL,
     status ENUM('active','closed','expired','draft') NOT NULL DEFAULT 'active',
     is_approved TINYINT(1) NOT NULL DEFAULT 1,
@@ -118,7 +123,8 @@ CREATE TABLE applications (
     user_id INT NOT NULL,
     job_id INT NOT NULL,
     cover_letter TEXT NULL,
-    status ENUM('pending','shortlisted','rejected','offered') NOT NULL DEFAULT 'pending',
+    cv_path VARCHAR(255) NULL,
+    status ENUM('pending','shortlisted','rejected','approved') NOT NULL DEFAULT 'pending',
     applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(id),
@@ -135,6 +141,44 @@ CREATE TABLE bookmarks (
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (job_id) REFERENCES jobs(id)
 );
+
+-- job search logs
+CREATE TABLE job_search_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    keyword VARCHAR(255) NULL,
+    category VARCHAR(120) NULL,
+    location VARCHAR(200) NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- job view logs
+CREATE TABLE job_view_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    job_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (job_id) REFERENCES jobs(id)
+);
+
+-- saved jobs (optional)
+CREATE TABLE saved_jobs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    job_id INT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, job_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (job_id) REFERENCES jobs(id)
+);
+
+CREATE INDEX idx_job_search_logs_user_created ON job_search_logs (user_id, created_at);
+CREATE INDEX idx_job_view_logs_user_created ON job_view_logs (user_id, created_at);
+CREATE INDEX idx_job_view_logs_user_job ON job_view_logs (user_id, job_id);
+CREATE INDEX idx_jobs_category_location_type_created ON jobs (category, location, type, created_at);
+CREATE INDEX idx_jobs_created_at ON jobs (created_at);
 
 -- admins
 CREATE TABLE admins (

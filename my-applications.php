@@ -1,6 +1,7 @@
 <?php
 // my-applications.php
 require 'db.php';
+$bodyClass = 'user-ui';
 require 'header.php';
 
 if (!isset($_SESSION['user_id'])) {
@@ -10,7 +11,7 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = (int)$_SESSION['user_id'];
 
-$sql = "SELECT a.id, a.status, a.cover_letter, a.applied_at,
+$sql = "SELECT a.id, a.job_id, a.status, a.cover_letter, a.applied_at,
                j.title, j.company, j.location, j.type
         FROM applications a
         JOIN jobs j ON a.job_id = j.id
@@ -58,12 +59,11 @@ $stmt->close();
                         <?php
                         $status = strtolower($app['status'] ?? 'pending');
                         $badge = match($status) {
-                            'pending'    => 'bg-warning',
-                            'reviewed'   => 'bg-info',
-                            'shortlisted'=> 'bg-primary',
-                            'rejected'   => 'bg-danger',
-                            'accepted'   => 'bg-success',
-                            default      => 'bg-secondary'
+                            'pending'     => 'bg-warning',
+                            'shortlisted' => 'bg-primary',
+                            'approved'    => 'bg-success',
+                            'rejected'    => 'bg-danger',
+                            default       => 'bg-secondary'
                         };
                         ?>
                         <span class="badge <?= $badge ?>"><?= ucfirst($status) ?></span>

@@ -16,16 +16,37 @@ $deleteType = "";
 $jobCategories = require __DIR__ . '/includes/categories.php';
 $legacyCategoryWarning = false;
 $preferredValue = '';
+$experienceLevels = [
+    'Entry Level (0–1 years)',
+    'Junior (1–3 years)',
+    'Mid Level (3–5 years)',
+    'Senior (5–8 years)',
+    'Lead (8–10 years)',
+    'Manager (10+ years)',
+];
+$hasExperienceColumn = false;
+
+$checkExperience = $conn->query("SHOW COLUMNS FROM users LIKE 'experience_level'");
+if ($checkExperience) {
+    $hasExperienceColumn = $checkExperience->num_rows > 0;
+    $checkExperience->close();
+}
 
 // Fetch current user details
-$userRes = $conn->query("SELECT name, email, phone, preferred_category, cv_path, profile_image FROM users WHERE id = $uid");
+$userSelect = "SELECT name, email, phone, preferred_category, cv_path, profile_image";
+if ($hasExperienceColumn) {
+    $userSelect .= ", experience_level";
+}
+$userSelect .= " FROM users WHERE id = $uid";
+$userRes = $conn->query($userSelect);
 $user = $userRes ? $userRes->fetch_assoc() : [
     'name' => '',
     'email' => '',
     'phone' => '',
     'preferred_category' => '',
     'cv_path' => '',
-    'profile_image' => ''
+    'profile_image' => '',
+    'experience_level' => '',
 ];
 
 $preferenceProfile = function_exists('get_user_preferences') ? get_user_preferences($conn, $uid) : [];
@@ -67,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim($_POST['email'] ?? '');
         $phone = trim($_POST['phone'] ?? '');
         $preferred_category = trim($_POST['preferred_category'] ?? '');
+        $experience_level = trim($_POST['experience_level'] ?? '');
         if ($preferred_category !== '') {
             $preferredValue = $preferred_category;
             $legacyCategoryWarning = false;
@@ -95,6 +117,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif (!in_array($preferred_category, $jobCategories, true)) {
             $profileMsg = "Invalid job category selected.";
+            $profileType = "alert-danger";
+        } elseif ($hasExperienceColumn && $experience_level !== '' && !in_array($experience_level, $experienceLevels, true)) {
+            $profileMsg = "Invalid experience level selected.";
             $profileType = "alert-danger";
         }
 
@@ -156,18 +181,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $profileType = "alert-danger";
             } else {
                 $phoneVal = $phone === '' ? null : $phone;
-                $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
-                $dbPrepareOk = $stmt ? true : false;
-                if (!$stmt) {
-                    $dbStmtError = $conn->error ?? '';
-                    $profileMsg = "Could not update profile. Please try again.";
-                    $profileType = "alert-danger";
+                if ($hasExperienceColumn) {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ? WHERE id = ?");
                 } else {
-                    $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
-                    $dbExecuteOk = $stmt->execute();
-                    $dbAffected = $stmt->affected_rows;
-                    $finalCvPath = $newCvPath;
-                    if ($dbExecuteOk) {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
+                }
+        $dbPrepareOk = $stmt ? true : false;
+        if (!$stmt) {
+            $dbStmtError = $conn->error ?? '';
+            $profileMsg = "Could not update profile. Please try again.";
+            $profileType = "alert-danger";
+        } else {
+            if ($hasExperienceColumn) {
+                $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $newCvPath, $uid);
+            } else {
+                $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
+            }
+            $dbExecuteOk = $stmt->execute();
+            $dbAffected = $stmt->affected_rows;
+            $finalCvPath = $newCvPath;
+            if ($dbExecuteOk) {
                         if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
                             $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
                             if ($prefStmt) {
@@ -184,6 +217,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $user['email'] = $email;
                         $user['phone'] = $phone;
                         $user['preferred_category'] = $preferred_category;
+                        if ($hasExperienceColumn) {
+                            $user['experience_level'] = $experience_level;
+                        }
                         $user['cv_path'] = $newCvPath;
                     } else {
                         $profileMsg = "Could not update profile. Please try again.";
@@ -205,6 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'name' => $name,
                 'email' => $email,
                 'preferred_category' => $preferred_category,
+                'experience_level' => $experience_level,
                 'upload_error' => $uploadError,
                 'profile_msg' => $profileMsg,
                 'profile_type' => $profileType,
@@ -294,36 +331,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$bodyClass = 'account-page';
+$bodyClass = 'account-page user-ui';
 require 'header.php';
 ?>
 <h1 class="mb-3">Account</h1>
-
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <h2 class="h5">Recommended for You</h2>
-        <?php if (count($recommendedJobs) === 0): ?>
-            <p class="text-muted">No recommendations yet. Update your job preference to see more.</p>
-        <?php else: ?>
-            <div class="row g-3">
-                <?php foreach ($recommendedJobs as $job): ?>
-                    <div class="col-12 col-md-6">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <h3 class="h6 mb-2"><?php echo htmlspecialchars($job['title'] ?? ''); ?></h3>
-                                <p class="text-muted small mb-3">
-                                    <?php echo htmlspecialchars($job['company'] ?? ''); ?> |
-                                    <?php echo htmlspecialchars($job['location'] ?? ''); ?>
-                                </p>
-                                <a class="btn btn-outline-primary btn-sm" href="job-detail.php?id=<?php echo $job['id']; ?>">View Details</a>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
-    </div>
-</div>
 
 <div class="card shadow-sm mb-4">
     <div class="card-body">
@@ -362,6 +373,7 @@ require 'header.php';
                     <div>name: <?php echo htmlspecialchars($profileDebug['name'] ?? ''); ?></div>
                     <div>email: <?php echo htmlspecialchars($profileDebug['email'] ?? ''); ?></div>
                     <div>preferred_category: <?php echo htmlspecialchars($profileDebug['preferred_category'] ?? ''); ?></div>
+                    <div>experience_level: <?php echo htmlspecialchars($profileDebug['experience_level'] ?? ''); ?></div>
                     <div>upload_error: <?php echo htmlspecialchars($profileDebug['upload_error'] ?? ''); ?></div>
                     <div>profile_msg: <?php echo htmlspecialchars($profileDebug['profile_msg'] ?? ''); ?></div>
                     <div>profile_type: <?php echo htmlspecialchars($profileDebug['profile_type'] ?? ''); ?></div>
@@ -419,6 +431,20 @@ require 'header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php if ($hasExperienceColumn): ?>
+                <div class="mb-3">
+                    <label class="form-label">Experience Level (optional)</label>
+                    <select name="experience_level" class="form-select">
+                        <option value="">Select experience level</option>
+                        <?php foreach ($experienceLevels as $level): ?>
+                            <option value="<?php echo htmlspecialchars($level); ?>"
+                                <?php echo (($user['experience_level'] ?? '') === $level) ? "selected" : ""; ?>>
+                                <?php echo htmlspecialchars($level); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endif; ?>
 
             <div class="mb-3">
                 <label class="form-label">CV (PDF only, max 5MB)</label>

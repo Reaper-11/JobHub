@@ -1,6 +1,7 @@
 <?php
 // job-detail.php
 require 'db.php';
+$bodyClass = 'user-ui';
 require 'header.php';
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
@@ -54,9 +55,9 @@ if ($user_id) {
     $stmt->close();
 
     // Log job view (if tracking table exists)
-    $check = $conn->query("SHOW TABLES LIKE 'job_views'");
+    $check = $conn->query("SHOW TABLES LIKE 'job_view_logs'");
     if ($check && $check->num_rows > 0) {
-        $viewStmt = $conn->prepare("INSERT INTO job_views (user_id, job_id, viewed_at) VALUES (?, ?, NOW())");
+        $viewStmt = $conn->prepare("INSERT INTO job_view_logs (user_id, job_id, created_at) VALUES (?, ?, NOW())");
         if ($viewStmt) {
             $viewStmt->bind_param("ii", $user_id, $job_id);
             $viewStmt->execute();
@@ -83,11 +84,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
                 $alert_type = 'warning';
             } else {
                 $cover = trim($_POST['cover_letter'] ?? '');
+                $cv_path = db_query_value("SELECT cv_path FROM users WHERE id = ?", "i", [$user_id], null);
                 $stmt = $conn->prepare("
-                    INSERT INTO applications (user_id, job_id, cover_letter, applied_at)
-                    VALUES (?, ?, ?, NOW())
+                    INSERT INTO applications (user_id, job_id, cover_letter, cv_path, applied_at)
+                    VALUES (?, ?, ?, ?, NOW())
                 ");
-                $stmt->bind_param("iis", $user_id, $job_id, $cover);
+                $stmt->bind_param("iiss", $user_id, $job_id, $cover, $cv_path);
                 if ($stmt->execute()) {
                     $alert = "Application submitted successfully!";
                     $already_applied = true;
@@ -130,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
                 <div class="d-flex align-items-center mb-4">
                     <?php if (!empty($job['logo_path'])): ?>
                         <img src="<?= htmlspecialchars($job['logo_path']) ?>" alt="Company logo" 
-                             class="rounded me-3" style="width:60px; height:60px; object-fit:contain; border:1px solid #dee2e6;">
+                             class="rounded me-3" style="width:60px; height:60px; object-fit:contain; border:1px solid var(--border);">
                     <?php endif; ?>
                     <div>
                         <h5 class="mb-1"><?= htmlspecialchars($job['company_name'] ?: $job['company']) ?></h5>

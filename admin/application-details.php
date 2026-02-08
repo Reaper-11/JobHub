@@ -10,7 +10,7 @@ if (!isset($_SESSION['admin_id']) || !isset($_GET['id']) || !is_numeric($_GET['i
 $app_id = (int)$_GET['id'];
 
 $app = db_query_all("
-    SELECT a.*, 
+    SELECT a.*,
            u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
            j.title AS job_title, j.company AS job_company, j.location AS job_location,
            j.type AS job_type, j.salary AS job_salary
@@ -30,9 +30,9 @@ if (!$app) {
 $possible_statuses = [
     'pending'      => ['reviewed', 'shortlisted', 'rejected'],
     'reviewed'     => ['shortlisted', 'rejected'],
-    'shortlisted'  => ['interview_scheduled', 'rejected', 'offered'],
-    'interview_scheduled' => ['offered', 'rejected'],
-    'offered'      => ['hired', 'rejected'],
+    'shortlisted'  => ['interview_scheduled', 'rejected', 'approved'],
+    'interview_scheduled' => ['approved', 'rejected'],
+    'approved'      => ['hired', 'rejected'],
 ];
 
 $current_status = strtolower($app['status'] ?? 'pending');
@@ -94,13 +94,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <div class="card-header bg-light">
                 <h5 class="mb-0">Applicant Information</h5>
             </div>
-            <div class="card-body">
-                <p><strong>Name:</strong> <?= htmlspecialchars($app['user_name']) ?></p>
-                <p><strong>Email:</strong> <?= htmlspecialchars($app['user_email']) ?></p>
-                <p><strong>Phone:</strong> <?= htmlspecialchars($app['user_phone'] ?: 'Not provided') ?></p>
-                <p><strong>Applied:</strong> <?= date('Y-m-d H:i', strtotime($app['applied_at'])) ?></p>
-            </div>
+        <div class="card-body">
+            <p><strong>Name:</strong> <?= htmlspecialchars($app['user_name']) ?></p>
+            <p><strong>Email:</strong> <?= htmlspecialchars($app['user_email']) ?></p>
+            <p><strong>Phone:</strong> <?= htmlspecialchars($app['user_phone'] ?: 'Not provided') ?></p>
+            <p><strong>Applied:</strong> <?= date('Y-m-d H:i', strtotime($app['applied_at'])) ?></p>
+            <?php if (!empty($app['cv_path'])): ?>
+                <p><strong>CV:</strong> <a href="../<?= htmlspecialchars($app['cv_path']) ?>" target="_blank" rel="noopener">View CV</a></p>
+            <?php else: ?>
+                <p><strong>CV:</strong> <span class="text-muted">Not provided</span></p>
+            <?php endif; ?>
         </div>
+    </div>
 
         <div class="card shadow-sm">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
@@ -130,7 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     <span class="badge fs-6 p-2 <?= match(strtolower($app['status'] ?? 'pending')) {
                         'pending'     => 'bg-warning text-dark',
                         'shortlisted' => 'bg-primary',
-                        'offered'     => 'bg-success',
+                        'approved'    => 'bg-success',
                         'rejected'    => 'bg-danger',
                         default       => 'bg-secondary'
                     } ?>">

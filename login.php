@@ -1,6 +1,7 @@
 <?php
 // login.php
 require 'db.php';
+$bodyClass = 'user-ui';
 require 'header.php';
 
 $msg = '';

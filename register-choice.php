@@ -1,4 +1,4 @@
-<?php require 'header.php'; ?>
+<?php $bodyClass = 'user-ui'; require 'header.php'; ?>
 <h1 class="mb-3">Choose Registration Type</h1>
 <div class="card shadow-sm register-choice-card">
     <div class="card-body text-center">

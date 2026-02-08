@@ -37,22 +37,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+$basePath = '../';
+$pageTitle = 'Admin Login - JobHub';
+$bodyClass = 'bg-light';
+require '../header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Login - JobHub</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background: #f8f9fa; }
-        .login-card { max-width: 420px; margin: 100px auto; }
-    </style>
-</head>
-<body>
+
 <div class="container">
-    <div class="card login-card shadow-lg border-0">
+    <div class="card login-card shadow-lg border-0 mx-auto my-5">
         <div class="card-body p-5">
             <h2 class="h4 mb-4 text-center">Admin Login</h2>
 
@@ -78,6 +71,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+
+<?php require '../footer.php'; ?>

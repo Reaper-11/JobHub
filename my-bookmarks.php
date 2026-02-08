@@ -1,6 +1,7 @@
 <?php
 // my-bookmarks.php
 require 'db.php';
+$bodyClass = 'user-ui';
 require 'header.php';
 
 if (!isset($_SESSION['user_id'])) {

@@ -2,8 +2,30 @@
 // includes/recommendation.php
 // Context-based job recommendation logic (deterministic & explainable)
 
+$RECOMMENDATION_CONFIG = [
+    'weights' => [
+        'category_match' => 40,
+        'skill_keyword_match' => 6,
+        'location_match' => 15,
+        'job_type_match' => 10,
+        'search_keyword_match' => 4,
+        'viewed_similar_jobs' => 12,
+        'applied_similar_jobs' => 14,
+        'recency_boost' => 10,
+    ],
+    'candidate_days' => 90,
+    'activity_days' => 60,
+    'cache_ttl' => 600,
+    'max_keywords' => 10,
+    'max_categories' => 5,
+    'max_locations' => 5,
+    'max_overlap' => 5,
+];
+
 if (!function_exists('recommendJobs')) {
     function recommendJobs($pdo, $userId, $limit = 10): array {
+        global $RECOMMENDATION_CONFIG;
+
         $limit = max(1, (int) $limit);
         $userId = (int) $userId;
 
@@ -11,9 +33,14 @@ if (!function_exists('recommendJobs')) {
             return [];
         }
 
+        if (!recommend_is_job_seeker($pdo, $userId)) {
+            return [];
+        }
+
         $userColumns = recommend_table_columns($pdo, 'users');
         $jobColumns = recommend_table_columns($pdo, 'jobs');
-        $hasJobViews = recommend_table_exists($pdo, 'job_views');
+        $hasSearchLogs = recommend_table_exists($pdo, 'job_search_logs');
+        $hasViewLogs = recommend_table_exists($pdo, 'job_view_logs');
 
         $user = recommend_fetch_user_profile($pdo, $userId, $userColumns);
 
@@ -21,40 +48,57 @@ if (!function_exists('recommendJobs')) {
         if (!empty($user['preferred_category'])) {
             $preferredCategories[] = $user['preferred_category'];
         }
-
-        $sessionCategory = trim($_SESSION['last_selected_category'] ?? '');
-        if ($sessionCategory !== '') {
-            $preferredCategories[] = $sessionCategory;
-        }
-        $preferredCategories = array_values(array_unique(array_filter($preferredCategories)));
+        $preferredCategories = array_values(array_unique(array_filter(array_map('trim', $preferredCategories))));
+        $preferredCategoryKeys = array_values(array_unique(array_map('strtolower', $preferredCategories)));
 
         $preferredLocation = trim($user['preferred_location'] ?? '');
         $preferredJobType = trim($user['preferred_job_type'] ?? '');
 
         $userSkills = recommend_get_user_skills($pdo, $userId, $userColumns);
 
-        $sessionKeyword = trim($_SESSION['last_search_keyword'] ?? '');
-
-        $recentViewCategories = [];
-        if ($hasJobViews) {
-            $recentViewCategories = recommend_recent_view_categories($pdo, $userId);
+        $cacheKey = 'recommend_cache_' . $userId . '_' . md5(json_encode([
+            'cats' => $preferredCategoryKeys,
+            'loc' => $preferredLocation,
+            'type' => $preferredJobType,
+        ]));
+        $cached = $_SESSION[$cacheKey] ?? null;
+        if (is_array($cached)) {
+            $age = time() - (int) ($cached['ts'] ?? 0);
+            if ($age >= 0 && $age < (int) $RECOMMENDATION_CONFIG['cache_ttl']) {
+                return $cached['data'] ?? [];
+            }
         }
-        $dominantCategory = recommend_most_frequent($recentViewCategories);
+
+        $activityDays = (int) $RECOMMENDATION_CONFIG['activity_days'];
+        $searchSignals = $hasSearchLogs ? recommend_fetch_search_signals($pdo, $userId, $activityDays, $RECOMMENDATION_CONFIG) : [];
+        $viewSignals = $hasViewLogs ? recommend_fetch_view_signals($pdo, $userId, $activityDays, $RECOMMENDATION_CONFIG) : [];
+        $appliedCategories = recommend_fetch_applied_categories($pdo, $userId, $activityDays, $RECOMMENDATION_CONFIG);
+
+        $searchCategories = $searchSignals['categories'] ?? [];
+        $searchKeywords = $searchSignals['keywords'] ?? [];
+        $searchLocations = $searchSignals['locations'] ?? [];
+
+        $viewCategories = $viewSignals['categories'] ?? [];
 
         $hasContext = (
             !empty($preferredCategories) ||
             $preferredLocation !== '' ||
             $preferredJobType !== '' ||
             !empty($userSkills) ||
-            $sessionKeyword !== '' ||
-            $dominantCategory !== ''
+            !empty($searchCategories) ||
+            !empty($searchKeywords) ||
+            !empty($viewCategories) ||
+            !empty($appliedCategories)
         );
 
         if (!$hasContext) {
-            return recommend_trending_jobs($pdo, $userId, $limit, $hasJobViews, $jobColumns);
+            $fallback = recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumns);
+            $_SESSION[$cacheKey] = ['ts' => time(), 'data' => $fallback];
+            return $fallback;
         }
 
         $deadlineSelect = in_array('deadline', $jobColumns, true) ? ", j.deadline" : "";
+        $candidateDays = (int) $RECOMMENDATION_CONFIG['candidate_days'];
 
         $sql = "
             SELECT
@@ -68,6 +112,7 @@ if (!function_exists('recommendJobs')) {
             LEFT JOIN applications a ON a.job_id = j.id AND a.user_id = ?
             WHERE j.status = 'active'
               AND a.id IS NULL
+              AND j.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
             GROUP BY j.id
             ORDER BY j.created_at DESC
         ";
@@ -76,7 +121,7 @@ if (!function_exists('recommendJobs')) {
         if (!$stmt) {
             return [];
         }
-        $stmt->bind_param("i", $userId);
+        $stmt->bind_param("ii", $userId, $candidateDays);
         if (!$stmt->execute()) {
             $stmt->close();
             return [];
@@ -85,7 +130,9 @@ if (!function_exists('recommendJobs')) {
         $rows = $result ? $result->fetch_all(MYSQLI_ASSOC) : [];
         $stmt->close();
 
+        $weights = $RECOMMENDATION_CONFIG['weights'];
         $scored = [];
+
         foreach ($rows as $job) {
             if (recommend_is_expired($job)) {
                 continue;
@@ -95,55 +142,71 @@ if (!function_exists('recommendJobs')) {
             $reasonScores = [];
 
             $jobCategory = trim($job['category'] ?? '');
+            if (!empty($preferredCategoryKeys)) {
+                $jobCategoryKey = strtolower($jobCategory);
+                if ($jobCategoryKey === '' || !in_array($jobCategoryKey, $preferredCategoryKeys, true)) {
+                    continue;
+                }
+            }
             if ($jobCategory !== '') {
-                if (in_array($jobCategory, $preferredCategories, true)) {
-                    $score += 40;
-                    $reasonScores[] = [40, "Matches your preferred category: {$jobCategory}"];
-                } elseif ($dominantCategory !== '' && $jobCategory === $dominantCategory) {
-                    $score += 40;
-                    $reasonScores[] = [40, "Popular in your recent views: {$jobCategory}"];
+                $jobCategoryKey = strtolower($jobCategory);
+                if (!empty($preferredCategoryKeys) && in_array($jobCategoryKey, $preferredCategoryKeys, true)) {
+                    $score += $weights['category_match'];
+                    $reasonScores[] = [$weights['category_match'], "Matches your preferred category: {$jobCategory}"];
+                } elseif (in_array($jobCategoryKey, $searchCategories, true)) {
+                    $score += $weights['category_match'];
+                    $reasonScores[] = [$weights['category_match'], "Matches your recent searches: {$jobCategory}"];
                 }
             }
 
-            $jobSkills = recommend_parse_skills($job['skill_list'] ?? '');
-            $skillOverlap = recommend_skill_overlap($userSkills, $jobSkills);
-            if (!empty($skillOverlap)) {
-                $score += 30;
-                $sample = implode(', ', array_slice($skillOverlap, 0, 3));
-                $reasonScores[] = [30, "Matches your skills: {$sample}"];
+            $skillMatches = recommend_keyword_overlap($userSkills, $job, $RECOMMENDATION_CONFIG['max_overlap']);
+            if ($skillMatches > 0) {
+                $skillScore = $skillMatches * $weights['skill_keyword_match'];
+                $score += $skillScore;
+                $sample = implode(', ', array_slice(recommend_overlap_samples($userSkills, $job), 0, 3));
+                if ($sample !== '') {
+                    $reasonScores[] = [$skillScore, "Matches your skills: {$sample}"];
+                }
             }
 
             $jobLocation = trim($job['location'] ?? '');
-            if ($preferredLocation !== '' && $jobLocation !== '') {
-                if (recommend_location_exact($preferredLocation, $jobLocation)) {
-                    $score += 15;
-                    $reasonScores[] = [15, "Same location: {$jobLocation}"];
-                } elseif (recommend_location_country_match($preferredLocation, $jobLocation)) {
-                    $score += 8;
-                    $reasonScores[] = [8, "Same country: {$jobLocation}"];
+            if ($jobLocation !== '') {
+                if ($preferredLocation !== '' && recommend_location_exact($preferredLocation, $jobLocation)) {
+                    $score += $weights['location_match'];
+                    $reasonScores[] = [$weights['location_match'], "Same location: {$jobLocation}"];
+                } elseif (!empty($searchLocations) && in_array(strtolower($jobLocation), $searchLocations, true)) {
+                    $score += $weights['location_match'];
+                    $reasonScores[] = [$weights['location_match'], "Matches your searched location: {$jobLocation}"];
                 }
             }
 
             $jobType = trim($job['type'] ?? '');
             if ($preferredJobType !== '' && $jobType !== '' && strcasecmp($jobType, $preferredJobType) === 0) {
-                $score += 10;
-                $reasonScores[] = [10, "Matches your preferred job type: {$jobType}"];
+                $score += $weights['job_type_match'];
+                $reasonScores[] = [$weights['job_type_match'], "Matches your preferred job type: {$jobType}"];
             }
 
-            if ($sessionKeyword !== '') {
-                $keywordMatch = recommend_keyword_match($sessionKeyword, $job);
-                if ($keywordMatch) {
-                    $score += 10;
-                    $reasonScores[] = [10, "Matches your recent search: {$sessionKeyword}"];
-                }
+            $searchKeywordMatches = recommend_keyword_match_count($searchKeywords, $job, $RECOMMENDATION_CONFIG['max_overlap']);
+            if ($searchKeywordMatches > 0) {
+                $searchScore = $searchKeywordMatches * $weights['search_keyword_match'];
+                $score += $searchScore;
+                $reasonScores[] = [$searchScore, "Matches your searches"];
             }
 
-            $recency = recommend_recency_bonus($job['created_at'] ?? '');
+            if ($jobCategory !== '' && in_array(strtolower($jobCategory), $viewCategories, true)) {
+                $score += $weights['viewed_similar_jobs'];
+                $reasonScores[] = [$weights['viewed_similar_jobs'], "Similar to jobs you viewed"];
+            }
+
+            if ($jobCategory !== '' && in_array(strtolower($jobCategory), $appliedCategories, true)) {
+                $score += $weights['applied_similar_jobs'];
+                $reasonScores[] = [$weights['applied_similar_jobs'], "Similar to jobs you applied to"];
+            }
+
+            $recency = recommend_recency_bonus($job['created_at'] ?? '', $candidateDays, $weights['recency_boost']);
             if ($recency > 0) {
                 $score += $recency;
-                if ($recency >= 7) {
-                    $reasonScores[] = [$recency, "Recently posted"];
-                }
+                $reasonScores[] = [$recency, "Recently posted"];
             }
 
             usort($reasonScores, function($a, $b) {
@@ -152,7 +215,7 @@ if (!function_exists('recommendJobs')) {
 
             $topReasons = [];
             foreach ($reasonScores as $idx => $pair) {
-                if ($idx >= 2) {
+                if ($idx >= 3) {
                     break;
                 }
                 $topReasons[] = $pair[1];
@@ -171,15 +234,229 @@ if (!function_exists('recommendJobs')) {
             return $b['score'] <=> $a['score'];
         });
 
-        return array_slice($scored, 0, $limit);
+        $result = array_slice($scored, 0, $limit);
+        $_SESSION[$cacheKey] = ['ts' => time(), 'data' => $result];
+        return $result;
     }
 }
 
-function recommend_trending_jobs($pdo, $userId, $limit, $hasJobViews, $jobColumns): array {
+function recommend_is_job_seeker($pdo, $userId): bool {
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param("i", $userId);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return false;
+    }
+    $res = $stmt->get_result();
+    $row = $res ? $res->fetch_assoc() : null;
+    $stmt->close();
+    return ($row['role'] ?? 'seeker') === 'seeker';
+}
+
+function recommend_fetch_search_signals($pdo, $userId, $days, $config): array {
+    $sql = "
+        SELECT keyword, category, location
+        FROM job_search_logs
+        WHERE user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ORDER BY created_at DESC
+        LIMIT 200
+    ";
+    $stmt = $pdo->prepare($sql);
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param("ii", $userId, $days);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return [];
+    }
+    $res = $stmt->get_result();
+    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+
+    $keywordCounts = [];
+    $categoryCounts = [];
+    $locationCounts = [];
+
+    foreach ($rows as $row) {
+        $keyword = trim((string) ($row['keyword'] ?? ''));
+        if ($keyword !== '') {
+            foreach (recommend_tokenize($keyword) as $token) {
+                $keywordCounts[$token] = ($keywordCounts[$token] ?? 0) + 1;
+            }
+        }
+
+        $category = trim((string) ($row['category'] ?? ''));
+        if ($category !== '') {
+            $categoryKey = strtolower($category);
+            $categoryCounts[$categoryKey] = ($categoryCounts[$categoryKey] ?? 0) + 1;
+        }
+
+        $location = trim((string) ($row['location'] ?? ''));
+        if ($location !== '') {
+            $locationKey = strtolower($location);
+            $locationCounts[$locationKey] = ($locationCounts[$locationKey] ?? 0) + 1;
+        }
+    }
+
+    return [
+        'keywords' => recommend_top_keys($keywordCounts, $config['max_keywords']),
+        'categories' => recommend_top_keys($categoryCounts, $config['max_categories']),
+        'locations' => recommend_top_keys($locationCounts, $config['max_locations']),
+    ];
+}
+
+function recommend_fetch_view_signals($pdo, $userId, $days, $config): array {
+    $sql = "
+        SELECT j.category
+        FROM job_view_logs v
+        INNER JOIN jobs j ON j.id = v.job_id
+        WHERE v.user_id = ? AND v.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ORDER BY v.created_at DESC
+        LIMIT 200
+    ";
+    $stmt = $pdo->prepare($sql);
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param("ii", $userId, $days);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return [];
+    }
+    $res = $stmt->get_result();
+    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+
+    $categoryCounts = [];
+    foreach ($rows as $row) {
+        $category = trim((string) ($row['category'] ?? ''));
+        if ($category !== '') {
+            $categoryKey = strtolower($category);
+            $categoryCounts[$categoryKey] = ($categoryCounts[$categoryKey] ?? 0) + 1;
+        }
+    }
+
+    return [
+        'categories' => recommend_top_keys($categoryCounts, $config['max_categories']),
+    ];
+}
+
+function recommend_fetch_applied_categories($pdo, $userId, $days, $config): array {
+    $sql = "
+        SELECT j.category
+        FROM applications a
+        INNER JOIN jobs j ON j.id = a.job_id
+        WHERE a.user_id = ? AND a.applied_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ORDER BY a.applied_at DESC
+        LIMIT 200
+    ";
+    $stmt = $pdo->prepare($sql);
+    if (!$stmt) {
+        return [];
+    }
+    $stmt->bind_param("ii", $userId, $days);
+    if (!$stmt->execute()) {
+        $stmt->close();
+        return [];
+    }
+    $res = $stmt->get_result();
+    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+
+    $categoryCounts = [];
+    foreach ($rows as $row) {
+        $category = trim((string) ($row['category'] ?? ''));
+        if ($category !== '') {
+            $categoryKey = strtolower($category);
+            $categoryCounts[$categoryKey] = ($categoryCounts[$categoryKey] ?? 0) + 1;
+        }
+    }
+
+    return recommend_top_keys($categoryCounts, $config['max_categories']);
+}
+
+function recommend_top_keys($counts, $limit): array {
+    if (empty($counts)) {
+        return [];
+    }
+    arsort($counts);
+    return array_slice(array_keys($counts), 0, (int) $limit);
+}
+
+function recommend_tokenize($text): array {
+    $text = strtolower((string) $text);
+    if ($text === '') {
+        return [];
+    }
+    $text = preg_replace('/[^a-z0-9\s]+/i', ' ', $text);
+    $parts = preg_split('/\s+/', $text);
+    $tokens = [];
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if ($part !== '' && strlen($part) >= 2) {
+            $tokens[] = $part;
+        }
+    }
+    return array_values(array_unique($tokens));
+}
+
+function recommend_keyword_overlap($userSkills, $job, $cap = 5): int {
+    if (empty($userSkills)) {
+        return 0;
+    }
+    $text = strtolower((string) ($job['title'] ?? '') . ' ' . ($job['description'] ?? '') . ' ' . ($job['skill_list'] ?? ''));
+    $count = 0;
+    foreach ($userSkills as $skill) {
+        if ($skill !== '' && strpos($text, strtolower($skill)) !== false) {
+            $count++;
+            if ($count >= $cap) {
+                break;
+            }
+        }
+    }
+    return $count;
+}
+
+function recommend_overlap_samples($userSkills, $job): array {
+    $samples = [];
+    if (empty($userSkills)) {
+        return $samples;
+    }
+    $text = strtolower((string) ($job['title'] ?? '') . ' ' . ($job['description'] ?? '') . ' ' . ($job['skill_list'] ?? ''));
+    foreach ($userSkills as $skill) {
+        if ($skill !== '' && strpos($text, strtolower($skill)) !== false) {
+            $samples[] = $skill;
+        }
+    }
+    return $samples;
+}
+
+function recommend_keyword_match_count($keywords, $job, $cap = 5): int {
+    if (empty($keywords)) {
+        return 0;
+    }
+    $text = strtolower((string) ($job['title'] ?? '') . ' ' . ($job['description'] ?? '') . ' ' . ($job['company'] ?? ''));
+    $count = 0;
+    foreach ($keywords as $keyword) {
+        if ($keyword !== '' && strpos($text, strtolower($keyword)) !== false) {
+            $count++;
+            if ($count >= $cap) {
+                break;
+            }
+        }
+    }
+    return $count;
+}
+
+function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumns): array {
     $deadlineSelect = in_array('deadline', $jobColumns, true) ? ", j.deadline" : "";
     $rows = [];
 
-    if ($hasJobViews) {
+    if ($hasViewLogs) {
         $sql = "
             SELECT
                 j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
@@ -188,7 +465,7 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasJobViews, $jobColumn
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list,
                 COUNT(v.id) AS view_count
             FROM jobs j
-            LEFT JOIN job_views v ON v.job_id = j.id AND v.viewed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+            LEFT JOIN job_view_logs v ON v.job_id = j.id AND v.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
             LEFT JOIN job_skills js ON js.job_id = j.id
             LEFT JOIN skills s ON s.id = js.skill_id
             LEFT JOIN applications a ON a.job_id = j.id AND a.user_id = ?
@@ -265,47 +542,6 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasJobViews, $jobColumn
     }
 
     return $newest;
-}
-
-function recommend_recent_view_categories($pdo, $userId): array {
-    $sql = "
-        SELECT v.job_id, j.category
-        FROM job_views v
-        INNER JOIN jobs j ON j.id = v.job_id
-        WHERE v.user_id = ?
-        ORDER BY v.viewed_at DESC
-        LIMIT 20
-    ";
-    $stmt = $pdo->prepare($sql);
-    if (!$stmt) {
-        return [];
-    }
-    $stmt->bind_param("i", $userId);
-    if (!$stmt->execute()) {
-        $stmt->close();
-        return [];
-    }
-    $res = $stmt->get_result();
-    $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
-    $stmt->close();
-
-    $categories = [];
-    foreach ($rows as $row) {
-        $cat = trim($row['category'] ?? '');
-        if ($cat !== '') {
-            $categories[] = $cat;
-        }
-    }
-    return $categories;
-}
-
-function recommend_most_frequent($items): string {
-    if (empty($items)) {
-        return '';
-    }
-    $counts = array_count_values($items);
-    arsort($counts);
-    return (string) array_key_first($counts);
 }
 
 function recommend_fetch_user_profile($pdo, $userId, $userColumns): array {
@@ -410,59 +646,11 @@ function recommend_parse_skills($skillList): array {
     return array_values(array_unique($tokens));
 }
 
-function recommend_skill_overlap($userSkills, $jobSkills): array {
-    if (empty($userSkills) || empty($jobSkills)) {
-        return [];
-    }
-    $userMap = array_fill_keys($userSkills, true);
-    $overlap = [];
-    foreach ($jobSkills as $skill) {
-        $s = strtolower($skill);
-        if (isset($userMap[$s])) {
-            $overlap[] = $s;
-        }
-    }
-    return array_values(array_unique($overlap));
-}
-
 function recommend_location_exact($preferred, $jobLocation): bool {
     return strcasecmp(trim($preferred), trim($jobLocation)) === 0;
 }
 
-function recommend_location_country_match($preferred, $jobLocation): bool {
-    $preferredCountry = recommend_extract_country($preferred);
-    $jobCountry = recommend_extract_country($jobLocation);
-    if ($preferredCountry === '' || $jobCountry === '') {
-        return false;
-    }
-    return strcasecmp($preferredCountry, $jobCountry) === 0;
-}
-
-function recommend_extract_country($location): string {
-    $parts = array_map('trim', explode(',', (string) $location));
-    $parts = array_values(array_filter($parts));
-    if (empty($parts)) {
-        return '';
-    }
-    return (string) $parts[count($parts) - 1];
-}
-
-function recommend_keyword_match($keyword, $job): bool {
-    $keyword = strtolower($keyword);
-    if ($keyword === '') {
-        return false;
-    }
-
-    $haystack = strtolower(
-        ($job['title'] ?? '') . ' ' .
-        ($job['company'] ?? '') . ' ' .
-        ($job['description'] ?? '')
-    );
-
-    return strpos($haystack, $keyword) !== false;
-}
-
-function recommend_recency_bonus($createdAt): int {
+function recommend_recency_bonus($createdAt, $rangeDays, $maxBoost): int {
     $createdAt = trim((string) $createdAt);
     if ($createdAt === '') {
         return 0;
@@ -475,9 +663,9 @@ function recommend_recency_bonus($createdAt): int {
     if ($days < 0) {
         $days = 0;
     }
-    $days = min($days, 30);
-    $bonus = (int) round(10 * ((30 - $days) / 30));
-    return max(0, min(10, $bonus));
+    $days = min($days, max(1, (int) $rangeDays));
+    $bonus = (int) round($maxBoost * ((($rangeDays - $days) / $rangeDays)));
+    return max(0, min($maxBoost, $bonus));
 }
 
 function recommend_is_expired($job): bool {

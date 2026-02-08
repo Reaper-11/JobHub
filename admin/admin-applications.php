@@ -12,7 +12,7 @@ $totalApps   = db_query_value("SELECT COUNT(*) FROM applications");
 $pending     = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'pending'");
 $shortlisted = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'shortlisted'");
 $rejected    = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'rejected'");
-$offered     = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'offered'");
+$approved    = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'approved'");
 
 // Fetch recent applications (limit 50 for performance)
 $applications = db_query_all("
@@ -60,9 +60,9 @@ $applications = db_query_all("
     <div class="col-md-3 col-sm-6">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Rejected / Offered</h6>
-                <h3 class="mb-0"><?= number_format($rejected + $offered) ?></h3>
-                <small class="text-muted">(Rejected: <?= $rejected ?> • Offered: <?= $offered ?>)</small>
+                <h6 class="text-muted mb-1">Rejected / Approved</h6>
+                <h3 class="mb-0"><?= number_format($rejected + $approved) ?></h3>
+                <small class="text-muted">(Rejected: <?= $rejected ?> • Approved: <?= $approved ?>)</small>
             </div>
         </div>
     </div>
@@ -103,7 +103,7 @@ $applications = db_query_all("
                                     'pending'     => 'bg-warning',
                                     'reviewed'    => 'bg-info',
                                     'shortlisted' => 'bg-primary',
-                                    'offered'     => 'bg-success',
+                                    'approved'    => 'bg-success',
                                     'rejected'    => 'bg-danger',
                                     default       => 'bg-secondary'
                                 };

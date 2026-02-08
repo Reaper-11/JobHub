@@ -97,6 +97,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.navbar.bg-black {
+  background: #000000 !important;
+}
+
 /* ===== Layout ===== */
 main {
   flex: 1;
@@ -110,6 +114,214 @@ main {
 
 .account-page {
   background: var(--gray-300);
+}
+
+/* ===== Account Page: Match Home (Index) Look ===== */
+.account-page {
+  background: #f8fafc;
+}
+
+.account-page .navbar {
+  background: #000000 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.account-page .navbar .navbar-brand {
+  color: #ffffff !important;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.account-page .navbar .nav-link,
+.account-page .navbar .nav-link.text-white {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.account-page .navbar .nav-link:hover,
+.account-page .navbar .nav-link:focus {
+  color: #ffffff !important;
+}
+
+.account-page .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.account-page .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(255, 255, 255, 0.95)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+
+.account-page main.container {
+  max-width: 960px;
+  padding-top: 28px;
+  padding-bottom: 48px;
+}
+
+.account-page h1 {
+  font-size: 2.1rem;
+  font-weight: 800;
+  color: #111827;
+  margin-bottom: 18px;
+}
+
+.account-page h2.h5 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.account-page .card {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(26, 35, 126, 0.08);
+  box-shadow: 0 18px 40px rgba(26, 35, 126, 0.12);
+  background: #ffffff;
+}
+
+.account-page .card-body {
+  padding: 26px;
+}
+
+.account-page .form-control,
+.account-page .form-select {
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  padding: 12px 14px;
+  box-shadow: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.account-page .form-control:focus,
+.account-page .form-select:focus {
+  border-color: #1a237e;
+  box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.18);
+}
+
+.account-page .form-text {
+  color: #6b7280;
+}
+
+.account-page .btn-primary {
+  background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+  border: none;
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 12px 20px;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(26, 35, 126, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.account-page .btn-primary:hover,
+.account-page .btn-primary:focus {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(26, 35, 126, 0.25);
+}
+
+.account-page .btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 16px rgba(26, 35, 126, 0.18);
+}
+
+/* ===== User Pages: Match Home (Index) Look ===== */
+.user-ui {
+  background: #f8fafc;
+}
+
+.user-ui .navbar {
+  background: #000000 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.user-ui .navbar .navbar-brand {
+  color: #ffffff !important;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+}
+
+.user-ui .navbar .nav-link,
+.user-ui .navbar .nav-link.text-white {
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.user-ui .navbar .nav-link:hover,
+.user-ui .navbar .nav-link:focus {
+  color: #ffffff !important;
+}
+
+.user-ui .navbar-toggler {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.user-ui .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(255, 255, 255, 0.95)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+}
+
+.user-ui main.container {
+  max-width: 1100px;
+  padding-top: 28px;
+  padding-bottom: 48px;
+}
+
+.user-ui h1,
+.user-ui h2,
+.user-ui h3 {
+  color: #111827;
+}
+
+.user-ui .card {
+  border-radius: 16px;
+  border: 1px solid rgba(26, 35, 126, 0.08);
+  box-shadow: 0 16px 36px rgba(26, 35, 126, 0.12);
+  background: #ffffff;
+}
+
+.user-ui .form-control,
+.user-ui .form-select {
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  padding: 12px 14px;
+  box-shadow: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.user-ui .form-control:focus,
+.user-ui .form-select:focus {
+  border-color: #1a237e;
+  box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.18);
+}
+
+.user-ui .form-text {
+  color: #6b7280;
+}
+
+.user-ui .btn-primary {
+  background: linear-gradient(135deg, #1a237e 0%, #283593 100%);
+  border: none;
+  color: #ffffff;
+  border-radius: 14px;
+  padding: 12px 20px;
+  font-weight: 700;
+  box-shadow: 0 12px 24px rgba(26, 35, 126, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.user-ui .btn-primary:hover,
+.user-ui .btn-primary:focus {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(26, 35, 126, 0.25);
+}
+
+.user-ui .btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 8px 16px rgba(26, 35, 126, 0.18);
 }
 
 /* ===== Topbar ===== */
@@ -178,6 +390,16 @@ nav a:hover {
 .footer small,
 .footer a {
   color: var(--primary-contrast);
+}
+
+/* Ensure footer text is white site-wide */
+footer,
+footer p,
+footer small,
+footer a,
+footer span,
+footer li {
+  color: #ffffff !important;
 }
 /* ===== Typography ===== */
 h1,

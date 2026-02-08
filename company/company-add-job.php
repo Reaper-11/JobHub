@@ -12,6 +12,15 @@ $msg = $msg_type = '';
 $categoryError = '';
 $categories = require __DIR__ . '/../includes/categories.php';
 $category = '';
+$experienceLevel = '';
+$experienceLevels = [
+    'Entry Level (0–1 years)',
+    'Junior (1–3 years)',
+    'Mid Level (3–5 years)',
+    'Senior (5–8 years)',
+    'Lead (8–10 years)',
+    'Manager (10+ years)',
+];
 
 $statusStmt = $conn->prepare("SELECT is_approved, operational_state, restriction_reason FROM companies WHERE id = ?");
 $statusStmt->bind_param("i", $cid);
@@ -43,27 +52,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $category = trim($_POST['category'] ?? '');
     $salary = trim($_POST['salary'] ?? '');
     $duration = trim($_POST['application_duration'] ?? '');
+    $experienceLevel = trim($_POST['experience_level'] ?? '');
     $description = trim($_POST['description'] ?? '');
 
     if (!$canPostJobs) {
         $msg = $blockMsg !== '' ? $blockMsg : "Your company is not allowed to post jobs at this time.";
         $msg_type = 'danger';
-    } elseif (empty($title) || empty($location) || empty($category) || empty($description)) {
+    } elseif (empty($title) || empty($location) || empty($category) || empty($experienceLevel) || empty($description)) {
         $msg = "Required fields are missing.";
         $msg_type = 'danger';
         if (empty($category)) {
             $categoryError = "Please select a category.";
         }
+    } elseif (!in_array($experienceLevel, $experienceLevels, true)) {
+        $msg = "Please select a valid experience level.";
+        $msg_type = 'danger';
     } elseif (!in_array($category, $categories, true)) {
         $msg = "Please correct the errors below.";
         $msg_type = 'danger';
         $categoryError = "Invalid category selected.";
     } else {
         $stmt = $conn->prepare("
-            INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, description, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+            INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, description, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
         ");
-        $stmt->bind_param("isssssss", $cid, $title, $location, $type, $category, $salary, $duration, $description);
+        $stmt->bind_param("issssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description);
 
         if ($stmt->execute()) {
             $msg = "Job posted successfully!";
@@ -139,6 +152,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <div class="mb-3">
                 <label class="form-label">Application Duration (optional)</label>
                 <input type="text" name="application_duration" class="form-control" placeholder="e.g. 30 days">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Experience Required *</label>
+                <select name="experience_level" class="form-select" required>
+                    <option value="" disabled selected>Select experience level...</option>
+                    <?php foreach ($experienceLevels as $level): ?>
+                        <option value="<?= htmlspecialchars($level) ?>" <?= ($experienceLevel ?? '') === $level ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($level) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </div>
 
             <div class="mb-4">
