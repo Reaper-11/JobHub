@@ -29,7 +29,7 @@ $recentJobs = db_query_all("
 <?php if (!$isApproved): ?>
     <div class="alert alert-warning pending-banner">
         <strong>Your account is pending approval.</strong><br>
-        The Admin will review your company details shortly. You cannot post jobs until approved.
+        The admin will review your company details shortly. You can post jobs, but they won’t be shown to job seekers until your company is approved.
         <?php if (!empty($rejectionReason)): ?>
             <br><strong>Previous rejection reason:</strong> <?= htmlspecialchars($rejectionReason) ?>
         <?php endif; ?>
