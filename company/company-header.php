@@ -1,6 +1,7 @@
 <?php
 // company/company-header.php
 require_once '../db.php';
+require_once '../includes/company_verification_helper.php';
 
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
@@ -13,7 +14,14 @@ $cid = (int)$_SESSION['company_id'];
 $notificationCount = notify_unread_count('company', $cid);
 
 // Fetch company status once
-$stmt = $conn->prepare("SELECT name, is_approved, rejection_reason, operational_state, restriction_reason, restricted_at FROM companies WHERE id = ?");
+$stmt = $conn->prepare("
+    SELECT name, is_approved, rejection_reason, operational_state, restriction_reason, restricted_at,
+           verification_company_name, verification_registration_number, verification_phone,
+           verification_address, verification_document_path, verification_status,
+           verification_admin_remarks, verification_submitted_at, verification_verified_at
+    FROM companies
+    WHERE id = ?
+");
 $stmt->bind_param("i", $cid);
 $stmt->execute();
 $company = $stmt->get_result()->fetch_assoc() ?? [
@@ -23,6 +31,15 @@ $company = $stmt->get_result()->fetch_assoc() ?? [
     'operational_state' => 'active',
     'restriction_reason' => null,
     'restricted_at' => null,
+    'verification_company_name' => null,
+    'verification_registration_number' => null,
+    'verification_phone' => null,
+    'verification_address' => null,
+    'verification_document_path' => null,
+    'verification_status' => null,
+    'verification_admin_remarks' => null,
+    'verification_submitted_at' => null,
+    'verification_verified_at' => null,
 ];
 $stmt->close();
 
@@ -32,7 +49,9 @@ $operationalState = $company['operational_state'] ?? 'active';
 $restrictionReason = $company['restriction_reason'] ?? '';
 $restrictedAt = $company['restricted_at'] ?? null;
 $rejectionReason = $company['rejection_reason'] ?? '';
-$canPostJobs = $isApproved && $operationalState === 'active';
+$verificationStatus = get_company_verification_status($company);
+$isVerified = is_company_verified($company);
+$canPostJobs = $isApproved && $operationalState === 'active' && $isVerified;
 
 $approvalBadge = $isApproved
     ? '<span class="badge bg-success">Approved</span>'
@@ -43,6 +62,10 @@ $stateBadge = match ($operationalState) {
     'suspended' => '<span class="badge bg-danger">Suspended</span>',
     default => '<span class="badge bg-success">Active</span>',
 };
+
+$verificationBadge = '<span class="badge ' . company_verification_badge_class($verificationStatus) . '">' .
+    company_verification_label($verificationStatus) .
+    '</span>';
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -70,6 +93,7 @@ $stateBadge = match ($operationalState) {
             <?= htmlspecialchars($company['name']) ?><br>
             <div class="d-flex flex-column gap-1 align-items-center">
                 <small><?= $approvalBadge ?></small>
+                <small><?= $verificationBadge ?></small>
                 <small><?= $stateBadge ?></small>
             </div>
         </div>
@@ -79,6 +103,7 @@ $stateBadge = match ($operationalState) {
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-add-job.php' ? 'active' : '' ?>" href="company-add-job.php">Post New Job</a></li>
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-my-jobs.php' ? 'active' : '' ?>" href="company-my-jobs.php">My Jobs</a></li>
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-applications.php' ? 'active' : '' ?>" href="company-applications.php">Applications</a></li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-verification.php' ? 'active' : '' ?>" href="company-verification.php">Company Verification</a></li>
             <li class="nav-item">
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-notifications.php' ? 'active' : '' ?>" href="company-notifications.php">
                     Notifications

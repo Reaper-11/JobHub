@@ -49,6 +49,16 @@ CREATE TABLE companies (
     location VARCHAR(200) NOT NULL,
     logo_path VARCHAR(255) NULL,
     is_approved TINYINT(1) NOT NULL DEFAULT 0,
+    verification_company_name VARCHAR(150) NULL,
+    verification_registration_number VARCHAR(100) NULL,
+    verification_phone VARCHAR(30) NULL,
+    verification_address VARCHAR(255) NULL,
+    verification_document_path VARCHAR(255) NULL,
+    verification_status ENUM('pending','approved','rejected') NULL DEFAULT NULL,
+    verification_admin_remarks VARCHAR(255) NULL,
+    verification_submitted_at DATETIME NULL,
+    verification_verified_at DATETIME NULL,
+    verification_verified_by_admin_id INT NULL,
     rejection_reason VARCHAR(255) NULL,
     operational_state ENUM('active','on_hold','suspended') NOT NULL DEFAULT 'active',
     restriction_reason VARCHAR(255) NULL,
@@ -224,3 +234,7 @@ VALUES (
   'admin',
   '$2y$10$KopjEUQYOxEl4fGbVnlOleJATXGI5JaxBZO/P0hDjsvODSZ5qoxTS'
 );
+
+ALTER TABLE companies
+ADD CONSTRAINT fk_companies_verification_admin
+FOREIGN KEY (verification_verified_by_admin_id) REFERENCES admins(id) ON DELETE SET NULL;
