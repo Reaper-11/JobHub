@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS saved_jobs;
 DROP TABLE IF EXISTS applications;
 DROP TABLE IF EXISTS job_skills;
 DROP TABLE IF EXISTS jobs;
+DROP TABLE IF EXISTS activity_logs;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS companies;
 DROP TABLE IF EXISTS skills;
@@ -84,6 +85,7 @@ CREATE TABLE users (
     cv_path VARCHAR(255) NULL,
     profile_image VARCHAR(255) NULL,
     role ENUM('seeker','admin') DEFAULT 'seeker',
+    account_status ENUM('active','blocked','removed') NOT NULL DEFAULT 'active',
     is_active TINYINT(1) DEFAULT 1,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL
@@ -101,9 +103,13 @@ CREATE TABLE jobs (
     salary VARCHAR(120) NULL,
     application_duration VARCHAR(60) NULL,
     experience_level VARCHAR(40) NULL,
+    skills_required TEXT NULL,
     description TEXT NOT NULL,
     status ENUM('active','closed','expired','draft') NOT NULL DEFAULT 'active',
-    is_approved TINYINT(1) NOT NULL DEFAULT 1,
+    is_approved TINYINT(1) NOT NULL DEFAULT 0,
+    approved_by INT NULL,
+    approved_at DATETIME NULL,
+    admin_remarks VARCHAR(255) NULL,
     application_count INT NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL,
@@ -189,6 +195,17 @@ CREATE TABLE job_view_logs (
     FOREIGN KEY (job_id) REFERENCES jobs(id)
 );
 
+CREATE TABLE activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    actor_role VARCHAR(30) NULL,
+    activity_type VARCHAR(80) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    target_type VARCHAR(50) NULL,
+    target_id INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- saved jobs (optional)
 CREATE TABLE saved_jobs (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -205,6 +222,7 @@ CREATE INDEX idx_job_view_logs_user_created ON job_view_logs (user_id, created_a
 CREATE INDEX idx_job_view_logs_user_job ON job_view_logs (user_id, job_id);
 CREATE INDEX idx_jobs_category_location_type_created ON jobs (category, location, type, created_at);
 CREATE INDEX idx_jobs_created_at ON jobs (created_at);
+CREATE INDEX idx_activity_logs_created_at ON activity_logs (created_at);
 
 -- admins
 CREATE TABLE admins (
@@ -238,3 +256,7 @@ VALUES (
 ALTER TABLE companies
 ADD CONSTRAINT fk_companies_verification_admin
 FOREIGN KEY (verification_verified_by_admin_id) REFERENCES admins(id) ON DELETE SET NULL;
+
+ALTER TABLE jobs
+ADD CONSTRAINT fk_jobs_approved_by_admin
+FOREIGN KEY (approved_by) REFERENCES admins(id) ON DELETE SET NULL;

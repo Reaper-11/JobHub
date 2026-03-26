@@ -173,6 +173,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
                     <dt class="col-sm-4 text-muted">Experience</dt>
                     <dd class="col-sm-8"><?= htmlspecialchars($job['experience_level'] ?: 'Not specified') ?></dd>
 
+                    <dt class="col-sm-4 text-muted">Required Skills</dt>
+                    <dd class="col-sm-8"><?= htmlspecialchars($job['skills_required'] ?: 'Not specified') ?></dd>
+
                     <?php if (!empty($job['application_duration'])): ?>
                     <dt class="col-sm-4 text-muted">Apply by</dt>
                     <dd class="col-sm-8">

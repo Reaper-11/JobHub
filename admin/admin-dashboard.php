@@ -8,13 +8,14 @@ if (!isset($_SESSION['admin_id'])) {
 }
 
 $stats = [
-    'jobs'       => db_query_value("SELECT COUNT(*) FROM jobs"),
-    'users'      => db_query_value("SELECT COUNT(*) FROM users"),
+    'jobs' => db_query_value("SELECT COUNT(*) FROM jobs"),
+    'users' => db_query_value("SELECT COUNT(*) FROM users"),
     'applications' => db_query_value("SELECT COUNT(*) FROM applications"),
-    'companies'  => db_query_value("SELECT COUNT(*) FROM companies"),
-    'pending'    => db_query_value("SELECT COUNT(*) FROM companies WHERE is_approved = 0"),
-    'approved'   => db_query_value("SELECT COUNT(*) FROM companies WHERE is_approved = 1"),
-    'rejected'   => db_query_value("SELECT COUNT(*) FROM companies WHERE is_approved = -1"),
+    'companies' => db_query_value("SELECT COUNT(*) FROM companies"),
+    'pending' => db_query_value("SELECT COUNT(*) FROM companies WHERE is_approved = 0"),
+    'approved' => db_query_value("SELECT COUNT(*) FROM companies WHERE is_approved = 1"),
+    'rejected' => db_query_value("SELECT COUNT(*) FROM companies WHERE is_approved = -1"),
+    'verification_pending' => db_query_value("SELECT COUNT(*) FROM companies WHERE verification_status = 'pending'"),
 ];
 ?>
 
@@ -52,9 +53,8 @@ $stats = [
             <div class="card-body text-center">
                 <h6 class="text-muted mb-1">Companies</h6>
                 <h3 class="mb-0"><?= number_format($stats['companies']) ?></h3>
-                <div class="small text-muted mt-1">
-                    Pending: <?= $stats['pending'] ?> • Approved: <?= $stats['approved'] ?>
-                </div>
+                <div class="small text-muted mt-1">Pending: <?= (int)$stats['pending'] ?> | Approved: <?= (int)$stats['approved'] ?></div>
+                <div class="small text-muted mt-1">Verification Pending: <?= (int)$stats['verification_pending'] ?></div>
             </div>
         </div>
     </div>
@@ -87,6 +87,16 @@ $stats = [
                 <div class="card-body">
                     <h5>Manage Users</h5>
                     <p class="text-muted small">View and manage job seekers</p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="company-verifications.php" class="text-decoration-none">
+            <div class="card shadow-sm h-100 border-0 hover-lift">
+                <div class="card-body">
+                    <h5>Review Verifications</h5>
+                    <p class="text-muted small">Approve or reject company verification requests</p>
                 </div>
             </div>
         </a>

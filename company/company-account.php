@@ -148,9 +148,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <div><?= $approvalBadge ?></div>
                 </div>
                 <div>
+                    <div class="text-muted small">Verification Status</div>
+                    <div><?= $verificationBadge ?></div>
+                </div>
+                <div>
                     <div class="text-muted small">Account State</div>
                     <div><?= $stateBadge ?></div>
                 </div>
+                <?php if (!empty($company['verification_admin_remarks']) && $verificationStatus === 'rejected'): ?>
+                    <div>
+                        <div class="text-muted small">Verification Remarks</div>
+                        <div><?= htmlspecialchars($company['verification_admin_remarks']) ?></div>
+                    </div>
+                <?php endif; ?>
                 <?php if (!empty($restrictionReason)): ?>
                     <div>
                         <div class="text-muted small">Restriction Reason</div>
@@ -173,6 +183,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 <h5 class="mb-0">Company Profile</h5>
             </div>
             <div class="card-body">
+                <?php if (!$isVerified): ?>
+                    <div class="alert alert-warning">
+                        Your company must be verified before posting new jobs.
+                        <a href="company-verification.php" class="alert-link">Open verification page</a>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($msg): ?>
                     <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
                 <?php endif; ?>

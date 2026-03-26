@@ -9,18 +9,21 @@ if (!isset($_SESSION['company_id'])) {
 
 $cid = (int)$_SESSION['company_id'];
 
-// Stats
 $jobsCount = db_query_value("SELECT COUNT(*) FROM jobs WHERE company_id = ?", "i", [$cid]);
 $activeJobs = db_query_value("SELECT COUNT(*) FROM jobs WHERE company_id = ? AND status = 'active'", "i", [$cid]);
 $applicationsCount = db_query_value("
-    SELECT COUNT(*) FROM applications a 
-    JOIN jobs j ON a.job_id = j.id 
-    WHERE j.company_id = ?", "i", [$cid]);
+    SELECT COUNT(*)
+    FROM applications a
+    JOIN jobs j ON a.job_id = j.id
+    WHERE j.company_id = ?
+", "i", [$cid]);
 
 $recentJobs = db_query_all("
-    SELECT * FROM jobs 
-    WHERE company_id = ? 
-    ORDER BY created_at DESC LIMIT 5
+    SELECT *
+    FROM jobs
+    WHERE company_id = ?
+    ORDER BY created_at DESC
+    LIMIT 5
 ", "i", [$cid]);
 ?>
 
@@ -29,10 +32,19 @@ $recentJobs = db_query_all("
 <?php if (!$isApproved): ?>
     <div class="alert alert-warning pending-banner">
         <strong>Your account is pending approval.</strong><br>
-        The admin will review your company details shortly. You can post jobs, but they won’t be shown to job seekers until your company is approved.
+        The admin will review your company registration before you can fully use posting features.
         <?php if (!empty($rejectionReason)): ?>
             <br><strong>Previous rejection reason:</strong> <?= htmlspecialchars($rejectionReason) ?>
         <?php endif; ?>
+    </div>
+<?php elseif (!$isVerified): ?>
+    <div class="alert alert-warning pending-banner">
+        <strong>Your company is not verified for job posting.</strong><br>
+        Submit your verification details before posting a new job.
+        <?php if ($verificationStatus === 'rejected' && !empty($company['verification_admin_remarks'])): ?>
+            <br><strong>Admin remarks:</strong> <?= htmlspecialchars($company['verification_admin_remarks']) ?>
+        <?php endif; ?>
+        <br><a href="company-verification.php" class="alert-link">Open company verification</a>
     </div>
 <?php elseif ($operationalState === 'on_hold'): ?>
     <div class="alert alert-warning pending-banner">
@@ -112,8 +124,8 @@ $recentJobs = db_query_all("
                             </td>
                             <td><?= date('M d, Y', strtotime($job['created_at'])) ?></td>
                             <td>
-                                <a href="company-edit-job.php?id=<?= $job['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
-                                <a href="company-applications.php?job_id=<?= $job['id'] ?>" class="btn btn-sm btn-outline-info">Applications</a>
+                                <a href="company-edit-job.php?id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
+                                <a href="company-applications.php?job_id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-info">Applications</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -129,7 +141,7 @@ $recentJobs = db_query_all("
         Post a New Job
     </a>
     <?php if (!$canPostJobs): ?>
-        <div class="small text-muted mt-2">Job posting is disabled until your account is approved and active.</div>
+        <div class="small text-muted mt-2">Job posting is disabled until your company account is approved, verified, and active.</div>
     <?php endif; ?>
 </div>
 

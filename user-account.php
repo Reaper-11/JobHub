@@ -18,6 +18,7 @@ $experienceLevels = require __DIR__ . '/includes/experience_levels.php';
 $legacyCategoryWarning = false;
 $preferredValue = '';
 $hasExperienceColumn = false;
+$hasSkillsColumn = false;
 
 $checkExperience = $conn->query("SHOW COLUMNS FROM users LIKE 'experience_level'");
 if ($checkExperience) {
@@ -25,11 +26,18 @@ if ($checkExperience) {
     $checkExperience->close();
 }
 
+$checkSkills = $conn->query("SHOW COLUMNS FROM users LIKE 'skills'");
+if ($checkSkills) {
+    $hasSkillsColumn = $checkSkills->num_rows > 0;
+    $checkSkills->close();
+}
+
 // Fetch current user details
 $userSelect = "SELECT name, email, phone, preferred_category, cv_path, profile_image";
 if ($hasExperienceColumn) {
     $userSelect .= ", experience_level";
 }
+$userSelect .= $hasSkillsColumn ? ", skills" : ", '' AS skills";
 $userSelect .= " FROM users WHERE id = $uid";
 $userRes = $conn->query($userSelect);
 $user = $userRes ? $userRes->fetch_assoc() : [
@@ -82,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone = trim($_POST['phone'] ?? '');
         $preferred_category = trim($_POST['preferred_category'] ?? '');
         $experience_level = trim($_POST['experience_level'] ?? '');
+        $skills = recommend_normalize_skill_string($_POST['skills'] ?? '');
         if ($preferred_category !== '') {
             $preferredValue = $preferred_category;
             $legacyCategoryWarning = false;
@@ -174,8 +183,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $profileType = "alert-danger";
             } else {
                 $phoneVal = $phone === '' ? null : $phone;
-                if ($hasExperienceColumn) {
+                if ($hasExperienceColumn && $hasSkillsColumn) {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, skills = ?, cv_path = ? WHERE id = ?");
+                } elseif ($hasExperienceColumn) {
                     $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ? WHERE id = ?");
+                } elseif ($hasSkillsColumn) {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, skills = ?, cv_path = ? WHERE id = ?");
                 } else {
                     $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
                 }
@@ -185,8 +198,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $profileMsg = "Could not update profile. Please try again.";
             $profileType = "alert-danger";
         } else {
-            if ($hasExperienceColumn) {
+            if ($hasExperienceColumn && $hasSkillsColumn) {
+                $stmt->bind_param("sssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $skills, $newCvPath, $uid);
+            } elseif ($hasExperienceColumn) {
                 $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $newCvPath, $uid);
+            } elseif ($hasSkillsColumn) {
+                $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $skills, $newCvPath, $uid);
             } else {
                 $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
             }
@@ -213,6 +230,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($hasExperienceColumn) {
                             $user['experience_level'] = $experience_level;
                         }
+                        if ($hasSkillsColumn) {
+                            $user['skills'] = $skills;
+                        }
                         $user['cv_path'] = $newCvPath;
                     } else {
                         $profileMsg = "Could not update profile. Please try again.";
@@ -235,6 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'email' => $email,
                 'preferred_category' => $preferred_category,
                 'experience_level' => $experience_level,
+                'skills' => $skills,
                 'upload_error' => $uploadError,
                 'profile_msg' => $profileMsg,
                 'profile_type' => $profileType,
@@ -367,6 +388,7 @@ require 'header.php';
                     <div>email: <?php echo htmlspecialchars($profileDebug['email'] ?? ''); ?></div>
                     <div>preferred_category: <?php echo htmlspecialchars($profileDebug['preferred_category'] ?? ''); ?></div>
                     <div>experience_level: <?php echo htmlspecialchars($profileDebug['experience_level'] ?? ''); ?></div>
+                    <div>skills: <?php echo htmlspecialchars($profileDebug['skills'] ?? ''); ?></div>
                     <div>upload_error: <?php echo htmlspecialchars($profileDebug['upload_error'] ?? ''); ?></div>
                     <div>profile_msg: <?php echo htmlspecialchars($profileDebug['profile_msg'] ?? ''); ?></div>
                     <div>profile_type: <?php echo htmlspecialchars($profileDebug['profile_type'] ?? ''); ?></div>
@@ -436,6 +458,14 @@ require 'header.php';
                             </option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($hasSkillsColumn): ?>
+                <div class="mb-3">
+                    <label class="form-label">Skills (optional)</label>
+                    <textarea name="skills" class="form-control" rows="3" placeholder="PHP, MySQL, HTML, CSS"><?php echo htmlspecialchars($user['skills'] ?? ''); ?></textarea>
+                    <div class="form-text">Enter comma-separated skills. Multiple separators like new lines or slashes will be normalized.</div>
                 </div>
             <?php endif; ?>
 

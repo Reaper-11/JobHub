@@ -1,6 +1,8 @@
 <?php
 // company/company-edit-job.php
 require '../db.php';
+require_once '../includes/company_verification_helper.php';
+require_once '../includes/recommendation.php';
 
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
@@ -26,6 +28,32 @@ $categories = require __DIR__ . '/../includes/categories.php';
 $categoryError = '';
 $experienceError = '';
 $experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
+$hasSkillsRequiredColumn = false;
+$isVerified = true;
+
+$statusStmt = $conn->prepare("
+    SELECT is_approved, operational_state, restriction_reason, verification_status
+    FROM companies
+    WHERE id = ?
+");
+if ($statusStmt) {
+    $statusStmt->bind_param("i", $cid);
+    $statusStmt->execute();
+    $companyStatus = $statusStmt->get_result()->fetch_assoc() ?? [
+        'is_approved' => 0,
+        'operational_state' => 'active',
+        'restriction_reason' => null,
+        'verification_status' => null,
+    ];
+    $statusStmt->close();
+    $isVerified = is_company_verified($companyStatus);
+}
+
+$checkSkillsRequired = $conn->query("SHOW COLUMNS FROM jobs LIKE 'skills_required'");
+if ($checkSkillsRequired) {
+    $hasSkillsRequiredColumn = $checkSkillsRequired->num_rows > 0;
+    $checkSkillsRequired->close();
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $title = trim($_POST['title'] ?? '');
@@ -36,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $duration = trim($_POST['application_duration'] ?? '');
     $experienceLevel = trim($_POST['experience_level'] ?? '');
     $description = trim($_POST['description'] ?? '');
+    $skillsRequired = recommend_normalize_skill_string($_POST['skills_required'] ?? '');
 
     if (empty($title) || empty($location) || empty($category) || empty($experienceLevel) || empty($description)) {
         $msg = "Required fields are missing.";
@@ -55,13 +84,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         $msg_type = 'danger';
         $categoryError = "Invalid category selected.";
     } else {
-        $stmt = $conn->prepare("
-            UPDATE jobs SET 
-                title = ?, location = ?, type = ?, category = ?, 
-                salary = ?, application_duration = ?, experience_level = ?, description = ?, updated_at = NOW()
-            WHERE id = ? AND company_id = ?
-        ");
-        $stmt->bind_param("ssssssssii", $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description, $jobId, $cid);
+        if ($hasSkillsRequiredColumn) {
+            $stmt = $conn->prepare("
+                UPDATE jobs SET 
+                    title = ?, location = ?, type = ?, category = ?, 
+                    salary = ?, application_duration = ?, experience_level = ?, skills_required = ?, description = ?, updated_at = NOW()
+                WHERE id = ? AND company_id = ?
+            ");
+            $stmt->bind_param("sssssssssii", $title, $location, $type, $category, $salary, $duration, $experienceLevel, $skillsRequired, $description, $jobId, $cid);
+        } else {
+            $stmt = $conn->prepare("
+                UPDATE jobs SET 
+                    title = ?, location = ?, type = ?, category = ?, 
+                    salary = ?, application_duration = ?, experience_level = ?, description = ?, updated_at = NOW()
+                WHERE id = ? AND company_id = ?
+            ");
+            $stmt->bind_param("ssssssssii", $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description, $jobId, $cid);
+        }
 
         if ($stmt->execute()) {
             $msg = "Job updated successfully!";
@@ -74,6 +113,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 'salary' => $salary,
                 'application_duration' => $duration,
                 'experience_level' => $experienceLevel,
+                'skills_required' => $skillsRequired,
                 'description' => $description,
             ]);
         } else {
@@ -88,6 +128,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 <?php require 'company-header.php'; ?>
 
 <h1 class="mb-4">Edit Job: <?= htmlspecialchars($job['title']) ?></h1>
+
+<?php if (!$isVerified): ?>
+    <div class="alert alert-warning">
+        Your company is not yet verification-approved. Editing existing jobs is still allowed, but you cannot post new jobs until admin approves your company verification.
+        <a href="company-verification.php" class="alert-link">Open verification page</a>
+    </div>
+<?php endif; ?>
 
 <?php if ($msg): ?>
     <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
@@ -159,6 +206,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <?php if ($experienceError): ?>
                     <div class="text-danger small mt-1"><?= htmlspecialchars($experienceError) ?></div>
                 <?php endif; ?>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Required Skills (optional)</label>
+                <textarea name="skills_required" class="form-control" rows="3" placeholder="Laravel, PHP, MySQL, REST API"><?= htmlspecialchars($job['skills_required'] ?? '') ?></textarea>
+                <div class="form-text">Enter comma-separated skills to improve job recommendations.</div>
             </div>
 
             <div class="mb-4">

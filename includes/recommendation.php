@@ -4,14 +4,16 @@
 
 $RECOMMENDATION_CONFIG = [
     'weights' => [
-        'category_match' => 40,
-        'experience_match' => 18,
-        'skill_keyword_match' => 6,
+        'category_match' => 35,
+        'experience_match' => 16,
+        'skill_match' => 10,
         'location_match' => 15,
         'job_type_match' => 10,
         'search_keyword_match' => 4,
         'viewed_similar_jobs' => 12,
-        'applied_similar_jobs' => 14,
+        'applied_category_match' => 16,
+        'applied_experience_match' => 8,
+        'applied_skill_match' => 8,
         'recency_boost' => 10,
     ],
     'candidate_days' => 90,
@@ -44,25 +46,19 @@ if (!function_exists('recommendJobs')) {
         $hasViewLogs = recommend_table_exists($pdo, 'job_view_logs');
 
         $user = recommend_fetch_user_profile($pdo, $userId, $userColumns);
-
-        $preferredCategories = [];
-        if (!empty($user['preferred_category'])) {
-            $preferredCategories[] = $user['preferred_category'];
-        }
-        $preferredCategories = array_values(array_unique(array_filter(array_map('trim', $preferredCategories))));
-        $preferredCategoryKeys = array_values(array_unique(array_map('strtolower', $preferredCategories)));
-
-        $preferredLocation = trim($user['preferred_location'] ?? '');
-        $preferredJobType = trim($user['preferred_job_type'] ?? '');
-        $preferredExperienceLevel = trim($user['experience_level'] ?? '');
-
+        $preferredCategory = trim((string) ($user['preferred_category'] ?? ''));
+        $preferredCategoryKey = $preferredCategory !== '' ? strtolower($preferredCategory) : '';
+        $preferredLocation = trim((string) ($user['preferred_location'] ?? ''));
+        $preferredJobType = trim((string) ($user['preferred_job_type'] ?? ''));
+        $preferredExperienceLevel = trim((string) ($user['experience_level'] ?? ''));
         $userSkills = recommend_get_user_skills($pdo, $userId, $userColumns);
 
         $cacheKey = 'recommend_cache_' . $userId . '_' . md5(json_encode([
-            'cats' => $preferredCategoryKeys,
-            'loc' => $preferredLocation,
+            'category' => $preferredCategoryKey,
+            'location' => $preferredLocation,
             'type' => $preferredJobType,
-            'exp' => $preferredExperienceLevel,
+            'experience' => $preferredExperienceLevel,
+            'skills' => $userSkills,
         ]));
         $cached = $_SESSION[$cacheKey] ?? null;
         if (is_array($cached)) {
@@ -75,24 +71,29 @@ if (!function_exists('recommendJobs')) {
         $activityDays = (int) $RECOMMENDATION_CONFIG['activity_days'];
         $searchSignals = $hasSearchLogs ? recommend_fetch_search_signals($pdo, $userId, $activityDays, $RECOMMENDATION_CONFIG) : [];
         $viewSignals = $hasViewLogs ? recommend_fetch_view_signals($pdo, $userId, $activityDays, $RECOMMENDATION_CONFIG) : [];
-        $appliedCategories = recommend_fetch_applied_categories($pdo, $userId, $activityDays, $RECOMMENDATION_CONFIG);
+        $applicationProfile = recommend_fetch_application_profile($pdo, $userId, $activityDays, $RECOMMENDATION_CONFIG, $jobColumns);
 
         $searchCategories = $searchSignals['categories'] ?? [];
         $searchKeywords = $searchSignals['keywords'] ?? [];
         $searchLocations = $searchSignals['locations'] ?? [];
-
         $viewCategories = $viewSignals['categories'] ?? [];
+        $appliedCategories = $applicationProfile['categories'] ?? [];
+        $appliedExperienceLevels = $applicationProfile['experience_levels'] ?? [];
+        $appliedSkills = $applicationProfile['skills'] ?? [];
 
         $hasContext = (
-            !empty($preferredCategories) ||
+            $preferredCategoryKey !== '' ||
             $preferredLocation !== '' ||
             $preferredJobType !== '' ||
             $preferredExperienceLevel !== '' ||
             !empty($userSkills) ||
             !empty($searchCategories) ||
             !empty($searchKeywords) ||
+            !empty($searchLocations) ||
             !empty($viewCategories) ||
-            !empty($appliedCategories)
+            !empty($appliedCategories) ||
+            !empty($appliedExperienceLevels) ||
+            !empty($appliedSkills)
         );
 
         if (!$hasContext) {
@@ -102,13 +103,15 @@ if (!function_exists('recommendJobs')) {
         }
 
         $deadlineSelect = in_array('deadline', $jobColumns, true) ? ", j.deadline" : "";
+        $skillsRequiredSelect = in_array('skills_required', $jobColumns, true) ? ", j.skills_required" : ", '' AS skills_required";
         $candidateDays = (int) $RECOMMENDATION_CONFIG['candidate_days'];
 
         $sql = "
             SELECT
                 j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
                 j.experience_level, j.description, j.created_at, j.application_duration
-                {$deadlineSelect},
+                {$deadlineSelect}
+                {$skillsRequiredSelect},
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
             FROM jobs j
             LEFT JOIN job_skills js ON js.job_id = j.id
@@ -144,56 +147,70 @@ if (!function_exists('recommendJobs')) {
 
             $score = 0;
             $reasonScores = [];
+            $jobCategory = trim((string) ($job['category'] ?? ''));
+            $jobCategoryKey = $jobCategory !== '' ? strtolower($jobCategory) : '';
+            $jobExperienceLevel = trim((string) ($job['experience_level'] ?? ''));
+            $jobSkills = recommend_get_job_skills($job);
 
-            $jobCategory = trim($job['category'] ?? '');
-            if (!empty($preferredCategoryKeys)) {
-                $jobCategoryKey = strtolower($jobCategory);
-                if ($jobCategoryKey === '' || !in_array($jobCategoryKey, $preferredCategoryKeys, true)) {
-                    continue;
-                }
-            }
-            if ($jobCategory !== '') {
-                $jobCategoryKey = strtolower($jobCategory);
-                if (!empty($preferredCategoryKeys) && in_array($jobCategoryKey, $preferredCategoryKeys, true)) {
+            if ($jobCategoryKey !== '') {
+                if ($preferredCategoryKey !== '' && $jobCategoryKey === $preferredCategoryKey) {
                     $score += $weights['category_match'];
-                    $reasonScores[] = [$weights['category_match'], "Matches your preferred category: {$jobCategory}"];
+                    $reasonScores[] = [$weights['category_match'], "Matches your preferred category"];
                 } elseif (in_array($jobCategoryKey, $searchCategories, true)) {
                     $score += $weights['category_match'];
-                    $reasonScores[] = [$weights['category_match'], "Matches your recent searches: {$jobCategory}"];
+                    $reasonScores[] = [$weights['category_match'], "Matches your recent searches"];
+                }
+
+                if (in_array($jobCategoryKey, $viewCategories, true)) {
+                    $score += $weights['viewed_similar_jobs'];
+                    $reasonScores[] = [$weights['viewed_similar_jobs'], "Similar to jobs you viewed"];
+                }
+
+                if (in_array($jobCategoryKey, $appliedCategories, true)) {
+                    $score += $weights['applied_category_match'];
+                    $reasonScores[] = [$weights['applied_category_match'], "Similar to jobs you applied for before"];
                 }
             }
 
-            $skillMatches = recommend_keyword_overlap($userSkills, $job, $RECOMMENDATION_CONFIG['max_overlap']);
-            if ($skillMatches > 0) {
-                $skillScore = $skillMatches * $weights['skill_keyword_match'];
+            if ($preferredExperienceLevel !== '' && $jobExperienceLevel !== '' && strcasecmp($preferredExperienceLevel, $jobExperienceLevel) === 0) {
+                $score += $weights['experience_match'];
+                $reasonScores[] = [$weights['experience_match'], "Matches your experience level"];
+            }
+
+            if ($jobExperienceLevel !== '' && in_array(strtolower($jobExperienceLevel), $appliedExperienceLevels, true)) {
+                $score += $weights['applied_experience_match'];
+                $reasonScores[] = [$weights['applied_experience_match'], "Similar to your previous applications"];
+            }
+
+            $userSkillMatches = recommend_skill_overlap($userSkills, $jobSkills, $RECOMMENDATION_CONFIG['max_overlap']);
+            if (!empty($userSkillMatches)) {
+                $skillScore = count($userSkillMatches) * $weights['skill_match'];
                 $score += $skillScore;
-                $sample = implode(', ', array_slice(recommend_overlap_samples($userSkills, $job), 0, 3));
-                if ($sample !== '') {
-                    $reasonScores[] = [$skillScore, "Matches your skills: {$sample}"];
-                }
+                $reasonScores[] = [$skillScore, "Matches your skills: " . implode(', ', array_slice($userSkillMatches, 0, 3))];
             }
 
-            $jobLocation = trim($job['location'] ?? '');
+            $appliedSkillMatches = recommend_skill_overlap($appliedSkills, $jobSkills, $RECOMMENDATION_CONFIG['max_overlap']);
+            if (!empty($appliedSkillMatches)) {
+                $appliedSkillScore = count($appliedSkillMatches) * $weights['applied_skill_match'];
+                $score += $appliedSkillScore;
+                $reasonScores[] = [$appliedSkillScore, "Uses skills from jobs you applied to"];
+            }
+
+            $jobLocation = trim((string) ($job['location'] ?? ''));
             if ($jobLocation !== '') {
                 if ($preferredLocation !== '' && recommend_location_exact($preferredLocation, $jobLocation)) {
                     $score += $weights['location_match'];
-                    $reasonScores[] = [$weights['location_match'], "Same location: {$jobLocation}"];
+                    $reasonScores[] = [$weights['location_match'], "Same location"];
                 } elseif (!empty($searchLocations) && in_array(strtolower($jobLocation), $searchLocations, true)) {
                     $score += $weights['location_match'];
-                    $reasonScores[] = [$weights['location_match'], "Matches your searched location: {$jobLocation}"];
+                    $reasonScores[] = [$weights['location_match'], "Matches your searched location"];
                 }
             }
 
-            $jobType = trim($job['type'] ?? '');
+            $jobType = trim((string) ($job['type'] ?? ''));
             if ($preferredJobType !== '' && $jobType !== '' && strcasecmp($jobType, $preferredJobType) === 0) {
                 $score += $weights['job_type_match'];
-                $reasonScores[] = [$weights['job_type_match'], "Matches your preferred job type: {$jobType}"];
-            }
-
-            $jobExperienceLevel = trim($job['experience_level'] ?? '');
-            if ($preferredExperienceLevel !== '' && $jobExperienceLevel !== '' && strcasecmp($preferredExperienceLevel, $jobExperienceLevel) === 0) {
-                $score += $weights['experience_match'];
-                $reasonScores[] = [$weights['experience_match'], "Matches your experience level: {$jobExperienceLevel}"];
+                $reasonScores[] = [$weights['job_type_match'], "Matches your preferred job type"];
             }
 
             $searchKeywordMatches = recommend_keyword_match_count($searchKeywords, $job, $RECOMMENDATION_CONFIG['max_overlap']);
@@ -203,41 +220,28 @@ if (!function_exists('recommendJobs')) {
                 $reasonScores[] = [$searchScore, "Matches your searches"];
             }
 
-            if ($jobCategory !== '' && in_array(strtolower($jobCategory), $viewCategories, true)) {
-                $score += $weights['viewed_similar_jobs'];
-                $reasonScores[] = [$weights['viewed_similar_jobs'], "Similar to jobs you viewed"];
-            }
-
-            if ($jobCategory !== '' && in_array(strtolower($jobCategory), $appliedCategories, true)) {
-                $score += $weights['applied_similar_jobs'];
-                $reasonScores[] = [$weights['applied_similar_jobs'], "Similar to jobs you applied to"];
-            }
-
             $recency = recommend_recency_bonus($job['created_at'] ?? '', $candidateDays, $weights['recency_boost']);
             if ($recency > 0) {
                 $score += $recency;
                 $reasonScores[] = [$recency, "Recently posted"];
             }
 
-            usort($reasonScores, function($a, $b) {
+            if ($score <= 0) {
+                continue;
+            }
+
+            usort($reasonScores, function ($a, $b) {
                 return $b[0] <=> $a[0];
             });
 
-            $topReasons = [];
-            foreach ($reasonScores as $idx => $pair) {
-                if ($idx >= 3) {
-                    break;
-                }
-                $topReasons[] = $pair[1];
-            }
-
+            $topReasons = recommend_unique_reasons($reasonScores, 3);
             $job['score'] = $score;
             $job['reasons'] = $topReasons;
             $job['reason_text'] = implode(' | ', $topReasons);
             $scored[] = $job;
         }
 
-        usort($scored, function($a, $b) {
+        usort($scored, function ($a, $b) {
             if ($a['score'] === $b['score']) {
                 return strtotime($b['created_at']) <=> strtotime($a['created_at']);
             }
@@ -355,12 +359,18 @@ function recommend_fetch_view_signals($pdo, $userId, $days, $config): array {
     ];
 }
 
-function recommend_fetch_applied_categories($pdo, $userId, $days, $config): array {
+function recommend_fetch_application_profile($pdo, $userId, $days, $config, $jobColumns): array {
+    $skillsRequiredSelect = in_array('skills_required', $jobColumns, true) ? ", j.skills_required" : ", '' AS skills_required";
     $sql = "
-        SELECT j.category
+        SELECT j.category, j.experience_level
+            {$skillsRequiredSelect},
+            GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
         FROM applications a
         INNER JOIN jobs j ON j.id = a.job_id
+        LEFT JOIN job_skills js ON js.job_id = j.id
+        LEFT JOIN skills s ON s.id = js.skill_id
         WHERE a.user_id = ? AND a.applied_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        GROUP BY a.job_id
         ORDER BY a.applied_at DESC
         LIMIT 200
     ";
@@ -378,15 +388,32 @@ function recommend_fetch_applied_categories($pdo, $userId, $days, $config): arra
     $stmt->close();
 
     $categoryCounts = [];
+    $experienceCounts = [];
+    $skillCounts = [];
+
     foreach ($rows as $row) {
         $category = trim((string) ($row['category'] ?? ''));
         if ($category !== '') {
             $categoryKey = strtolower($category);
             $categoryCounts[$categoryKey] = ($categoryCounts[$categoryKey] ?? 0) + 1;
         }
+
+        $experience = trim((string) ($row['experience_level'] ?? ''));
+        if ($experience !== '') {
+            $experienceKey = strtolower($experience);
+            $experienceCounts[$experienceKey] = ($experienceCounts[$experienceKey] ?? 0) + 1;
+        }
+
+        foreach (recommend_get_job_skills($row) as $skill) {
+            $skillCounts[$skill] = ($skillCounts[$skill] ?? 0) + 1;
+        }
     }
 
-    return recommend_top_keys($categoryCounts, $config['max_categories']);
+    return [
+        'categories' => recommend_top_keys($categoryCounts, $config['max_categories']),
+        'experience_levels' => recommend_top_keys($experienceCounts, $config['max_categories']),
+        'skills' => recommend_top_keys($skillCounts, $config['max_keywords']),
+    ];
 }
 
 function recommend_top_keys($counts, $limit): array {
@@ -414,37 +441,6 @@ function recommend_tokenize($text): array {
     return array_values(array_unique($tokens));
 }
 
-function recommend_keyword_overlap($userSkills, $job, $cap = 5): int {
-    if (empty($userSkills)) {
-        return 0;
-    }
-    $text = strtolower((string) ($job['title'] ?? '') . ' ' . ($job['description'] ?? '') . ' ' . ($job['skill_list'] ?? ''));
-    $count = 0;
-    foreach ($userSkills as $skill) {
-        if ($skill !== '' && strpos($text, strtolower($skill)) !== false) {
-            $count++;
-            if ($count >= $cap) {
-                break;
-            }
-        }
-    }
-    return $count;
-}
-
-function recommend_overlap_samples($userSkills, $job): array {
-    $samples = [];
-    if (empty($userSkills)) {
-        return $samples;
-    }
-    $text = strtolower((string) ($job['title'] ?? '') . ' ' . ($job['description'] ?? '') . ' ' . ($job['skill_list'] ?? ''));
-    foreach ($userSkills as $skill) {
-        if ($skill !== '' && strpos($text, strtolower($skill)) !== false) {
-            $samples[] = $skill;
-        }
-    }
-    return $samples;
-}
-
 function recommend_keyword_match_count($keywords, $job, $cap = 5): int {
     if (empty($keywords)) {
         return 0;
@@ -464,6 +460,7 @@ function recommend_keyword_match_count($keywords, $job, $cap = 5): int {
 
 function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumns): array {
     $deadlineSelect = in_array('deadline', $jobColumns, true) ? ", j.deadline" : "";
+    $skillsRequiredSelect = in_array('skills_required', $jobColumns, true) ? ", j.skills_required" : ", '' AS skills_required";
     $rows = [];
 
     if ($hasViewLogs) {
@@ -471,7 +468,8 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
             SELECT
                 j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
                 j.experience_level, j.description, j.created_at, j.application_duration
-                {$deadlineSelect},
+                {$deadlineSelect}
+                {$skillsRequiredSelect},
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list,
                 COUNT(v.id) AS view_count
             FROM jobs j
@@ -515,7 +513,8 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
         SELECT
             j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
             j.experience_level, j.description, j.created_at, j.application_duration
-            {$deadlineSelect},
+            {$deadlineSelect}
+            {$skillsRequiredSelect},
             GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
         FROM jobs j
         LEFT JOIN job_skills js ON js.job_id = j.id
@@ -621,7 +620,7 @@ function recommend_get_user_skills($pdo, $userId, $userColumns): array {
                 $res = $stmt->get_result();
                 $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
                 foreach ($rows as $row) {
-                    $name = trim($row['name'] ?? '');
+                    $name = trim((string) ($row['name'] ?? ''));
                     if ($name !== '') {
                         $skills[] = strtolower($name);
                     }
@@ -631,32 +630,102 @@ function recommend_get_user_skills($pdo, $userId, $userColumns): array {
         }
     }
 
-    $skills = array_values(array_unique(array_filter($skills)));
-    return $skills;
+    return array_values(array_unique(array_filter($skills)));
+}
+
+function recommend_get_job_skills($job): array {
+    $skills = [];
+
+    if (!empty($job['skills_required'])) {
+        $skills = array_merge($skills, recommend_parse_skills($job['skills_required']));
+    }
+
+    if (!empty($job['skill_list'])) {
+        $skills = array_merge($skills, recommend_parse_skills($job['skill_list']));
+    }
+
+    return array_values(array_unique(array_filter($skills)));
 }
 
 function recommend_parse_skills($skillList): array {
-    $skillList = strtolower((string) $skillList);
-    if ($skillList === '') {
+    $skillList = (string) $skillList;
+    if (trim($skillList) === '') {
         return [];
     }
 
-    $parts = preg_split('/[,\/]+/', $skillList);
-    $tokens = [];
+    $normalized = str_replace(["\r\n", "\r", "\n", ";", "|"], ',', $skillList);
+    $normalized = preg_replace('/\s*\/\s*/', ',', $normalized);
+    $parts = preg_split('/,/', $normalized);
+
+    $skills = [];
     foreach ($parts as $part) {
-        $part = trim($part);
-        if ($part === '') {
-            continue;
+        $part = strtolower(trim(preg_replace('/\s+/', ' ', (string) $part)));
+        if ($part !== '') {
+            $skills[] = $part;
         }
-        $sub = preg_split('/\s+/', $part);
-        foreach ($sub as $t) {
-            $t = trim($t);
-            if ($t !== '' && strlen($t) >= 2) {
-                $tokens[] = $t;
+    }
+
+    return array_values(array_unique($skills));
+}
+
+function recommend_normalize_skill_string($skillList): string {
+    $skills = recommend_parse_skills($skillList);
+    if (empty($skills)) {
+        return '';
+    }
+
+    $formatted = [];
+    foreach ($skills as $skill) {
+        $formatted[] = ucwords($skill);
+    }
+
+    return implode(', ', $formatted);
+}
+
+function recommend_skill_overlap($sourceSkills, $targetSkills, $cap = 5): array {
+    if (empty($sourceSkills) || empty($targetSkills)) {
+        return [];
+    }
+
+    $targetLookup = array_fill_keys(array_map('strtolower', $targetSkills), true);
+    $matches = [];
+
+    foreach ($sourceSkills as $skill) {
+        $key = strtolower((string) $skill);
+        if ($key !== '' && isset($targetLookup[$key])) {
+            $matches[] = ucwords($key);
+            if (count($matches) >= (int) $cap) {
+                break;
             }
         }
     }
-    return array_values(array_unique($tokens));
+
+    return array_values(array_unique($matches));
+}
+
+function recommend_unique_reasons($reasonScores, $limit = 3): array {
+    $reasons = [];
+    $seen = [];
+
+    foreach ($reasonScores as $pair) {
+        $reason = trim((string) ($pair[1] ?? ''));
+        if ($reason === '') {
+            continue;
+        }
+
+        $key = strtolower($reason);
+        if (isset($seen[$key])) {
+            continue;
+        }
+
+        $seen[$key] = true;
+        $reasons[] = $reason;
+        if (count($reasons) >= (int) $limit) {
+            break;
+        }
+    }
+
+    return $reasons;
 }
 
 function recommend_location_exact($preferred, $jobLocation): bool {

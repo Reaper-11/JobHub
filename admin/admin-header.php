@@ -43,6 +43,10 @@ $hasSidebarLayout = true;
                    href="admin-companies.php">Companies</a>
             </li>
             <li class="nav-item">
+                <a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['company-verifications.php', 'company-verification-view.php'], true) ? 'active' : '' ?>" 
+                   href="company-verifications.php">Verifications</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-users.php' ? 'active' : '' ?>" 
                    href="admin-users.php">Users</a>
             </li>

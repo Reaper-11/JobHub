@@ -6,6 +6,27 @@ $filter  = trim($_GET['filter'] ?? '');
 
 $categories = require __DIR__ . '/includes/categories.php';
 
+if (isset($_SESSION['user_id']) && ($keyword !== '' || $filter !== '')) {
+    $hasSearchLogsTable = $conn->query("SHOW TABLES LIKE 'job_search_logs'");
+    if ($hasSearchLogsTable && $hasSearchLogsTable->num_rows > 0) {
+        $logStmt = $conn->prepare("
+            INSERT INTO job_search_logs (user_id, keyword, category, created_at)
+            VALUES (?, ?, ?, NOW())
+        ");
+        if ($logStmt) {
+            $userId = (int) $_SESSION['user_id'];
+            $keywordValue = $keyword !== '' ? $keyword : null;
+            $categoryValue = ($filter !== '' && in_array($filter, $categories, true)) ? $filter : null;
+            $logStmt->bind_param("iss", $userId, $keywordValue, $categoryValue);
+            $logStmt->execute();
+            $logStmt->close();
+        }
+    }
+    if ($hasSearchLogsTable) {
+        $hasSearchLogsTable->close();
+    }
+}
+
 $sql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
         FROM jobs j
         LEFT JOIN companies c ON j.company_id = c.id
@@ -570,6 +591,12 @@ $basePath = '';
                                     <p class="text-gray-600 mb-4 line-clamp-2 text-xs leading-relaxed">
                                         <?= nl2br(htmlspecialchars(substr($job['description'], 0, 120))) ?>...
                                     </p>
+
+                                    <?php if (!empty($job['reason_text'])): ?>
+                                        <div class="mb-4 rounded-lg bg-orange-50 border border-orange-100 px-3 py-2 text-xs text-orange-800">
+                                            <?= htmlspecialchars($job['reason_text']) ?>
+                                        </div>
+                                    <?php endif; ?>
 
                                     <div class="flex justify-between items-center pt-4 border-t border-gray-100">
                                         <div class="flex items-center gap-2">

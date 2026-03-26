@@ -30,6 +30,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require_once __DIR__ . '/includes/admin_activity_helper.php';
+
+enforce_user_session_status($conn);
+
 // ================== HELPER FUNCTIONS ==================
 
 /**

@@ -1,6 +1,8 @@
 <?php
 // company/company-add-job.php
 require '../db.php';
+require_once '../includes/company_verification_helper.php';
+require_once '../includes/recommendation.php';
 
 if (!isset($_SESSION['company_id'])) {
     header("Location: company-login.php");
@@ -20,22 +22,43 @@ $type = 'Full-time';
 $salary = '';
 $duration = '';
 $description = '';
+$skillsRequired = '';
 $experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
+$hasSkillsRequiredColumn = false;
 
-$statusStmt = $conn->prepare("SELECT is_approved, operational_state, restriction_reason FROM companies WHERE id = ?");
+$checkSkillsRequired = $conn->query("SHOW COLUMNS FROM jobs LIKE 'skills_required'");
+if ($checkSkillsRequired) {
+    $hasSkillsRequiredColumn = $checkSkillsRequired->num_rows > 0;
+    $checkSkillsRequired->close();
+}
+
+$statusStmt = $conn->prepare("
+    SELECT is_approved, operational_state, restriction_reason, verification_status
+    FROM companies
+    WHERE id = ?
+");
 $statusStmt->bind_param("i", $cid);
 $statusStmt->execute();
-$companyStatus = $statusStmt->get_result()->fetch_assoc() ?? ['is_approved' => 0, 'operational_state' => 'active', 'restriction_reason' => null];
+$companyStatus = $statusStmt->get_result()->fetch_assoc() ?? [
+    'is_approved' => 0,
+    'operational_state' => 'active',
+    'restriction_reason' => null,
+    'verification_status' => null,
+];
 $statusStmt->close();
 
 $isApproved = (int)($companyStatus['is_approved'] ?? 0) === 1;
 $operationalState = $companyStatus['operational_state'] ?? 'active';
 $restrictionReason = $companyStatus['restriction_reason'] ?? '';
-$canPostJobs = $isApproved && $operationalState === 'active';
+$verificationStatus = get_company_verification_status($companyStatus);
+$isVerified = is_company_verified($companyStatus);
+$canPostJobs = $isApproved && $operationalState === 'active' && $isVerified;
 
 $blockMsg = '';
 if (!$isApproved) {
     $blockMsg = "Your company is not approved yet. You cannot post jobs until approval.";
+} elseif (!$isVerified) {
+    $blockMsg = "Your company account must be verified by admin before posting jobs.";
 } elseif ($operationalState === 'on_hold') {
     $blockMsg = "Your company is currently on hold. Please contact support or wait for admin review.";
 } elseif ($operationalState === 'suspended') {
@@ -54,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $duration = trim($_POST['application_duration'] ?? '');
     $experienceLevel = trim($_POST['experience_level'] ?? '');
     $description = trim($_POST['description'] ?? '');
+    $skillsRequired = recommend_normalize_skill_string($_POST['skills_required'] ?? '');
 
     if (!$canPostJobs) {
         $msg = $blockMsg !== '' ? $blockMsg : "Your company is not allowed to post jobs at this time.";
@@ -76,15 +100,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         $msg_type = 'danger';
         $categoryError = "Invalid category selected.";
     } else {
-        $stmt = $conn->prepare("
-            INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, description, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
-        ");
-        $stmt->bind_param("issssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description);
+        if ($hasSkillsRequiredColumn) {
+            $stmt = $conn->prepare("
+                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, skills_required, description, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+            ");
+            $stmt->bind_param("isssssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $skillsRequired, $description);
+        } else {
+            $stmt = $conn->prepare("
+                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, description, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+            ");
+            $stmt->bind_param("issssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description);
+        }
 
         if ($stmt->execute()) {
             $msg = "Job posted successfully!";
             $msg_type = 'success';
+            $skillsRequired = '';
             // Optional: redirect to my-jobs
         } else {
             $msg = "Failed to post job. Please try again.";
@@ -100,7 +133,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 <h1 class="mb-4">Post a New Job</h1>
 
 <?php if ($blockMsg): ?>
-    <div class="alert alert-danger"><?= htmlspecialchars($blockMsg) ?></div>
+    <div class="alert alert-danger">
+        <?= htmlspecialchars($blockMsg) ?>
+        <?php if (!$isVerified): ?>
+            <br><a href="company-verification.php" class="alert-link">Submit company verification</a>
+        <?php endif; ?>
+    </div>
 <?php endif; ?>
 
 <?php if ($msg): ?>
@@ -171,6 +209,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <?php if ($experienceError): ?>
                     <div class="text-danger small mt-1"><?= htmlspecialchars($experienceError) ?></div>
                 <?php endif; ?>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Required Skills (optional)</label>
+                <textarea name="skills_required" class="form-control" rows="3" placeholder="Laravel, PHP, MySQL, REST API"><?= htmlspecialchars($skillsRequired) ?></textarea>
+                <div class="form-text">Enter comma-separated skills to improve job recommendations.</div>
             </div>
 
             <div class="mb-4">
