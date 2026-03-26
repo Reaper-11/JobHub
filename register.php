@@ -13,6 +13,7 @@ $msg_type = 'alert-danger';
 $debug_info = [];
 
 $job_categories = require __DIR__ . '/includes/categories.php';
+$experience_levels = require __DIR__ . '/includes/experience_levels.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $debug_info[] = "method=POST";
@@ -26,10 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone     = trim($_POST['phone'] ?? '');
         $password  = $_POST['password'] ?? '';
         $category  = trim($_POST['preferred_category'] ?? '');
+        $experience_level = trim($_POST['experience_level'] ?? '');
         $debug_info[] = "name_len=" . strlen($name);
         $debug_info[] = "email=" . $email;
         $debug_info[] = "phone=" . $phone;
         $debug_info[] = "category=" . $category;
+        $debug_info[] = "experience_level=" . $experience_level;
         $debug_info[] = "password_len=" . strlen($password);
 
         // Basic validation
@@ -69,6 +72,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $has_error = true;
         }
 
+        if (!$has_error && $experience_level !== '' && !in_array($experience_level, $experience_levels, true)) {
+            $msg = "Invalid experience level selected.";
+            $has_error = true;
+        }
+
         if (!$has_error) {
             // Check if email exists
             $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
@@ -85,13 +93,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $hash = password_hash($password, PASSWORD_DEFAULT);
 
                     $insert = $conn->prepare("
-                        INSERT INTO users (name, email, phone, password, preferred_category, role, created_at)
-                        VALUES (?, ?, ?, ?, ?, 'seeker', NOW())
+                        INSERT INTO users (name, email, phone, password, preferred_category, experience_level, role, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 'seeker', NOW())
                     ");
                     if (!$insert) {
                         $msg = "Prepare failed: " . $conn->error;
                     } else {
-                        $insert->bind_param("sssss", $name, $email, $phone, $hash, $category);
+                        $insert->bind_param("ssssss", $name, $email, $phone, $hash, $category, $experience_level);
                         if ($insert->execute()) {
                             $user_id = $conn->insert_id;
                             $debug_info[] = "insert_ok=yes";
@@ -179,6 +187,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <option value="<?= htmlspecialchars($cat) ?>"
                                     <?= ($_POST['preferred_category'] ?? '') === $cat ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($cat) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Experience Level</label>
+                        <select name="experience_level" class="form-select">
+                            <option value="">Select experience level...</option>
+                            <?php foreach ($experience_levels as $level): ?>
+                                <option value="<?= htmlspecialchars($level) ?>"
+                                    <?= ($_POST['experience_level'] ?? '') === $level ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($level) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

@@ -11,6 +11,20 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+// Notification + email configuration
+if (!defined('JOBHUB_APP_URL')) {
+    define('JOBHUB_APP_URL', 'http://localhost/JobHub/');
+}
+if (!defined('JOBHUB_EMAIL_ENABLED')) {
+    define('JOBHUB_EMAIL_ENABLED', true);
+}
+if (!defined('JOBHUB_EMAIL_FROM')) {
+    define('JOBHUB_EMAIL_FROM', 'no-reply@jobhub.local');
+}
+if (!defined('JOBHUB_EMAIL_FROM_NAME')) {
+    define('JOBHUB_EMAIL_FROM_NAME', 'JobHub');
+}
+
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -103,3 +117,5 @@ function validate_csrf_token($token) {
 register_shutdown_function(function() use ($conn) {
     if ($conn) $conn->close();
 });
+
+require_once __DIR__ . '/includes/notifications.php';

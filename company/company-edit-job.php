@@ -24,14 +24,8 @@ if (!$job) {
 $msg = $msg_type = '';
 $categories = require __DIR__ . '/../includes/categories.php';
 $categoryError = '';
-$experienceLevels = [
-    'Entry Level (0–1 years)',
-    'Junior (1–3 years)',
-    'Mid Level (3–5 years)',
-    'Senior (5–8 years)',
-    'Lead (8–10 years)',
-    'Manager (10+ years)',
-];
+$experienceError = '';
+$experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $title = trim($_POST['title'] ?? '');
@@ -49,9 +43,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         if (empty($category)) {
             $categoryError = "Please select a category.";
         }
+        if (empty($experienceLevel)) {
+            $experienceError = "Please select an experience level.";
+        }
     } elseif (!in_array($experienceLevel, $experienceLevels, true)) {
         $msg = "Please select a valid experience level.";
         $msg_type = 'danger';
+        $experienceError = "Invalid experience level selected.";
     } elseif (!in_array($category, $categories, true)) {
         $msg = "Please correct the errors below.";
         $msg_type = 'danger';
@@ -158,6 +156,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                         </option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($experienceError): ?>
+                    <div class="text-danger small mt-1"><?= htmlspecialchars($experienceError) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-4">

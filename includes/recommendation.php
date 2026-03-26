@@ -5,6 +5,7 @@
 $RECOMMENDATION_CONFIG = [
     'weights' => [
         'category_match' => 40,
+        'experience_match' => 18,
         'skill_keyword_match' => 6,
         'location_match' => 15,
         'job_type_match' => 10,
@@ -53,6 +54,7 @@ if (!function_exists('recommendJobs')) {
 
         $preferredLocation = trim($user['preferred_location'] ?? '');
         $preferredJobType = trim($user['preferred_job_type'] ?? '');
+        $preferredExperienceLevel = trim($user['experience_level'] ?? '');
 
         $userSkills = recommend_get_user_skills($pdo, $userId, $userColumns);
 
@@ -60,6 +62,7 @@ if (!function_exists('recommendJobs')) {
             'cats' => $preferredCategoryKeys,
             'loc' => $preferredLocation,
             'type' => $preferredJobType,
+            'exp' => $preferredExperienceLevel,
         ]));
         $cached = $_SESSION[$cacheKey] ?? null;
         if (is_array($cached)) {
@@ -84,6 +87,7 @@ if (!function_exists('recommendJobs')) {
             !empty($preferredCategories) ||
             $preferredLocation !== '' ||
             $preferredJobType !== '' ||
+            $preferredExperienceLevel !== '' ||
             !empty($userSkills) ||
             !empty($searchCategories) ||
             !empty($searchKeywords) ||
@@ -103,7 +107,7 @@ if (!function_exists('recommendJobs')) {
         $sql = "
             SELECT
                 j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
-                j.description, j.created_at, j.application_duration
+                j.experience_level, j.description, j.created_at, j.application_duration
                 {$deadlineSelect},
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
             FROM jobs j
@@ -184,6 +188,12 @@ if (!function_exists('recommendJobs')) {
             if ($preferredJobType !== '' && $jobType !== '' && strcasecmp($jobType, $preferredJobType) === 0) {
                 $score += $weights['job_type_match'];
                 $reasonScores[] = [$weights['job_type_match'], "Matches your preferred job type: {$jobType}"];
+            }
+
+            $jobExperienceLevel = trim($job['experience_level'] ?? '');
+            if ($preferredExperienceLevel !== '' && $jobExperienceLevel !== '' && strcasecmp($preferredExperienceLevel, $jobExperienceLevel) === 0) {
+                $score += $weights['experience_match'];
+                $reasonScores[] = [$weights['experience_match'], "Matches your experience level: {$jobExperienceLevel}"];
             }
 
             $searchKeywordMatches = recommend_keyword_match_count($searchKeywords, $job, $RECOMMENDATION_CONFIG['max_overlap']);
@@ -460,7 +470,7 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
         $sql = "
             SELECT
                 j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
-                j.description, j.created_at, j.application_duration
+                j.experience_level, j.description, j.created_at, j.application_duration
                 {$deadlineSelect},
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list,
                 COUNT(v.id) AS view_count
@@ -504,7 +514,7 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
     $sqlNewest = "
         SELECT
             j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
-            j.description, j.created_at, j.application_duration
+            j.experience_level, j.description, j.created_at, j.application_duration
             {$deadlineSelect},
             GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
         FROM jobs j
@@ -552,6 +562,9 @@ function recommend_fetch_user_profile($pdo, $userId, $userColumns): array {
     }
     if (in_array('preferred_job_type', $userColumns, true)) {
         $select[] = 'preferred_job_type';
+    }
+    if (in_array('experience_level', $userColumns, true)) {
+        $select[] = 'experience_level';
     }
     if (in_array('skills', $userColumns, true)) {
         $select[] = 'skills';

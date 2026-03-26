@@ -10,6 +10,7 @@ if (!isset($_SESSION['company_id'])) {
 $hasSidebarLayout = true;
 
 $cid = (int)$_SESSION['company_id'];
+$notificationCount = notify_unread_count('company', $cid);
 
 // Fetch company status once
 $stmt = $conn->prepare("SELECT name, is_approved, rejection_reason, operational_state, restriction_reason, restricted_at FROM companies WHERE id = ?");
@@ -78,6 +79,14 @@ $stateBadge = match ($operationalState) {
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-add-job.php' ? 'active' : '' ?>" href="company-add-job.php">Post New Job</a></li>
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-my-jobs.php' ? 'active' : '' ?>" href="company-my-jobs.php">My Jobs</a></li>
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-applications.php' ? 'active' : '' ?>" href="company-applications.php">Applications</a></li>
+            <li class="nav-item">
+                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-notifications.php' ? 'active' : '' ?>" href="company-notifications.php">
+                    Notifications
+                    <?php if ($notificationCount > 0): ?>
+                        <span class="badge bg-warning text-dark ms-1"><?= (int)$notificationCount ?></span>
+                    <?php endif; ?>
+                </a>
+            </li>
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-account.php' ? 'active' : '' ?>" href="company-account.php">Account Settings</a></li>
             <li class="nav-item mt-4"><a class="nav-link text-danger" href="../logout.php">Logout</a></li>
         </ul>

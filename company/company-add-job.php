@@ -10,17 +10,17 @@ if (!isset($_SESSION['company_id'])) {
 $cid = (int)$_SESSION['company_id'];
 $msg = $msg_type = '';
 $categoryError = '';
+$experienceError = '';
 $categories = require __DIR__ . '/../includes/categories.php';
 $category = '';
 $experienceLevel = '';
-$experienceLevels = [
-    'Entry Level (0–1 years)',
-    'Junior (1–3 years)',
-    'Mid Level (3–5 years)',
-    'Senior (5–8 years)',
-    'Lead (8–10 years)',
-    'Manager (10+ years)',
-];
+$title = '';
+$location = '';
+$type = 'Full-time';
+$salary = '';
+$duration = '';
+$description = '';
+$experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
 
 $statusStmt = $conn->prepare("SELECT is_approved, operational_state, restriction_reason FROM companies WHERE id = ?");
 $statusStmt->bind_param("i", $cid);
@@ -64,9 +64,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         if (empty($category)) {
             $categoryError = "Please select a category.";
         }
+        if (empty($experienceLevel)) {
+            $experienceError = "Please select an experience level.";
+        }
     } elseif (!in_array($experienceLevel, $experienceLevels, true)) {
         $msg = "Please select a valid experience level.";
         $msg_type = 'danger';
+        $experienceError = "Invalid experience level selected.";
     } elseif (!in_array($category, $categories, true)) {
         $msg = "Please correct the errors below.";
         $msg_type = 'danger';
@@ -110,22 +114,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 
             <div class="mb-3">
                 <label class="form-label">Job Title *</label>
-                <input type="text" name="title" class="form-control" required>
+                <input type="text" name="title" class="form-control" required value="<?= htmlspecialchars($title) ?>">
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Location *</label>
-                <input type="text" name="location" class="form-control" required placeholder="Kathmandu, Nepal">
+                <input type="text" name="location" class="form-control" required placeholder="Kathmandu, Nepal" value="<?= htmlspecialchars($location) ?>">
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Job Type</label>
                 <select name="type" class="form-select">
-                    <option>Full-time</option>
-                    <option>Part-time</option>
-                    <option>Contract</option>
-                    <option>Remote</option>
-                    <option>Internship</option>
+                    <?php foreach (['Full-time', 'Part-time', 'Contract', 'Remote', 'Internship'] as $jobType): ?>
+                        <option value="<?= htmlspecialchars($jobType) ?>" <?= $type === $jobType ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($jobType) ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 
@@ -146,29 +150,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 
             <div class="mb-3">
                 <label class="form-label">Salary (optional)</label>
-                <input type="text" name="salary" class="form-control" placeholder="e.g. 30,000 - 50,000 NPR">
+                <input type="text" name="salary" class="form-control" placeholder="e.g. 30,000 - 50,000 NPR" value="<?= htmlspecialchars($salary) ?>">
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Application Duration (optional)</label>
-                <input type="text" name="application_duration" class="form-control" placeholder="e.g. 30 days">
+                <input type="text" name="application_duration" class="form-control" placeholder="e.g. 30 days" value="<?= htmlspecialchars($duration) ?>">
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Experience Required *</label>
                 <select name="experience_level" class="form-select" required>
-                    <option value="" disabled selected>Select experience level...</option>
+                    <option value="" disabled <?= $experienceLevel === '' ? 'selected' : '' ?>>Select experience level...</option>
                     <?php foreach ($experienceLevels as $level): ?>
                         <option value="<?= htmlspecialchars($level) ?>" <?= ($experienceLevel ?? '') === $level ? 'selected' : '' ?>>
                             <?= htmlspecialchars($level) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($experienceError): ?>
+                    <div class="text-danger small mt-1"><?= htmlspecialchars($experienceError) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-4">
                 <label class="form-label">Description *</label>
-                <textarea name="description" class="form-control" rows="6" required></textarea>
+                <textarea name="description" class="form-control" rows="6" required><?= htmlspecialchars($description) ?></textarea>
             </div>
 
             <button type="submit" class="btn btn-primary" <?= $canPostJobs ? '' : 'disabled' ?>>Publish Job</button>

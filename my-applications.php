@@ -61,6 +61,7 @@ $stmt->close();
                         $badge = match($status) {
                             'pending'     => 'bg-warning',
                             'shortlisted' => 'bg-primary',
+                            'interview'   => 'bg-info',
                             'approved'    => 'bg-success',
                             'rejected'    => 'bg-danger',
                             default       => 'bg-secondary'

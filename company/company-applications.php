@@ -32,7 +32,7 @@ $msg = $msg_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $app_id = (int)($_POST['app_id'] ?? 0);
     $new_status = trim($_POST['status'] ?? '');
-    $allowed_statuses = ['pending', 'shortlisted', 'approved', 'rejected'];
+    $allowed_statuses = ['pending', 'shortlisted', 'interview', 'approved', 'rejected'];
 
     if ($app_id > 0 && in_array($new_status, $allowed_statuses, true)) {
         $stmt = $conn->prepare("
@@ -45,6 +45,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         if ($stmt->execute()) {
             $msg = "Application status updated.";
             $msg_type = 'success';
+
+            $info = db_query_all("
+                SELECT a.user_id,
+                       u.name AS user_name, u.email AS user_email,
+                       j.title AS job_title,
+                       COALESCE(c.name, j.company, 'Company') AS company_name
+                FROM applications a
+                JOIN users u ON u.id = a.user_id
+                JOIN jobs j ON j.id = a.job_id
+                LEFT JOIN companies c ON c.id = j.company_id
+                WHERE a.id = ? AND j.company_id = ?
+                LIMIT 1
+            ", "ii", [$app_id, $cid])[0] ?? null;
+
+            if ($info) {
+                $jobTitle = $info['job_title'] ?? 'your application';
+                $companyName = $info['company_name'] ?? 'the company';
+
+                $title = 'Application Update';
+                $message = "Your application for {$jobTitle} at {$companyName} was updated.";
+                if ($new_status === 'approved') {
+                    $title = 'Application Accepted';
+                    $message = "Your application for {$jobTitle} at {$companyName} was accepted.";
+                } elseif ($new_status === 'rejected') {
+                    $title = 'Application Rejected';
+                    $message = "Your application for {$jobTitle} at {$companyName} was rejected.";
+                } elseif ($new_status === 'interview') {
+                    $title = 'Interview Invitation';
+                    $message = "You have been invited to an interview for {$jobTitle} at {$companyName}.";
+                } elseif ($new_status === 'shortlisted') {
+                    $title = 'Application Shortlisted';
+                    $message = "Your application for {$jobTitle} at {$companyName} was shortlisted.";
+                }
+
+                notify_create('user', (int)$info['user_id'], $title, $message, 'my-applications.php');
+            }
         } else {
             $msg = "Update failed.";
             $msg_type = 'danger';
@@ -100,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     <td>
                         <span class="badge <?= match(strtolower($app['status'] ?? 'pending')) {
                             'shortlisted' => 'bg-primary',
+                            'interview'   => 'bg-info',
                             'approved'    => 'bg-success',
                             'rejected'    => 'bg-danger',
                             default       => 'bg-warning'
@@ -142,6 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                             <select name="status" class="form-select" required>
                                 <option value="pending">Pending</option>
                                 <option value="shortlisted">Shortlisted</option>
+                                <option value="interview">Interview</option>
                                 <option value="approved">Approved</option>
                                 <option value="rejected">Rejected</option>
                             </select>

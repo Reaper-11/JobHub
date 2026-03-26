@@ -6,6 +6,7 @@ USE JobHub;
 
 -- clean re-import
 DROP TABLE IF EXISTS bookmarks;
+DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS job_view_logs;
 DROP TABLE IF EXISTS job_search_logs;
 DROP TABLE IF EXISTS saved_jobs;
@@ -124,12 +125,27 @@ CREATE TABLE applications (
     job_id INT NOT NULL,
     cover_letter TEXT NULL,
     cv_path VARCHAR(255) NULL,
-    status ENUM('pending','shortlisted','rejected','approved') NOT NULL DEFAULT 'pending',
+    status ENUM('pending','shortlisted','interview','rejected','approved') NOT NULL DEFAULT 'pending',
     applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (job_id) REFERENCES jobs(id)
 );
+
+-- notifications
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    recipient_type ENUM('user','company') NOT NULL,
+    recipient_id INT NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    link VARCHAR(255) NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_notifications_recipient_read_created
+    ON notifications (recipient_type, recipient_id, is_read, created_at);
 
 -- bookmarks
 CREATE TABLE bookmarks (

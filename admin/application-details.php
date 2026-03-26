@@ -28,11 +28,9 @@ if (!$app) {
 
 // Possible next statuses (you can expand logic later)
 $possible_statuses = [
-    'pending'      => ['reviewed', 'shortlisted', 'rejected'],
-    'reviewed'     => ['shortlisted', 'rejected'],
-    'shortlisted'  => ['interview_scheduled', 'rejected', 'approved'],
-    'interview_scheduled' => ['approved', 'rejected'],
-    'approved'      => ['hired', 'rejected'],
+    'pending'      => ['shortlisted', 'rejected'],
+    'shortlisted'  => ['interview', 'rejected', 'approved'],
+    'interview'    => ['approved', 'rejected'],
 ];
 
 $current_status = strtolower($app['status'] ?? 'pending');
@@ -48,6 +46,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             $msg = "Application status updated to <strong>" . ucfirst($new_status) . "</strong>.";
             $msg_type = 'success';
             $app['status'] = $new_status; // refresh view
+
+            $jobTitle = $app['job_title'] ?? 'your application';
+            $companyName = $app['job_company'] ?? 'the company';
+            $title = 'Application Update';
+            $message = "Your application for {$jobTitle} at {$companyName} was updated.";
+            if ($new_status === 'approved') {
+                $title = 'Application Accepted';
+                $message = "Your application for {$jobTitle} at {$companyName} was accepted.";
+            } elseif ($new_status === 'rejected') {
+                $title = 'Application Rejected';
+                $message = "Your application for {$jobTitle} at {$companyName} was rejected.";
+            } elseif ($new_status === 'interview') {
+                $title = 'Interview Invitation';
+                $message = "You have been invited to an interview for {$jobTitle} at {$companyName}.";
+            } elseif ($new_status === 'shortlisted') {
+                $title = 'Application Shortlisted';
+                $message = "Your application for {$jobTitle} at {$companyName} was shortlisted.";
+            }
+
+            notify_create('user', (int)$app['user_id'], $title, $message, 'my-applications.php');
         } else {
             $msg = "Failed to update status.";
             $msg_type = 'danger';
@@ -135,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     <span class="badge fs-6 p-2 <?= match(strtolower($app['status'] ?? 'pending')) {
                         'pending'     => 'bg-warning text-dark',
                         'shortlisted' => 'bg-primary',
+                        'interview'   => 'bg-info',
                         'approved'    => 'bg-success',
                         'rejected'    => 'bg-danger',
                         default       => 'bg-secondary'

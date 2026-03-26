@@ -32,6 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 
     if ($id > 0 && in_array($action, ['approve','unapprove','reject','hold','suspend','activate'])) {
         $companyRow = null;
+        $companyInfo = db_query_all("SELECT name, email FROM companies WHERE id = ? LIMIT 1", "i", [$id])[0] ?? null;
         $checkStmt = $conn->prepare("SELECT is_approved, operational_state FROM companies WHERE id = ? LIMIT 1");
         if ($checkStmt) {
             $checkStmt->bind_param("i", $id);
@@ -46,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         } else {
             $isApproved = (int)$companyRow['is_approved'] === 1;
             $adminId = (int)($_SESSION['admin_id'] ?? 0);
+            $reason = '';
 
             if ($action === 'reject') {
                 $reason = trim($_POST['reason'] ?? '');
@@ -96,6 +98,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 if (isset($stmt) && $stmt && $stmt->execute()) {
                     $msg = "Company status updated successfully.";
                     $msg_type = 'success';
+
+                    if ($companyInfo) {
+                        $companyName = $companyInfo['name'] ?? 'your company';
+                        $title = 'Company Status Update';
+                        $message = "Your company status was updated.";
+                        if ($action === 'approve') {
+                            $title = 'Company Approved';
+                            $message = "{$companyName} has been approved. You can now post jobs publicly.";
+                        } elseif ($action === 'reject') {
+                            $title = 'Company Rejected';
+                            $message = "{$companyName} was rejected. Reason: {$reason}";
+                        } elseif ($action === 'unapprove') {
+                            $title = 'Approval Removed';
+                            $message = "{$companyName} approval has been removed. Job postings are not visible until re-approved.";
+                        } elseif ($action === 'hold') {
+                            $title = 'Account On Hold';
+                            $message = "{$companyName} has been put on hold. Reason: {$reason}";
+                        } elseif ($action === 'suspend') {
+                            $title = 'Account Suspended';
+                            $message = "{$companyName} has been suspended. Reason: {$reason}";
+                        } elseif ($action === 'activate') {
+                            $title = 'Account Activated';
+                            $message = "{$companyName} has been reactivated and is allowed to post jobs.";
+                        }
+
+                        notify_create('company', $id, $title, $message, 'company/company-dashboard.php');
+                    }
+
                     $query = "status=$status";
                     if ($status === 'approved' && $state !== 'all') {
                         $query .= "&state=" . urlencode($state);

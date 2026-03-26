@@ -6,6 +6,10 @@ $isJobSeeker = isset($_SESSION['user_id']);
 $isCompany   = isset($_SESSION['company_id']);
 $isAdmin     = isset($_SESSION['admin_id']);
 $isLoggedIn  = $isJobSeeker || $isCompany || $isAdmin;
+$notificationCount = 0;
+if ($isJobSeeker && isset($_SESSION['user_id'])) {
+    $notificationCount = notify_unread_count('user', (int)$_SESSION['user_id']);
+}
 
 $basePath = isset($basePath) ? trim($basePath) : '';
 if ($basePath === '') {
@@ -48,6 +52,14 @@ $bodyClass = isset($bodyClass) ? trim($bodyClass) : '';
                 <?php if ($isLoggedIn && $isJobSeeker): ?>
                     <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>my-bookmarks.php">Bookmarks</a></li>
                     <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>my-applications.php">Applications</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="<?= $basePath ?>notifications.php">
+                            Notifications
+                            <?php if ($notificationCount > 0): ?>
+                                <span class="badge bg-warning text-dark ms-1"><?= (int)$notificationCount ?></span>
+                            <?php endif; ?>
+                        </a>
+                    </li>
                     <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>user-account.php">Account</a></li>
                 <?php elseif ($isCompany): ?>
                     <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>company/company-dashboard.php">Dashboard</a></li>

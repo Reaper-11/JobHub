@@ -11,6 +11,7 @@ if (!isset($_SESSION['admin_id'])) {
 $totalApps   = db_query_value("SELECT COUNT(*) FROM applications");
 $pending     = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'pending'");
 $shortlisted = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'shortlisted'");
+$interview   = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'interview'");
 $rejected    = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'rejected'");
 $approved    = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 'approved'");
 
@@ -52,8 +53,9 @@ $applications = db_query_all("
     <div class="col-md-3 col-sm-6">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Shortlisted</h6>
-                <h3 class="mb-0 text-primary"><?= number_format($shortlisted) ?></h3>
+                <h6 class="text-muted mb-1">Shortlisted / Interview</h6>
+                <h3 class="mb-0 text-primary"><?= number_format($shortlisted + $interview) ?></h3>
+                <small class="text-muted">(Shortlisted: <?= $shortlisted ?> • Interview: <?= $interview ?>)</small>
             </div>
         </div>
     </div>
@@ -101,8 +103,8 @@ $applications = db_query_all("
                                 $status = strtolower($app['status'] ?? 'pending');
                                 $badge = match($status) {
                                     'pending'     => 'bg-warning',
-                                    'reviewed'    => 'bg-info',
                                     'shortlisted' => 'bg-primary',
+                                    'interview'   => 'bg-info',
                                     'approved'    => 'bg-success',
                                     'rejected'    => 'bg-danger',
                                     default       => 'bg-secondary'

@@ -106,6 +106,7 @@ $backUrl = $app['job_id'] ? "company-applications.php?job_id=" . (int)$app['job_
                 <span class="badge fs-6 p-2 <?= match(strtolower($app['status'] ?? 'pending')) {
                     'pending'     => 'bg-warning text-dark',
                     'shortlisted' => 'bg-primary',
+                    'interview'   => 'bg-info',
                     'approved'    => 'bg-success',
                     'rejected'    => 'bg-danger',
                     default       => 'bg-secondary'

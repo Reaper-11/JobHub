@@ -14,16 +14,9 @@ $passType = "";
 $deleteMsg = "";
 $deleteType = "";
 $jobCategories = require __DIR__ . '/includes/categories.php';
+$experienceLevels = require __DIR__ . '/includes/experience_levels.php';
 $legacyCategoryWarning = false;
 $preferredValue = '';
-$experienceLevels = [
-    'Entry Level (0–1 years)',
-    'Junior (1–3 years)',
-    'Mid Level (3–5 years)',
-    'Senior (5–8 years)',
-    'Lead (8–10 years)',
-    'Manager (10+ years)',
-];
 $hasExperienceColumn = false;
 
 $checkExperience = $conn->query("SHOW COLUMNS FROM users LIKE 'experience_level'");
