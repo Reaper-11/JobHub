@@ -87,7 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
             $message = $action === 'approve'
                 ? 'Your company verification request has been approved. You can now post new jobs.'
                 : 'Your company verification request was rejected. Remarks: ' . $remarks;
-            notify_create('company', $companyId, $title, $message, 'company/company-verification.php');
+            notify_create('company', $companyId, $title, $message, 'company-verification.php');
 
             $record = get_company_verification_record($conn, $companyId);
             $status = get_company_verification_status($record);

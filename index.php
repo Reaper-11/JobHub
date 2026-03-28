@@ -605,7 +605,7 @@ $basePath = '';
                                         <i class="fas fa-money-bill-wave text-xs text-[#1a237e]"></i>
                                     </div>
                                     <span class="text-gray-700 text-sm">
-                                        <?= htmlspecialchars($job['salary'] ?: 'Not specified') ?>
+                                        <?= htmlspecialchars(($job['salary'] ?? '') !== '' ? $job['salary'] : 'Not specified') ?>
                                     </span>
                                 </div>
 
@@ -722,7 +722,7 @@ $basePath = '';
                                             <i class="fas fa-money-bill-wave text-xs text-[#ff9800]"></i>
                                         </div>
                                         <span class="text-gray-700 text-sm">
-                                            <?= htmlspecialchars($job['salary'] ?: 'Not specified') ?>
+                                            <?= htmlspecialchars(($job['salary'] ?? '') !== '' ? $job['salary'] : 'Not specified') ?>
                                         </span>
                                     </div>
 
@@ -862,7 +862,7 @@ $basePath = '';
                                         <i class="fas fa-money-bill-wave text-xs text-[#1a237e]"></i>
                                     </div>
                                     <span class="text-gray-700 text-sm">
-                                        <?= htmlspecialchars($job['salary'] ?: 'Not specified') ?>
+                                            <?= htmlspecialchars(($job['salary'] ?? '') !== '' ? $job['salary'] : 'Not specified') ?>
                                     </span>
                                 </div>
 

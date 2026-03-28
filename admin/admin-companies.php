@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                             $message = "{$companyName} has been reactivated and is allowed to post jobs.";
                         }
 
-                        notify_create('company', $id, $title, $message, 'company/company-dashboard.php');
+                        notify_create('company', $id, $title, $message, 'company-dashboard.php');
                     }
 
                     $query = "status=$status";

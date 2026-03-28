@@ -52,6 +52,31 @@ if (!function_exists('notify_status_label')) {
     }
 }
 
+if (!function_exists('notify_normalize_link')) {
+    function notify_normalize_link($recipientType, $link): string {
+        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $link = trim((string)$link);
+
+        if ($link === '') {
+            return '';
+        }
+
+        $link = str_replace('\\', '/', $link);
+
+        if (preg_match('~^(?:[a-z][a-z0-9+.-]*:|//|/|#|\?)~i', $link)) {
+            return $link;
+        }
+
+        $link = preg_replace('#^\./+#', '', $link);
+
+        if ($recipientType === 'company' && stripos($link, 'company/') === 0) {
+            $link = substr($link, strlen('company/'));
+        }
+
+        return $link;
+    }
+}
+
 if (!function_exists('notify_create')) {
     function notify_create($recipientType, $recipientId, $title, $message, $link = '', $type = 'info', $relatedType = null, $relatedId = null): bool {
         global $conn;
@@ -60,7 +85,7 @@ if (!function_exists('notify_create')) {
         $recipientId = (int)$recipientId;
         $title = trim((string)$title);
         $message = trim((string)$message);
-        $link = trim((string)$link);
+        $link = notify_normalize_link($recipientType, $link);
         $type = trim((string)$type);
         $type = in_array($type, ['info', 'success', 'warning', 'danger'], true) ? $type : 'info';
         $relatedType = $relatedType !== null ? trim((string)$relatedType) : null;
@@ -154,7 +179,14 @@ if (!function_exists('notify_fetch')) {
         $select[] = notify_has_column('link') ? 'link' : "'' AS link";
 
         $sql = "SELECT " . implode(', ', $select) . " FROM notifications WHERE recipient_type = ? AND recipient_id = ? ORDER BY created_at DESC, id DESC LIMIT {$limit}";
-        return db_query_all($sql, "si", [$recipientType, $recipientId]);
+        $rows = db_query_all($sql, "si", [$recipientType, $recipientId]);
+
+        foreach ($rows as &$row) {
+            $row['link'] = notify_normalize_link($recipientType, $row['link'] ?? '');
+        }
+        unset($row);
+
+        return $rows;
     }
 }
 

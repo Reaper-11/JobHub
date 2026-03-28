@@ -102,6 +102,7 @@ if (!function_exists('recommendJobs')) {
             return $fallback;
         }
 
+        $salarySelect = in_array('salary', $jobColumns, true) ? ", j.salary" : ", '' AS salary";
         $deadlineSelect = in_array('deadline', $jobColumns, true) ? ", j.deadline" : "";
         $skillsRequiredSelect = in_array('skills_required', $jobColumns, true) ? ", j.skills_required" : ", '' AS skills_required";
         $candidateDays = (int) $RECOMMENDATION_CONFIG['candidate_days'];
@@ -110,6 +111,7 @@ if (!function_exists('recommendJobs')) {
             SELECT
                 j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
                 j.experience_level, j.description, j.created_at, j.application_duration
+                {$salarySelect}
                 {$deadlineSelect}
                 {$skillsRequiredSelect},
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
@@ -462,6 +464,7 @@ function recommend_keyword_match_count($keywords, $job, $cap = 5): int {
 }
 
 function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumns): array {
+    $salarySelect = in_array('salary', $jobColumns, true) ? ", j.salary" : ", '' AS salary";
     $deadlineSelect = in_array('deadline', $jobColumns, true) ? ", j.deadline" : "";
     $skillsRequiredSelect = in_array('skills_required', $jobColumns, true) ? ", j.skills_required" : ", '' AS skills_required";
     $rows = [];
@@ -471,6 +474,7 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
             SELECT
                 j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
                 j.experience_level, j.description, j.created_at, j.application_duration
+                {$salarySelect}
                 {$deadlineSelect}
                 {$skillsRequiredSelect},
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list,
@@ -519,6 +523,7 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
         SELECT
             j.id, j.title, j.company, j.company_id, j.location, j.type, j.category,
             j.experience_level, j.description, j.created_at, j.application_duration
+            {$salarySelect}
             {$deadlineSelect}
             {$skillsRequiredSelect},
             GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
