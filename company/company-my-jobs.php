@@ -17,7 +17,7 @@ $params = $statusFilter === 'all' ? [] : [$statusFilter];
 $types  = $statusFilter === 'all' ? "" : "s";
 
 $jobs = db_query_all("
-    SELECT id, title, location, type, status, created_at, application_count
+    SELECT id, title, location, type, status, is_approved, admin_remarks, created_at, application_count
     FROM jobs 
     WHERE company_id = ? AND $where
     ORDER BY created_at DESC
@@ -60,6 +60,7 @@ $jobs = db_query_all("
                         <th>Location</th>
                         <th>Type</th>
                         <th>Status</th>
+                        <th>Approval</th>
                         <th>Applications</th>
                         <th>Posted</th>
                         <th>Actions</th>
@@ -67,7 +68,7 @@ $jobs = db_query_all("
                 </thead>
                 <tbody>
                 <?php if (empty($jobs)): ?>
-                    <tr><td colspan="7" class="text-center py-5 text-muted">No jobs found.</td></tr>
+                    <tr><td colspan="8" class="text-center py-5 text-muted">No jobs found.</td></tr>
                 <?php else: ?>
                     <?php foreach ($jobs as $job): ?>
                         <tr>
@@ -87,6 +88,14 @@ $jobs = db_query_all("
                                 } ?>">
                                     <?= ucfirst($job['status'] ?? 'Draft') ?>
                                 </span>
+                            </td>
+                            <td>
+                                <span class="badge <?= job_approval_badge_class((int)$job['is_approved']) ?>">
+                                    <?= job_approval_label((int)$job['is_approved']) ?>
+                                </span>
+                                <?php if (!empty($job['admin_remarks'])): ?>
+                                    <div class="small text-muted mt-1"><?= htmlspecialchars($job['admin_remarks']) ?></div>
+                                <?php endif; ?>
                             </td>
                             <td><?= number_format($job['application_count'] ?? 0) ?></td>
                             <td><?= date('M d, Y', strtotime($job['created_at'])) ?></td>

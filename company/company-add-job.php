@@ -13,7 +13,9 @@ $cid = (int)$_SESSION['company_id'];
 $msg = $msg_type = '';
 $categoryError = '';
 $experienceError = '';
+$jobTypeError = '';
 $categories = require __DIR__ . '/../includes/categories.php';
+$jobTypes = require __DIR__ . '/../includes/job_types.php';
 $category = '';
 $experienceLevel = '';
 $title = '';
@@ -95,6 +97,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         $msg = "Please select a valid experience level.";
         $msg_type = 'danger';
         $experienceError = "Invalid experience level selected.";
+    } elseif (!in_array($type, $jobTypes, true)) {
+        $msg = "Please select a valid job type.";
+        $msg_type = 'danger';
+        $jobTypeError = "Invalid job type selected.";
     } elseif (!in_array($category, $categories, true)) {
         $msg = "Please correct the errors below.";
         $msg_type = 'danger';
@@ -102,22 +108,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     } else {
         if ($hasSkillsRequiredColumn) {
             $stmt = $conn->prepare("
-                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, skills_required, description, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, skills_required, description, status, is_approved, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, NOW())
             ");
             $stmt->bind_param("isssssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $skillsRequired, $description);
         } else {
             $stmt = $conn->prepare("
-                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, description, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', NOW())
+                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, description, status, is_approved, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, NOW())
             ");
             $stmt->bind_param("issssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description);
         }
 
         if ($stmt->execute()) {
-            $msg = "Job posted successfully!";
+            $jobId = (int)$conn->insert_id;
+            $msg = "Job submitted successfully and is awaiting admin approval.";
             $msg_type = 'success';
             $skillsRequired = '';
+            log_activity(
+                $conn,
+                $cid,
+                'company',
+                'job_posted',
+                "Company posted a new job: {$title}",
+                'job',
+                $jobId
+            );
             // Optional: redirect to my-jobs
         } else {
             $msg = "Failed to post job. Please try again.";
@@ -163,12 +179,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <div class="mb-3">
                 <label class="form-label">Job Type</label>
                 <select name="type" class="form-select">
-                    <?php foreach (['Full-time', 'Part-time', 'Contract', 'Remote', 'Internship'] as $jobType): ?>
+                    <?php foreach ($jobTypes as $jobType): ?>
                         <option value="<?= htmlspecialchars($jobType) ?>" <?= $type === $jobType ? 'selected' : '' ?>>
                             <?= htmlspecialchars($jobType) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($jobTypeError): ?>
+                    <div class="text-danger small mt-1"><?= htmlspecialchars($jobTypeError) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">

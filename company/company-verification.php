@@ -121,6 +121,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
                         if ($stmt->execute()) {
                             $msg = "Verification request submitted successfully.";
                             $msg_type = 'success';
+                            log_activity(
+                                $conn,
+                                $cid,
+                                'company',
+                                'company_verification_submitted',
+                                "Company submitted verification request: {$form['company_name']}",
+                                'company',
+                                $cid
+                            );
                             $record = get_company_verification_record($conn, $cid);
                             $status = get_company_verification_status($record);
                         } else {

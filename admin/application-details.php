@@ -11,7 +11,7 @@ $app_id = (int)$_GET['id'];
 
 $app = db_query_all("
     SELECT a.*,
-           u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
+           u.name AS user_name, u.email AS user_email, u.phone AS user_phone, u.cv_path AS user_cv_path,
            j.title AS job_title, j.company AS job_company, j.location AS job_location,
            j.type AS job_type, j.salary AS job_salary
     FROM applications a
@@ -40,37 +40,34 @@ $msg = $msg_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $new_status = trim($_POST['new_status'] ?? '');
     if (in_array($new_status, $next_options)) {
-        $stmt = $conn->prepare("UPDATE applications SET status = ?, updated_at = NOW() WHERE id = ?");
-        $stmt->bind_param("si", $new_status, $app_id);
-        if ($stmt->execute()) {
-            $msg = "Application status updated to <strong>" . ucfirst($new_status) . "</strong>.";
-            $msg_type = 'success';
-            $app['status'] = $new_status; // refresh view
-
-            $jobTitle = $app['job_title'] ?? 'your application';
-            $companyName = $app['job_company'] ?? 'the company';
-            $title = 'Application Update';
-            $message = "Your application for {$jobTitle} at {$companyName} was updated.";
-            if ($new_status === 'approved') {
-                $title = 'Application Accepted';
-                $message = "Your application for {$jobTitle} at {$companyName} was accepted.";
-            } elseif ($new_status === 'rejected') {
-                $title = 'Application Rejected';
-                $message = "Your application for {$jobTitle} at {$companyName} was rejected.";
-            } elseif ($new_status === 'interview') {
-                $title = 'Interview Invitation';
-                $message = "You have been invited to an interview for {$jobTitle} at {$companyName}.";
-            } elseif ($new_status === 'shortlisted') {
-                $title = 'Application Shortlisted';
-                $message = "Your application for {$jobTitle} at {$companyName} was shortlisted.";
-            }
-
-            notify_create('user', (int)$app['user_id'], $title, $message, 'my-applications.php');
+        if (strcasecmp((string)$app['status'], $new_status) === 0) {
+            $msg = "Application already has that status.";
+            $msg_type = 'info';
         } else {
-            $msg = "Failed to update status.";
-            $msg_type = 'danger';
+            $stmt = $conn->prepare("UPDATE applications SET status = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->bind_param("si", $new_status, $app_id);
+            if ($stmt->execute()) {
+                $statusLabel = notify_status_label($new_status);
+                $msg = "Application status updated to <strong>" . htmlspecialchars($statusLabel) . "</strong>.";
+                $msg_type = 'success';
+                $app['status'] = $new_status;
+
+                notify_create(
+                    'user',
+                    (int)$app['user_id'],
+                    'Application Status Updated',
+                    'Your application for "' . ($app['job_title'] ?? 'Job') . '" at ' . ($app['job_company'] ?? 'the company') . ' has been updated to "' . $statusLabel . '".',
+                    'my-applications.php',
+                    notify_status_type($new_status),
+                    'application',
+                    $app_id
+                );
+            } else {
+                $msg = "Failed to update status.";
+                $msg_type = 'danger';
+            }
+            $stmt->close();
         }
-        $stmt->close();
     } else {
         $msg = "Invalid status transition.";
         $msg_type = 'danger';
@@ -117,8 +114,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <p><strong>Email:</strong> <?= htmlspecialchars($app['user_email']) ?></p>
             <p><strong>Phone:</strong> <?= htmlspecialchars($app['user_phone'] ?: 'Not provided') ?></p>
             <p><strong>Applied:</strong> <?= date('Y-m-d H:i', strtotime($app['applied_at'])) ?></p>
-            <?php if (!empty($app['cv_path'])): ?>
-                <p><strong>CV:</strong> <a href="../<?= htmlspecialchars($app['cv_path']) ?>" target="_blank" rel="noopener">View CV</a></p>
+            <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
+            <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
+                <p><strong>CV:</strong> <a href="../cv-download.php?scope=application&id=<?= (int) $app['id'] ?>" target="_blank" rel="noopener">View CV</a></p>
             <?php else: ?>
                 <p><strong>CV:</strong> <span class="text-muted">Not provided</span></p>
             <?php endif; ?>

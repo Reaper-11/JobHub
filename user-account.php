@@ -128,43 +128,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Upload (only if validation passed)
         if ($profileMsg === '') {
             if (isset($_FILES['cv_file']) && $_FILES['cv_file']['error'] !== UPLOAD_ERR_NO_FILE) {
-                if ($_FILES['cv_file']['error'] !== UPLOAD_ERR_OK) {
-                    $uploadErrorMap = [
-                        UPLOAD_ERR_INI_SIZE => 'The uploaded file exceeds the server limit (upload_max_filesize).',
-                        UPLOAD_ERR_FORM_SIZE => 'The uploaded file exceeds the form limit (MAX_FILE_SIZE).',
-                        UPLOAD_ERR_PARTIAL => 'The uploaded file was only partially uploaded.',
-                        UPLOAD_ERR_NO_TMP_DIR => 'Missing a temporary folder on the server.',
-                        UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
-                        UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload.',
-                    ];
-                    $errCode = (int) $_FILES['cv_file']['error'];
-                    $errMsg = $uploadErrorMap[$errCode] ?? 'Unknown upload error.';
-                    $uploadError = "Could not upload CV. Error code {$errCode}: {$errMsg}";
+                $uploadedCvPath = jobhub_cv_upload($_FILES['cv_file'], $uid, $uploadError);
+                if ($uploadedCvPath !== null) {
+                    $newCvPath = $uploadedCvPath;
+                    $cvMoved = true;
                 } else {
-                    $maxBytes = 5 * 1024 * 1024;
-                    $fileSize = (int) $_FILES['cv_file']['size'];
-                    $ext = strtolower(pathinfo($_FILES['cv_file']['name'], PATHINFO_EXTENSION));
-                    $allowed = ['pdf'];
-                    if (!in_array($ext, $allowed, true)) {
-                        $uploadError = "CV must be a PDF document.";
-                    } elseif ($fileSize > $maxBytes) {
-                        $uploadError = "CV must be 5MB or smaller.";
-                    } else {
-                        $uploadDir = __DIR__ . '/uploads/cv';
-                        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0755, true)) {
-                            $uploadError = "Upload folder is not available.";
-                        } else {
-                            $fileName = 'cv_' . $uid . '_' . time() . '.' . $ext;
-                            $destPath = $uploadDir . '/' . $fileName;
-                            if (move_uploaded_file($_FILES['cv_file']['tmp_name'], $destPath)) {
-                                $newCvPath = 'uploads/cv/' . $fileName;
-                                $cvMoved = true;
-                            } else {
-                                $uploadError = "Could not save CV file.";
-                                $cvMoved = false;
-                            }
-                        }
-                    }
+                    $cvMoved = false;
                 }
             }
         }
@@ -321,7 +290,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $deleteType = "alert-danger";
             } else {
                 $cvPath = $user['cv_path'] ?? '';
-                if ($cvPath !== '' && strpos($cvPath, 'uploads/cv/') === 0) {
+                if (jobhub_cv_is_stored_path($cvPath) && db_query_value("SELECT COUNT(*) FROM applications WHERE cv_path = ?", 's', [$cvPath], 0) == 0) {
                     $fullPath = __DIR__ . '/' . $cvPath;
                     if (is_file($fullPath)) {
                         @unlink($fullPath);
@@ -360,7 +329,7 @@ require 'header.php';
         <?php endif; ?>
         <?php if ($debugUpload): ?>
             <?php
-                $uploadDir = __DIR__ . '/uploads/cv';
+                $uploadDir = JOBHUB_CV_DIR;
                 $tmpDir = ini_get('upload_tmp_dir');
                 $tmpDir = $tmpDir !== '' ? $tmpDir : sys_get_temp_dir();
                 $fileInfo = $_FILES['cv_file'] ?? null;
@@ -470,12 +439,19 @@ require 'header.php';
             <?php endif; ?>
 
             <div class="mb-3">
-                <label class="form-label">CV (PDF only, max 5MB)</label>
-                <input type="file" class="form-control" name="cv_file" accept=".pdf">
-                <?php if (!empty($user['cv_path'])): ?>
-                    <div class="form-text">
-                        Current CV: <a class="link-primary text-decoration-none" href="<?php echo htmlspecialchars($user['cv_path']); ?>" target="_blank">View</a>
+                <label class="form-label">CV / Resume</label>
+                <input type="file" class="form-control" name="cv_file" accept=".pdf,.doc,.docx">
+                <div class="form-text">Allowed: PDF, DOC, DOCX. Maximum size: 5MB.</div>
+                <?php if (!empty($user['cv_path']) && jobhub_cv_is_stored_path($user['cv_path'])): ?>
+                    <div class="mt-2">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">CV uploaded</span>
                     </div>
+                    <div class="form-text">
+                        Current CV: <?php echo htmlspecialchars(jobhub_cv_file_name($user['cv_path'])); ?>
+                        <a class="link-primary text-decoration-none ms-1" href="cv-download.php?scope=profile" target="_blank" rel="noopener">View</a>
+                    </div>
+                <?php else: ?>
+                    <div class="form-text text-warning">No CV uploaded yet.</div>
                 <?php endif; ?>
             </div>
 

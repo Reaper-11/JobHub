@@ -105,13 +105,14 @@ $recentJobs = db_query_all("
                         <th>Title</th>
                         <th>Location</th>
                         <th>Status</th>
+                        <th>Approval</th>
                         <th>Posted</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (empty($recentJobs)): ?>
-                    <tr><td colspan="5" class="text-center py-4">No jobs posted yet.</td></tr>
+                    <tr><td colspan="6" class="text-center py-4">No jobs posted yet.</td></tr>
                 <?php else: ?>
                     <?php foreach ($recentJobs as $job): ?>
                         <tr>
@@ -120,6 +121,11 @@ $recentJobs = db_query_all("
                             <td>
                                 <span class="badge <?= $job['status'] === 'active' ? 'bg-success' : 'bg-secondary' ?>">
                                     <?= ucfirst($job['status'] ?? 'Draft') ?>
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge <?= job_approval_badge_class((int)($job['is_approved'] ?? 0)) ?>">
+                                    <?= job_approval_label((int)($job['is_approved'] ?? 0)) ?>
                                 </span>
                             </td>
                             <td><?= date('M d, Y', strtotime($job['created_at'])) ?></td>

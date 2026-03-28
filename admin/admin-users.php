@@ -1,5 +1,4 @@
 <?php
-// admin/admin-users.php
 require '../db.php';
 
 if (!isset($_SESSION['admin_id'])) {
@@ -7,39 +6,69 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
-$users = db_query_all("SELECT id, name, email, phone, created_at, is_active 
-                       FROM users 
-                       ORDER BY created_at DESC");
-
 $msg = $msg_type = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
-    if (isset($_POST['delete_user'])) {
-        $uid = (int)($_POST['user_id'] ?? 0);
-        $reason = trim($_POST['reason'] ?? '');
+    $uid = (int)($_POST['user_id'] ?? 0);
+    $action = trim($_POST['action'] ?? '');
 
-        if ($uid > 0) {
-            // Log reason
-            $adminId = (int)$_SESSION['admin_id'];
-            $stmt = $conn->prepare("INSERT INTO user_deletion_reasons (user_id, admin_id, reason, deleted_at) 
-                                    VALUES (?, ?, ?, NOW())");
-            $stmt->bind_param("iis", $uid, $adminId, $reason);
-            $stmt->execute();
-            $stmt->close();
+    if ($uid > 0 && in_array($action, ['block', 'unblock', 'remove'], true)) {
+        $stmt = $conn->prepare("SELECT id, name FROM users WHERE id = ? LIMIT 1");
+        $stmt->bind_param("i", $uid);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
 
-            // Delete user
-            $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-            $stmt->bind_param("i", $uid);
-            if ($stmt->execute()) {
-                $msg = "User deleted successfully.";
-                $msg_type = 'success';
+        if (!$user) {
+            $msg = "User not found.";
+            $msg_type = 'danger';
+        } else {
+            if ($action === 'block') {
+                $stmt = $conn->prepare("UPDATE users SET account_status = 'blocked', is_active = 0, updated_at = NOW() WHERE id = ?");
+                $activityType = 'user_blocked';
+                $description = "Admin blocked user {$user['name']}";
+                $successMessage = "User blocked successfully.";
+                $failureMessage = "Failed to block user.";
+            } elseif ($action === 'unblock') {
+                $stmt = $conn->prepare("UPDATE users SET account_status = 'active', is_active = 1, updated_at = NOW() WHERE id = ?");
+                $activityType = 'user_unblocked';
+                $description = "Admin unblocked user {$user['name']}";
+                $successMessage = "User unblocked successfully.";
+                $failureMessage = "Failed to unblock user.";
             } else {
-                $msg = "Failed to delete user.";
+                $stmt = $conn->prepare("UPDATE users SET account_status = 'removed', is_active = 0, updated_at = NOW() WHERE id = ?");
+                $activityType = 'user_removed';
+                $description = "Admin removed user {$user['name']}";
+                $successMessage = "User removed safely.";
+                $failureMessage = "Failed to remove user.";
+            }
+
+            if ($stmt) {
+                $stmt->bind_param("i", $uid);
+                $ok = $stmt->execute();
+                $stmt->close();
+
+                if ($ok) {
+                    $msg = $successMessage;
+                    $msg_type = 'success';
+                    log_activity($conn, (int)$_SESSION['admin_id'], 'admin', $activityType, $description, 'user', $uid);
+                } else {
+                    $msg = $failureMessage;
+                    $msg_type = 'danger';
+                }
+            } else {
+                $msg = "Could not prepare the requested action.";
                 $msg_type = 'danger';
             }
-            $stmt->close();
         }
     }
 }
+
+$users = db_query_all("
+    SELECT id, name, email, phone, role, account_status, is_active, created_at
+    FROM users
+    ORDER BY created_at DESC
+");
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -50,6 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
 <?php endif; ?>
 
+<div class="alert alert-secondary">
+    Removed users are soft-deactivated to keep applications, bookmarks, and history safe.
+</div>
+
 <div class="table-responsive">
     <table class="table table-hover table-striped align-middle">
         <thead class="table-light">
@@ -57,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <th>ID</th>
                 <th>Name</th>
                 <th>Email</th>
+                <th>Role</th>
                 <th>Phone</th>
                 <th>Registered</th>
                 <th>Status</th>
@@ -65,50 +99,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         </thead>
         <tbody>
         <?php if (empty($users)): ?>
-            <tr><td colspan="7" class="text-center py-4">No users found.</td></tr>
+            <tr><td colspan="8" class="text-center py-4">No users found.</td></tr>
         <?php else: ?>
             <?php foreach ($users as $u): ?>
+                <?php
+                $status = strtolower((string)($u['account_status'] ?? 'active'));
+                if ($status !== 'blocked' && $status !== 'removed') {
+                    $status = ((int)($u['is_active'] ?? 1) === 1) ? 'active' : 'blocked';
+                }
+                ?>
                 <tr>
-                    <td><?= $u['id'] ?></td>
+                    <td><?= (int)$u['id'] ?></td>
                     <td><?= htmlspecialchars($u['name']) ?></td>
                     <td><?= htmlspecialchars($u['email']) ?></td>
-                    <td><?= htmlspecialchars($u['phone'] ?: '—') ?></td>
+                    <td><?= htmlspecialchars(ucfirst($u['role'] ?? 'seeker')) ?></td>
+                    <td><?= htmlspecialchars($u['phone'] ?: 'â€”') ?></td>
                     <td><?= date('Y-m-d', strtotime($u['created_at'])) ?></td>
                     <td>
-                        <span class="badge <?= $u['is_active'] ? 'bg-success' : 'bg-danger' ?>">
-                            <?= $u['is_active'] ? 'Active' : 'Inactive' ?>
+                        <span class="badge <?= user_status_badge_class($status) ?>">
+                            <?= user_status_label($status) ?>
                         </span>
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-outline-danger"
-                                data-bs-toggle="modal" data-bs-target="#deleteModal<?= $u['id'] ?>">
-                            Delete
-                        </button>
-
-                        <!-- Delete Modal -->
-                        <div class="modal fade" id="deleteModal<?= $u['id'] ?>" tabindex="-1">
-                            <div class="modal-dialog">
-                                <form method="post" class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Delete User</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                        <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
-                                        <input type="hidden" name="delete_user" value="1">
-                                        <div class="mb-3">
-                                            <label class="form-label">Reason (optional)</label>
-                                            <textarea name="reason" class="form-control" rows="3"></textarea>
-                                        </div>
-                                        <p class="text-danger small mb-0">This action cannot be undone.</p>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-danger">Delete User</button>
-                                    </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <?php if ($status === 'active'): ?>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <input type="hidden" name="action" value="block">
+                                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Block this user?')">Block</button>
                                 </form>
-                            </div>
+                            <?php elseif ($status === 'blocked'): ?>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <input type="hidden" name="action" value="unblock">
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Unblock</button>
+                                </form>
+                            <?php endif; ?>
+
+                            <?php if ($status !== 'removed'): ?>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <input type="hidden" name="action" value="remove">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this user account? Related records will be kept safely.')">Remove</button>
+                                </form>
+                            <?php endif; ?>
                         </div>
                     </td>
                 </tr>

@@ -7,6 +7,11 @@ require 'header.php';
 $msg = '';
 $msg_type = 'alert-danger';
 
+if (!empty($_SESSION['auth_error'])) {
+    $msg = $_SESSION['auth_error'];
+    unset($_SESSION['auth_error']);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
         $msg = "Invalid request. Please try again.";
@@ -17,9 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($email) || empty($password)) {
             $msg = "Email and password are required.";
         } else {
-            $stmt = $conn->prepare("SELECT id, name, password, role 
+            $stmt = $conn->prepare("SELECT id, name, password, role, account_status
                                     FROM users 
-                                    WHERE email = ? AND is_active = 1 
+                                    WHERE email = ?
                                     LIMIT 1");
             $stmt->bind_param("s", $email);
             $stmt->execute();
@@ -27,7 +32,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $result->fetch_assoc();
             $stmt->close();
 
-            if ($user && password_verify($password, $user['password'])) {
+            if ($user && ($user['account_status'] ?? 'active') === 'blocked') {
+                $msg = "Your account has been blocked by admin.";
+            } elseif ($user && ($user['account_status'] ?? 'active') === 'removed') {
+                $msg = "Your account is no longer available.";
+            } elseif ($user && password_verify($password, $user['password'])) {
                 // Login successful
                 $_SESSION['user_id']   = $user['id'];
                 $_SESSION['user_name'] = $user['name'];

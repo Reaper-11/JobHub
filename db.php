@@ -31,6 +31,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . '/includes/admin_activity_helper.php';
+require_once __DIR__ . '/includes/cv_helper.php';
 
 enforce_user_session_status($conn);
 

@@ -68,8 +68,9 @@ $backUrl = $app['job_id'] ? "company-applications.php?job_id=" . (int)$app['job_
                 <p><strong>Phone:</strong> <?= htmlspecialchars($app['user_phone'] ?: 'Not provided') ?></p>
                 <p><strong>Applied:</strong> <?= date('M d, Y H:i', strtotime($app['applied_at'])) ?></p>
                 <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
-                <?php if (!empty($cvPath)): ?>
-                    <p><strong>CV:</strong> <a href="../<?= htmlspecialchars($cvPath) ?>" target="_blank" rel="noopener">View CV</a></p>
+                <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
+                    <p><strong>CV:</strong> <span class="badge bg-success-subtle text-success border border-success-subtle">Attached</span></p>
+                    <p><a href="../cv-download.php?scope=application&id=<?= (int) $app['id'] ?>" target="_blank" rel="noopener">View or download CV</a></p>
                 <?php else: ?>
                     <p><strong>CV:</strong> <span class="text-muted">Not provided</span></p>
                 <?php endif; ?>

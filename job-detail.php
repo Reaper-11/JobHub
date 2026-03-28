@@ -17,6 +17,7 @@ $sql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count,
         LEFT JOIN companies c ON j.company_id = c.id
         WHERE j.id = ? 
           AND j.status = 'active'
+          AND j.is_approved = 1
           AND (j.company_id IS NULL OR c.is_approved = 1)";
 
 $stmt = $conn->prepare($sql);
@@ -38,6 +39,7 @@ $is_inactive = $is_expired || $is_closed;
 $already_applied = false;
 $already_bookmarked = false;
 $user_id = $_SESSION['user_id'] ?? null;
+$user_cv_path = null;
 
 if ($user_id) {
     // Check if already applied
@@ -53,6 +55,8 @@ if ($user_id) {
     $stmt->execute();
     $already_bookmarked = $stmt->get_result()->num_rows > 0;
     $stmt->close();
+
+    $user_cv_path = db_query_value("SELECT cv_path FROM users WHERE id = ?", "i", [$user_id], null);
 
     // Log job view (if tracking table exists)
     $check = $conn->query("SHOW TABLES LIKE 'job_view_logs'");
@@ -82,17 +86,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
             } elseif ($is_inactive) {
                 $alert = "This job is no longer accepting applications.";
                 $alert_type = 'warning';
+            } elseif (empty($user_cv_path)) {
+                $alert = "Please upload your CV in your account before applying.";
+                $alert_type = 'warning';
             } else {
                 $cover = trim($_POST['cover_letter'] ?? '');
-                $cv_path = db_query_value("SELECT cv_path FROM users WHERE id = ?", "i", [$user_id], null);
                 $stmt = $conn->prepare("
                     INSERT INTO applications (user_id, job_id, cover_letter, cv_path, applied_at)
                     VALUES (?, ?, ?, ?, NOW())
                 ");
-                $stmt->bind_param("iiss", $user_id, $job_id, $cover, $cv_path);
+                $stmt->bind_param("iiss", $user_id, $job_id, $cover, $user_cv_path);
                 if ($stmt->execute()) {
-                    $alert = "Application submitted successfully!";
+                    $alert = "Application submitted successfully with your CV attached.";
                     $already_applied = true;
+                    log_activity(
+                        $conn,
+                        $user_id,
+                        'seeker',
+                        'job_application_submitted',
+                        "User applied for job: {$job['title']}",
+                        'application',
+                        (int)$conn->insert_id
+                    );
                     // Optional: increment application_count
                 } else {
                     $alert = "Failed to submit application. Please try again.";
@@ -137,8 +152,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
                     <div>
                         <h5 class="mb-1"><?= htmlspecialchars($job['company_name'] ?: $job['company']) ?></h5>
                         <div class="text-muted">
-                            <?= htmlspecialchars($job['location']) ?> 
-                            <span class="badge bg-warning ms-2"><?= htmlspecialchars($job['type'] ?? 'Full-time') ?></span>
+                            <?= htmlspecialchars($job['location'] ?: 'Not specified') ?> 
+                            <span class="badge bg-warning ms-2"><?= htmlspecialchars($job['type'] ?: 'Not specified') ?></span>
                         </div>
                     </div>
                 </div>
@@ -164,8 +179,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
 
                 <h5 class="mb-3">Details</h5>
                 <dl class="row">
+                    <dt class="col-sm-4 text-muted">Location</dt>
+                    <dd class="col-sm-8"><?= htmlspecialchars($job['location'] ?: 'Not specified') ?></dd>
+
+                    <dt class="col-sm-4 text-muted">Job Type</dt>
+                    <dd class="col-sm-8"><?= htmlspecialchars($job['type'] ?: 'Not specified') ?></dd>
+
                     <dt class="col-sm-4 text-muted">Salary</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars($job['salary'] ?: 'Negotiable / Not specified') ?></dd>
+                    <dd class="col-sm-8"><?= htmlspecialchars($job['salary'] ?: 'Not specified') ?></dd>
 
                     <dt class="col-sm-4 text-muted">Category</dt>
                     <dd class="col-sm-8"><?= htmlspecialchars($job['category'] ?: '-') ?></dd>
@@ -212,10 +233,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
                     <div class="alert alert-success small mb-4">
                         You have already applied for this job
                     </div>
+                <?php elseif (empty($user_cv_path)): ?>
+                    <div class="alert alert-warning small text-start mb-3">
+                        Please upload your CV in <a href="user-account.php" class="alert-link">your account</a> before applying.
+                    </div>
                 <?php else: ?>
                     <form method="post" class="mb-4">
                         <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                         <input type="hidden" name="apply" value="1">
+
+                        <div class="small text-success mb-3">
+                            Your saved CV will be attached automatically to this application.
+                        </div>
 
                         <div class="mb-3">
                             <textarea name="cover_letter" class="form-control" rows="5" 

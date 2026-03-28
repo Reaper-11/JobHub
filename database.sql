@@ -155,6 +155,9 @@ CREATE TABLE notifications (
     recipient_id INT NOT NULL,
     title VARCHAR(200) NOT NULL,
     message TEXT NOT NULL,
+    type ENUM('info','success','warning','danger') NOT NULL DEFAULT 'info',
+    related_type VARCHAR(50) NULL,
+    related_id INT NULL,
     link VARCHAR(255) NULL,
     is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -162,6 +165,8 @@ CREATE TABLE notifications (
 
 CREATE INDEX idx_notifications_recipient_read_created
     ON notifications (recipient_type, recipient_id, is_read, created_at);
+CREATE INDEX idx_notifications_related
+    ON notifications (recipient_type, recipient_id, related_type, related_id);
 
 -- bookmarks
 CREATE TABLE bookmarks (

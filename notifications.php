@@ -45,11 +45,25 @@ $notifications = notify_fetch('user', $userId, 100);
             <?php
                 $isRead = (int)($n['is_read'] ?? 0) === 1;
                 $link = trim((string)($n['link'] ?? ''));
+                $type = strtolower(trim((string)($n['type'] ?? 'info')));
+                $accentClass = match ($type) {
+                    'success' => 'border-success-subtle',
+                    'warning' => 'border-warning-subtle',
+                    'danger' => 'border-danger-subtle',
+                    default => 'border-info-subtle',
+                };
+                $typeBadge = match ($type) {
+                    'success' => 'bg-success',
+                    'warning' => 'bg-warning text-dark',
+                    'danger' => 'bg-danger',
+                    default => 'bg-info text-dark',
+                };
             ?>
-            <div class="list-group-item d-flex justify-content-between align-items-start<?= $isRead ? '' : ' list-group-item-warning' ?>">
+            <div class="list-group-item d-flex justify-content-between align-items-start border-start border-4 <?= $isRead ? $accentClass : 'list-group-item-warning ' . $accentClass ?>">
                 <div class="me-3">
                     <div class="d-flex align-items-center gap-2">
                         <strong><?= htmlspecialchars($n['title']) ?></strong>
+                        <span class="badge <?= $typeBadge ?>"><?= ucfirst($type) ?></span>
                         <?php if (!$isRead): ?>
                             <span class="badge bg-warning text-dark">Unread</span>
                         <?php endif; ?>

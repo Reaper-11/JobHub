@@ -11,7 +11,13 @@ if ($jobId <= 0) {
     exit;
 }
 
-$stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? LIMIT 1");
+$stmt = $conn->prepare("
+    SELECT j.*, c.name AS company_name
+    FROM jobs j
+    LEFT JOIN companies c ON c.id = j.company_id
+    WHERE j.id = ?
+    LIMIT 1
+");
 $stmt->bind_param("i", $jobId);
 $stmt->execute();
 $result = $stmt->get_result();
@@ -39,11 +45,14 @@ $stmt->close();
             <div class="card-body">
                 <h2 class="h4"><?php echo htmlspecialchars($job['title']); ?></h2>
                 <p class="text-muted">
-                    <?php echo htmlspecialchars($job['company']); ?> |
+                    <?php echo htmlspecialchars($job['company_name'] ?: $job['company']); ?> |
                     <?php echo htmlspecialchars($job['location']); ?>
                     <?php if (!empty($job['type'])): ?>
                         <span class="badge text-bg-warning ms-2"><?php echo htmlspecialchars($job['type']); ?></span>
                     <?php endif; ?>
+                    <span class="badge <?= job_approval_badge_class((int)($job['is_approved'] ?? 0)) ?> ms-2">
+                        <?= job_approval_label((int)($job['is_approved'] ?? 0)) ?>
+                    </span>
                 </p>
                 <?php if (!empty($job['created_at'])): ?>
                     <p class="text-muted"><strong>Posted Date:</strong> <?php echo htmlspecialchars($job['created_at']); ?></p>
@@ -56,6 +65,10 @@ $stmt->close();
                 <?php endif; ?>
                 <?php if (!empty($job['description'])): ?>
                     <p class="mb-0"><?php echo nl2br(htmlspecialchars($job['description'])); ?></p>
+                <?php endif; ?>
+                <?php if (!empty($job['admin_remarks'])): ?>
+                    <hr>
+                    <p class="mb-0"><strong>Admin Remarks:</strong> <?php echo nl2br(htmlspecialchars($job['admin_remarks'])); ?></p>
                 <?php endif; ?>
             </div>
         </div>

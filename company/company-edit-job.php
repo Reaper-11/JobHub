@@ -25,8 +25,10 @@ if (!$job) {
 
 $msg = $msg_type = '';
 $categories = require __DIR__ . '/../includes/categories.php';
+$jobTypes = require __DIR__ . '/../includes/job_types.php';
 $categoryError = '';
 $experienceError = '';
+$jobTypeError = '';
 $experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
 $hasSkillsRequiredColumn = false;
 $isVerified = true;
@@ -79,6 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         $msg = "Please select a valid experience level.";
         $msg_type = 'danger';
         $experienceError = "Invalid experience level selected.";
+    } elseif (!in_array($type, $jobTypes, true)) {
+        $msg = "Please select a valid job type.";
+        $msg_type = 'danger';
+        $jobTypeError = "Invalid job type selected.";
     } elseif (!in_array($category, $categories, true)) {
         $msg = "Please correct the errors below.";
         $msg_type = 'danger';
@@ -88,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             $stmt = $conn->prepare("
                 UPDATE jobs SET 
                     title = ?, location = ?, type = ?, category = ?, 
-                    salary = ?, application_duration = ?, experience_level = ?, skills_required = ?, description = ?, updated_at = NOW()
+                    salary = ?, application_duration = ?, experience_level = ?, skills_required = ?, description = ?, is_approved = 0, approved_by = NULL, approved_at = NULL, admin_remarks = NULL, updated_at = NOW()
                 WHERE id = ? AND company_id = ?
             ");
             $stmt->bind_param("sssssssssii", $title, $location, $type, $category, $salary, $duration, $experienceLevel, $skillsRequired, $description, $jobId, $cid);
@@ -96,14 +102,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             $stmt = $conn->prepare("
                 UPDATE jobs SET 
                     title = ?, location = ?, type = ?, category = ?, 
-                    salary = ?, application_duration = ?, experience_level = ?, description = ?, updated_at = NOW()
+                    salary = ?, application_duration = ?, experience_level = ?, description = ?, is_approved = 0, approved_by = NULL, approved_at = NULL, admin_remarks = NULL, updated_at = NOW()
                 WHERE id = ? AND company_id = ?
             ");
             $stmt->bind_param("ssssssssii", $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description, $jobId, $cid);
         }
 
         if ($stmt->execute()) {
-            $msg = "Job updated successfully!";
+            $msg = "Job updated successfully and resubmitted for admin approval.";
             $msg_type = 'success';
             $job = array_merge($job, [
                 'title' => $title,
@@ -115,7 +121,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 'experience_level' => $experienceLevel,
                 'skills_required' => $skillsRequired,
                 'description' => $description,
+                'is_approved' => 0,
+                'admin_remarks' => null,
             ]);
+            log_activity(
+                $conn,
+                $cid,
+                'company',
+                'job_updated',
+                "Company updated job: {$title}",
+                'job',
+                $jobId
+            );
         } else {
             $msg = "Update failed.";
             $msg_type = 'danger';
@@ -158,14 +175,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <div class="mb-3">
                 <label class="form-label">Job Type</label>
                 <select name="type" class="form-select">
-                    <?php
-                        $types = ['Full-time', 'Part-time', 'Contract', 'Remote', 'Internship'];
-                        $currentType = $job['type'] ?? '';
-                    ?>
-                    <?php foreach ($types as $t): ?>
+                    <?php $currentType = $job['type'] ?? ''; ?>
+                    <?php foreach ($jobTypes as $t): ?>
                         <option value="<?= htmlspecialchars($t) ?>" <?= $currentType === $t ? 'selected' : '' ?>><?= htmlspecialchars($t) ?></option>
                     <?php endforeach; ?>
                 </select>
+                <?php if ($jobTypeError): ?>
+                    <div class="text-danger small mt-1"><?= htmlspecialchars($jobTypeError) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">

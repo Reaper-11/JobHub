@@ -114,10 +114,13 @@ if (!function_exists('recommendJobs')) {
                 {$skillsRequiredSelect},
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
             FROM jobs j
+            LEFT JOIN companies c ON c.id = j.company_id
             LEFT JOIN job_skills js ON js.job_id = j.id
             LEFT JOIN skills s ON s.id = js.skill_id
             LEFT JOIN applications a ON a.job_id = j.id AND a.user_id = ?
             WHERE j.status = 'active'
+              AND (j.company_id IS NULL OR c.is_approved = 1)
+              AND j.is_approved = 1
               AND a.id IS NULL
               AND j.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
             GROUP BY j.id
@@ -473,11 +476,14 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
                 GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list,
                 COUNT(v.id) AS view_count
             FROM jobs j
+            LEFT JOIN companies c ON c.id = j.company_id
             LEFT JOIN job_view_logs v ON v.job_id = j.id AND v.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
             LEFT JOIN job_skills js ON js.job_id = j.id
             LEFT JOIN skills s ON s.id = js.skill_id
             LEFT JOIN applications a ON a.job_id = j.id AND a.user_id = ?
             WHERE j.status = 'active'
+              AND (j.company_id IS NULL OR c.is_approved = 1)
+              AND j.is_approved = 1
               AND a.id IS NULL
             GROUP BY j.id
             ORDER BY view_count DESC, j.created_at DESC
@@ -517,10 +523,13 @@ function recommend_trending_jobs($pdo, $userId, $limit, $hasViewLogs, $jobColumn
             {$skillsRequiredSelect},
             GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
         FROM jobs j
+        LEFT JOIN companies c ON c.id = j.company_id
         LEFT JOIN job_skills js ON js.job_id = j.id
         LEFT JOIN skills s ON s.id = js.skill_id
         LEFT JOIN applications a ON a.job_id = j.id AND a.user_id = ?
         WHERE j.status = 'active'
+          AND (j.company_id IS NULL OR c.is_approved = 1)
+          AND j.is_approved = 1
           AND a.id IS NULL
         GROUP BY j.id
         ORDER BY j.created_at DESC
@@ -785,4 +794,156 @@ function recommend_table_columns($pdo, $table): array {
         }
     }
     return $cols;
+}
+
+if (!function_exists('recommend_job_match_for_user')) {
+    function recommend_job_match_for_user($pdo, $userId, $job): array {
+        global $RECOMMENDATION_CONFIG;
+
+        $userId = (int)$userId;
+        if ($userId <= 0 || !$pdo || empty($job)) {
+            return ['matched' => false, 'score' => 0, 'reasons' => []];
+        }
+
+        $userColumns = recommend_table_columns($pdo, 'users');
+        $user = recommend_fetch_user_profile($pdo, $userId, $userColumns);
+        if (empty($user)) {
+            return ['matched' => false, 'score' => 0, 'reasons' => []];
+        }
+
+        $weights = $RECOMMENDATION_CONFIG['weights'];
+        $score = 0;
+        $reasons = [];
+
+        $preferredCategory = strtolower(trim((string)($user['preferred_category'] ?? '')));
+        $preferredExperience = trim((string)($user['experience_level'] ?? ''));
+        $preferredLocation = trim((string)($user['preferred_location'] ?? ''));
+        $preferredJobType = trim((string)($user['preferred_job_type'] ?? ''));
+        $userSkills = recommend_get_user_skills($pdo, $userId, $userColumns);
+
+        $jobCategory = strtolower(trim((string)($job['category'] ?? '')));
+        $jobExperience = trim((string)($job['experience_level'] ?? ''));
+        $jobLocation = trim((string)($job['location'] ?? ''));
+        $jobType = trim((string)($job['type'] ?? ''));
+        $jobSkills = recommend_get_job_skills($job);
+
+        if ($preferredCategory !== '' && $jobCategory !== '' && $preferredCategory === $jobCategory) {
+            $score += $weights['category_match'];
+            $reasons[] = 'preferred category';
+        }
+
+        if ($preferredExperience !== '' && $jobExperience !== '' && strcasecmp($preferredExperience, $jobExperience) === 0) {
+            $score += $weights['experience_match'];
+            $reasons[] = 'experience level';
+        }
+
+        if ($preferredLocation !== '' && $jobLocation !== '' && recommend_location_exact($preferredLocation, $jobLocation)) {
+            $score += $weights['location_match'];
+            $reasons[] = 'preferred location';
+        }
+
+        if ($preferredJobType !== '' && $jobType !== '' && strcasecmp($preferredJobType, $jobType) === 0) {
+            $score += $weights['job_type_match'];
+            $reasons[] = 'job type';
+        }
+
+        $skillMatches = recommend_skill_overlap($userSkills, $jobSkills, $RECOMMENDATION_CONFIG['max_overlap']);
+        if (!empty($skillMatches)) {
+            $score += count($skillMatches) * $weights['skill_match'];
+            $reasons[] = 'skills: ' . implode(', ', array_slice($skillMatches, 0, 3));
+        }
+
+        $matched = false;
+        if ($preferredCategory !== '' && $jobCategory !== '' && $preferredCategory === $jobCategory) {
+            $matched = true;
+        } elseif (!empty($skillMatches)) {
+            $matched = true;
+        } elseif (
+            $preferredExperience !== '' &&
+            $jobExperience !== '' &&
+            strcasecmp($preferredExperience, $jobExperience) === 0 &&
+            (
+                ($preferredCategory !== '' && $jobCategory !== '' && $preferredCategory === $jobCategory) ||
+                !empty($skillMatches)
+            )
+        ) {
+            $matched = true;
+        }
+
+        return [
+            'matched' => $matched,
+            'score' => $score,
+            'reasons' => array_values(array_unique($reasons)),
+        ];
+    }
+}
+
+if (!function_exists('recommend_matching_seekers_for_job')) {
+    function recommend_matching_seekers_for_job($pdo, $jobId): array {
+        $jobId = (int)$jobId;
+        if ($jobId <= 0 || !$pdo) {
+            return [];
+        }
+
+        $jobColumns = recommend_table_columns($pdo, 'jobs');
+        $skillsRequiredSelect = in_array('skills_required', $jobColumns, true) ? ", j.skills_required" : ", '' AS skills_required";
+        $job = db_query_all("
+            SELECT
+                j.id, j.title, j.category, j.location, j.type, j.experience_level
+                {$skillsRequiredSelect},
+                GROUP_CONCAT(DISTINCT s.name ORDER BY s.name SEPARATOR ',') AS skill_list
+            FROM jobs j
+            LEFT JOIN job_skills js ON js.job_id = j.id
+            LEFT JOIN skills s ON s.id = js.skill_id
+            WHERE j.id = ?
+            GROUP BY j.id
+            LIMIT 1
+        ", "i", [$jobId])[0] ?? null;
+
+        if (!$job) {
+            return [];
+        }
+
+        $users = db_query_all("
+            SELECT id
+            FROM users
+            WHERE role = 'seeker'
+              AND account_status = 'active'
+              AND is_active = 1
+            ORDER BY id ASC
+        ");
+
+        $matches = [];
+        foreach ($users as $user) {
+            $userId = (int)($user['id'] ?? 0);
+            if ($userId <= 0) {
+                continue;
+            }
+
+            $existingApplication = db_query_value(
+                "SELECT id FROM applications WHERE user_id = ? AND job_id = ? LIMIT 1",
+                "ii",
+                [$userId, $jobId],
+                null
+            );
+            if ($existingApplication) {
+                continue;
+            }
+
+            $result = recommend_job_match_for_user($pdo, $userId, $job);
+            if (!empty($result['matched'])) {
+                $matches[] = [
+                    'user_id' => $userId,
+                    'score' => (int)($result['score'] ?? 0),
+                    'reasons' => $result['reasons'] ?? [],
+                ];
+            }
+        }
+
+        usort($matches, function ($a, $b) {
+            return ($b['score'] ?? 0) <=> ($a['score'] ?? 0);
+        });
+
+        return $matches;
+    }
 }

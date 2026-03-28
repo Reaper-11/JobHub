@@ -44,6 +44,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($stmt->execute()) {
                     $company_id = $conn->insert_id;
 
+                    log_activity(
+                        $conn,
+                        $company_id,
+                        'company',
+                        'company_registration',
+                        "New company registered: {$name}",
+                        'company',
+                        $company_id
+                    );
+
                     $_SESSION['company_id'] = $company_id;
                     $_SESSION['company_name'] = $name;
 

@@ -36,7 +36,7 @@ $hasSidebarLayout = true;
             </li>
             <li class="nav-item">
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-jobs.php' ? 'active' : '' ?>" 
-                   href="admin-jobs.php">Jobs</a>
+                   href="admin-jobs.php">Job Approval</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-companies.php' ? 'active' : '' ?>" 
@@ -49,6 +49,10 @@ $hasSidebarLayout = true;
             <li class="nav-item">
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-users.php' ? 'active' : '' ?>" 
                    href="admin-users.php">Users</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'activity-monitor.php' ? 'active' : '' ?>" 
+                   href="activity-monitor.php">Activity Monitor</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-applications.php' ? 'active' : '' ?>" 

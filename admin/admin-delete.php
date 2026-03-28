@@ -11,16 +11,13 @@ $return = isset($input['return']) ? $input['return'] : 'admin-dashboard.php';
 
 if (in_array($table, $allowed) && $id > 0) {
     if ($table === 'users') {
-        $reason = isset($input['reason']) ? trim($input['reason']) : '';
-        if ($reason !== '') {
-            $adminId = (int) $_SESSION['admin_id'];
-            $stmt = $conn->prepare(
-                "INSERT INTO user_deletion_reasons (user_id, admin_id, reason) VALUES (?, ?, ?)"
-            );
-            $stmt->bind_param("iis", $id, $adminId, $reason);
+        $adminId = (int) $_SESSION['admin_id'];
+        $stmt = $conn->prepare("UPDATE users SET account_status = 'removed', is_active = 0, updated_at = NOW() WHERE id = ?");
+        if ($stmt) {
+            $stmt->bind_param("i", $id);
             $stmt->execute();
             $stmt->close();
-            $conn->query("DELETE FROM users WHERE id=$id");
+            log_activity($conn, $adminId, 'admin', 'user_removed', "Admin removed user account #{$id}", 'user', $id);
         }
     } else {
         $conn->query("DELETE FROM $table WHERE id=$id");

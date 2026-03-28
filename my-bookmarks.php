@@ -41,6 +41,7 @@ $sql = "SELECT b.id AS bookmark_id, b.created_at AS bookmarked_at,
         LEFT JOIN companies c ON j.company_id = c.id
         WHERE b.user_id = ?
           AND j.status = 'active'
+          AND j.is_approved = 1
           AND (j.company_id IS NULL OR c.is_approved = 1)
         ORDER BY b.created_at DESC";
 

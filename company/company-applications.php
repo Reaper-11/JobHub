@@ -35,6 +35,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $allowed_statuses = ['pending', 'shortlisted', 'interview', 'approved', 'rejected'];
 
     if ($app_id > 0 && in_array($new_status, $allowed_statuses, true)) {
+        $currentApplication = db_query_all("
+            SELECT a.id, a.user_id, a.status, j.title AS job_title,
+                   COALESCE(c.name, j.company, 'Company') AS company_name
+            FROM applications a
+            JOIN jobs j ON j.id = a.job_id
+            LEFT JOIN companies c ON c.id = j.company_id
+            WHERE a.id = ? AND j.company_id = ?
+            LIMIT 1
+        ", "ii", [$app_id, $cid])[0] ?? null;
+
+        if (!$currentApplication) {
+            $msg = "Application not found.";
+            $msg_type = 'danger';
+        } elseif (strcasecmp((string)$currentApplication['status'], $new_status) === 0) {
+            $msg = "Application already has that status.";
+            $msg_type = 'info';
+        } else {
         $stmt = $conn->prepare("
             UPDATE applications
             SET status = ?, updated_at = NOW()
@@ -46,46 +63,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             $msg = "Application status updated.";
             $msg_type = 'success';
 
-            $info = db_query_all("
-                SELECT a.user_id,
-                       u.name AS user_name, u.email AS user_email,
-                       j.title AS job_title,
-                       COALESCE(c.name, j.company, 'Company') AS company_name
-                FROM applications a
-                JOIN users u ON u.id = a.user_id
-                JOIN jobs j ON j.id = a.job_id
-                LEFT JOIN companies c ON c.id = j.company_id
-                WHERE a.id = ? AND j.company_id = ?
-                LIMIT 1
-            ", "ii", [$app_id, $cid])[0] ?? null;
+            $jobTitle = $currentApplication['job_title'] ?? 'your application';
+            $companyName = $currentApplication['company_name'] ?? 'the company';
+            $statusLabel = notify_status_label($new_status);
 
-            if ($info) {
-                $jobTitle = $info['job_title'] ?? 'your application';
-                $companyName = $info['company_name'] ?? 'the company';
-
-                $title = 'Application Update';
-                $message = "Your application for {$jobTitle} at {$companyName} was updated.";
-                if ($new_status === 'approved') {
-                    $title = 'Application Accepted';
-                    $message = "Your application for {$jobTitle} at {$companyName} was accepted.";
-                } elseif ($new_status === 'rejected') {
-                    $title = 'Application Rejected';
-                    $message = "Your application for {$jobTitle} at {$companyName} was rejected.";
-                } elseif ($new_status === 'interview') {
-                    $title = 'Interview Invitation';
-                    $message = "You have been invited to an interview for {$jobTitle} at {$companyName}.";
-                } elseif ($new_status === 'shortlisted') {
-                    $title = 'Application Shortlisted';
-                    $message = "Your application for {$jobTitle} at {$companyName} was shortlisted.";
-                }
-
-                notify_create('user', (int)$info['user_id'], $title, $message, 'my-applications.php');
-            }
+            notify_create(
+                'user',
+                (int)$currentApplication['user_id'],
+                'Application Status Updated',
+                'Your application for "' . $jobTitle . '" at ' . $companyName . ' has been updated to "' . $statusLabel . '".',
+                'my-applications.php',
+                notify_status_type($new_status),
+                'application',
+                $app_id
+            );
         } else {
             $msg = "Update failed.";
             $msg_type = 'danger';
         }
         $stmt->close();
+        }
     } else {
         $msg = "Invalid status selection.";
         $msg_type = 'danger';
@@ -126,8 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     <td><?= htmlspecialchars($app['user_email']) ?></td>
                     <td>
                         <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
-                        <?php if (!empty($cvPath)): ?>
-                            <a class="btn btn-sm btn-outline-secondary" href="../<?= htmlspecialchars($cvPath) ?>" target="_blank" rel="noopener">View CV</a>
+                        <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle me-2">Attached</span>
+                            <a class="btn btn-sm btn-outline-secondary" href="../cv-download.php?scope=application&id=<?= (int) $app['id'] ?>" target="_blank" rel="noopener">View CV</a>
                         <?php else: ?>
                             <span class="text-muted">N/A</span>
                         <?php endif; ?>

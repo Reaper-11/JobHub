@@ -104,6 +104,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $user_id = $conn->insert_id;
                             $debug_info[] = "insert_ok=yes";
 
+                            log_activity(
+                                $conn,
+                                $user_id,
+                                'seeker',
+                                'user_registration',
+                                "New user registered: {$name}",
+                                'user',
+                                $user_id
+                            );
+
                             $_SESSION['user_id']   = $user_id;
                             $_SESSION['user_name'] = $name;
                             $_SESSION['role']      = 'seeker';

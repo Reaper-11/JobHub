@@ -71,6 +71,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
             $msg = $action === 'approve' ? "Verification approved successfully." : "Verification rejected successfully.";
             $msg_type = 'success';
 
+            log_activity(
+                $conn,
+                $adminId,
+                'admin',
+                $action === 'approve' ? 'company_verification_approved' : 'company_verification_rejected',
+                $action === 'approve'
+                    ? "Admin approved company verification for {$record['name']}"
+                    : "Admin rejected company verification for {$record['name']}",
+                'company',
+                $companyId
+            );
+
             $title = $action === 'approve' ? 'Company Verification Approved' : 'Company Verification Rejected';
             $message = $action === 'approve'
                 ? 'Your company verification request has been approved. You can now post new jobs.'

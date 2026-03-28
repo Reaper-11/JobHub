@@ -17,8 +17,8 @@ $approved    = db_query_value("SELECT COUNT(*) FROM applications WHERE status = 
 
 // Fetch recent applications (limit 50 for performance)
 $applications = db_query_all("
-    SELECT a.id, a.status, a.applied_at, a.cover_letter,
-           u.name AS user_name, u.email AS user_email,
+    SELECT a.id, a.status, a.applied_at, a.cover_letter, a.cv_path,
+           u.name AS user_name, u.email AS user_email, u.cv_path AS user_cv_path,
            j.title AS job_title, j.company AS job_company,
            j.location AS job_location
     FROM applications a
@@ -83,6 +83,7 @@ $applications = db_query_all("
                         <th>Job Title</th>
                         <th>Applicant</th>
                         <th>Email</th>
+                        <th>CV</th>
                         <th>Status</th>
                         <th>Applied</th>
                         <th>Actions</th>
@@ -90,7 +91,7 @@ $applications = db_query_all("
                 </thead>
                 <tbody>
                 <?php if (empty($applications)): ?>
-                    <tr><td colspan="7" class="text-center py-5 text-muted">No applications found.</td></tr>
+                    <tr><td colspan="8" class="text-center py-5 text-muted">No applications found.</td></tr>
                 <?php else: ?>
                     <?php foreach ($applications as $app): ?>
                         <tr>
@@ -98,6 +99,14 @@ $applications = db_query_all("
                             <td><?= htmlspecialchars($app['job_title']) ?></td>
                             <td><?= htmlspecialchars($app['user_name']) ?></td>
                             <td><?= htmlspecialchars($app['user_email']) ?></td>
+                            <td>
+                                <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
+                                <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
+                                    <a href="../cv-download.php?scope=application&id=<?= (int) $app['id'] ?>" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">View CV</a>
+                                <?php else: ?>
+                                    <span class="text-muted">N/A</span>
+                                <?php endif; ?>
+                            </td>
                             <td>
                                 <?php
                                 $status = strtolower($app['status'] ?? 'pending');

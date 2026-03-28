@@ -3,21 +3,65 @@ require 'db.php';
 
 $keyword = trim($_GET['q'] ?? '');
 $filter  = trim($_GET['filter'] ?? '');
+$location = trim($_GET['location'] ?? '');
+$salary = trim($_GET['salary'] ?? '');
+$jobType = trim($_GET['job_type'] ?? '');
+$experience = trim($_GET['experience'] ?? '');
 
 $categories = require __DIR__ . '/includes/categories.php';
+$experienceLevels = require __DIR__ . '/includes/experience_levels.php';
+$jobTypes = require __DIR__ . '/includes/job_types.php';
 
-if (isset($_SESSION['user_id']) && ($keyword !== '' || $filter !== '')) {
+$selectedCategory = in_array($filter, $categories, true) ? $filter : '';
+$selectedExperience = in_array($experience, $experienceLevels, true) ? $experience : '';
+$selectedJobType = in_array($jobType, $jobTypes, true) ? $jobType : '';
+$activeLocation = $location !== '' ? $location : '';
+$activeSalary = $salary !== '' ? $salary : '';
+$hasActiveFilters = (
+    $keyword !== '' ||
+    $selectedCategory !== '' ||
+    $selectedExperience !== '' ||
+    $activeLocation !== '' ||
+    $activeSalary !== '' ||
+    $selectedJobType !== ''
+);
+
+if (isset($_SESSION['user_id']) && $hasActiveFilters) {
     $hasSearchLogsTable = $conn->query("SHOW TABLES LIKE 'job_search_logs'");
     if ($hasSearchLogsTable && $hasSearchLogsTable->num_rows > 0) {
+        $hasJobTypeColumn = false;
+        $logJobTypeColumn = $conn->query("SHOW COLUMNS FROM job_search_logs LIKE 'job_type'");
+        if ($logJobTypeColumn) {
+            $hasJobTypeColumn = $logJobTypeColumn->num_rows > 0;
+            $logJobTypeColumn->close();
+        }
+
+        $logColumns = ['user_id', 'keyword', 'category', 'location'];
+        $logValues = ['?', '?', '?', '?'];
+        $logTypes = 'isss';
+        $logParams = [
+            (int) $_SESSION['user_id'],
+            $keyword !== '' ? $keyword : null,
+            $selectedCategory !== '' ? $selectedCategory : null,
+            $activeLocation !== '' ? $activeLocation : null,
+        ];
+
+        if ($hasJobTypeColumn) {
+            $logColumns[] = 'job_type';
+            $logValues[] = '?';
+            $logTypes .= 's';
+            $logParams[] = $selectedJobType !== '' ? $selectedJobType : null;
+        }
+
+        $logColumns[] = 'created_at';
+        $logValues[] = 'NOW()';
+
         $logStmt = $conn->prepare("
-            INSERT INTO job_search_logs (user_id, keyword, category, created_at)
-            VALUES (?, ?, ?, NOW())
+            INSERT INTO job_search_logs (" . implode(', ', $logColumns) . ")
+            VALUES (" . implode(', ', $logValues) . ")
         ");
         if ($logStmt) {
-            $userId = (int) $_SESSION['user_id'];
-            $keywordValue = $keyword !== '' ? $keyword : null;
-            $categoryValue = ($filter !== '' && in_array($filter, $categories, true)) ? $filter : null;
-            $logStmt->bind_param("iss", $userId, $keywordValue, $categoryValue);
+            $logStmt->bind_param($logTypes, ...$logParams);
             $logStmt->execute();
             $logStmt->close();
         }
@@ -31,6 +75,7 @@ $sql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
         FROM jobs j
         LEFT JOIN companies c ON j.company_id = c.id
         WHERE (j.company_id IS NULL OR c.is_approved = 1)
+          AND j.is_approved = 1
           AND j.status = 'active'";
 
 $types = '';
@@ -43,10 +88,34 @@ if ($keyword) {
     $params = [$like, $like, $like];
 }
 
-if ($filter && in_array($filter, $categories, true)) {
+if ($selectedCategory !== '') {
     $sql .= " AND j.category = ?";
     $types .= 's';
-    $params[] = $filter;
+    $params[] = $selectedCategory;
+}
+
+if ($selectedExperience !== '') {
+    $sql .= " AND j.experience_level = ?";
+    $types .= 's';
+    $params[] = $selectedExperience;
+}
+
+if ($activeLocation !== '') {
+    $sql .= " AND j.location LIKE ?";
+    $types .= 's';
+    $params[] = '%' . $activeLocation . '%';
+}
+
+if ($activeSalary !== '') {
+    $sql .= " AND j.salary LIKE ?";
+    $types .= 's';
+    $params[] = '%' . $activeSalary . '%';
+}
+
+if ($selectedJobType !== '') {
+    $sql .= " AND j.type = ?";
+    $types .= 's';
+    $params[] = $selectedJobType;
 }
 
 $sql .= " ORDER BY application_count DESC, j.created_at DESC LIMIT 50";
@@ -58,6 +127,7 @@ $topJobs = db_query_all(
      FROM jobs j
      LEFT JOIN companies c ON j.company_id = c.id
      WHERE (j.company_id IS NULL OR c.is_approved = 1)
+       AND j.is_approved = 1
        AND j.status = 'active'
      ORDER BY application_count DESC, j.created_at DESC
      LIMIT 6"
@@ -396,7 +466,7 @@ $basePath = '';
 
             <div class="max-w-4xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/60 p-4 md:p-6">
                 <form method="get" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                    <div class="md:col-span-6">
+                    <div class="md:col-span-4">
                         <div class="relative">
                             <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <input type="text" name="q" value="<?= htmlspecialchars($keyword) ?>"
@@ -409,20 +479,70 @@ $basePath = '';
                             <i class="fas fa-layer-group absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
                             <select name="filter"
                                 class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
-                                <option value="" disabled <?= $filter === '' ? 'selected' : '' ?>>Select category...</option>
+                                <option value="" <?= $selectedCategory === '' ? 'selected' : '' ?>>All categories</option>
                                 <?php foreach ($categories as $cat): ?>
-                                    <option value="<?= htmlspecialchars($cat) ?>" <?= $filter === $cat ? 'selected' : '' ?>>
+                                    <option value="<?= htmlspecialchars($cat) ?>" <?= $selectedCategory === $cat ? 'selected' : '' ?>>
                                         <?= htmlspecialchars($cat) ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
-                    <div class="md:col-span-2">
+                    <div class="md:col-span-4">
+                        <div class="relative">
+                            <i class="fas fa-user-clock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <select name="experience"
+                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
+                                <option value="" <?= $selectedExperience === '' ? 'selected' : '' ?>>Any experience</option>
+                                <?php foreach ($experienceLevels as $level): ?>
+                                    <option value="<?= htmlspecialchars($level) ?>" <?= $selectedExperience === $level ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($level) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="md:col-span-4">
+                        <div class="relative">
+                            <i class="fas fa-map-marker-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" name="location" value="<?= htmlspecialchars($activeLocation) ?>"
+                                placeholder="Location"
+                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
+                        </div>
+                    </div>
+                    <div class="md:col-span-4">
+                        <div class="relative">
+                            <i class="fas fa-money-bill-wave absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" name="salary" value="<?= htmlspecialchars($activeSalary) ?>"
+                                placeholder="Salary or range"
+                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
+                        </div>
+                    </div>
+                    <div class="md:col-span-4">
+                        <div class="relative">
+                            <i class="fas fa-briefcase absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <select name="job_type"
+                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
+                                <option value="" <?= $selectedJobType === '' ? 'selected' : '' ?>>Any job type</option>
+                                <?php foreach ($jobTypes as $typeOption): ?>
+                                    <option value="<?= htmlspecialchars($typeOption) ?>" <?= $selectedJobType === $typeOption ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($typeOption) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="md:col-span-4">
                         <button type="submit"
                             class="w-full px-6 py-3.5 bg-gradient-to-r from-[#1a237e] to-[#283593] text-white rounded-xl font-bold hover:opacity-90 transition shadow-md hover:shadow-lg">
                             Search
                         </button>
+                    </div>
+                    <div class="md:col-span-4">
+                        <a href="<?= $basePath ?>index.php"
+                            class="flex w-full items-center justify-center rounded-xl border border-gray-200 px-6 py-3.5 font-semibold text-gray-700 transition hover:bg-gray-50">
+                            Clear Filters
+                        </a>
                     </div>
                 </form>
             </div>
@@ -476,7 +596,16 @@ $basePath = '';
                                         <i class="fas fa-map-marker-alt text-xs text-[#1a237e]"></i>
                                     </div>
                                     <span class="text-gray-700 text-sm">
-                                        <?= htmlspecialchars($job['company']) ?> - <?= htmlspecialchars($job['location']) ?>
+                                        <?= htmlspecialchars($job['company']) ?> - <?= htmlspecialchars($job['location'] ?: 'Not specified') ?>
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="p-1.5 bg-[#1a237e]/10 rounded-lg">
+                                        <i class="fas fa-money-bill-wave text-xs text-[#1a237e]"></i>
+                                    </div>
+                                    <span class="text-gray-700 text-sm">
+                                        <?= htmlspecialchars($job['salary'] ?: 'Not specified') ?>
                                     </span>
                                 </div>
 
@@ -584,7 +713,16 @@ $basePath = '';
                                             <i class="fas fa-map-marker-alt text-xs text-[#ff9800]"></i>
                                         </div>
                                         <span class="text-gray-700 text-sm">
-                                            <?= htmlspecialchars($job['location']) ?>
+                                            <?= htmlspecialchars($job['location'] ?: 'Not specified') ?>
+                                        </span>
+                                    </div>
+
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <div class="p-1.5 bg-[#ff9800]/10 rounded-lg">
+                                            <i class="fas fa-money-bill-wave text-xs text-[#ff9800]"></i>
+                                        </div>
+                                        <span class="text-gray-700 text-sm">
+                                            <?= htmlspecialchars($job['salary'] ?: 'Not specified') ?>
                                         </span>
                                     </div>
 
@@ -651,6 +789,11 @@ $basePath = '';
                 <p class="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
                     Browse recently posted opportunities from approved employers
                 </p>
+                <?php if ($hasActiveFilters): ?>
+                    <p class="mt-4 text-sm font-medium text-gray-600">
+                        Showing <?= count($jobs) ?> filtered job result<?= count($jobs) === 1 ? '' : 's' ?>.
+                    </p>
+                <?php endif; ?>
             </div>
 
             <?php if (empty($jobs)): ?>
@@ -710,7 +853,16 @@ $basePath = '';
                                         <i class="fas fa-map-marker-alt text-xs text-[#1a237e]"></i>
                                     </div>
                                     <span class="text-gray-700 text-sm">
-                                        <?= htmlspecialchars($job['location']) ?>
+                                        <?= htmlspecialchars($job['location'] ?: 'Not specified') ?>
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="p-1.5 bg-[#1a237e]/10 rounded-lg">
+                                        <i class="fas fa-money-bill-wave text-xs text-[#1a237e]"></i>
+                                    </div>
+                                    <span class="text-gray-700 text-sm">
+                                        <?= htmlspecialchars($job['salary'] ?: 'Not specified') ?>
                                     </span>
                                 </div>
 
