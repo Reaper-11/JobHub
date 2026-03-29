@@ -11,6 +11,7 @@ $cid = (int)$_SESSION['company_id'];
 $msg = $msg_type = '';
 $pass_msg = $pass_type = '';
 $delete_msg = $delete_type = '';
+$accountAction = $_POST['action'] ?? '';
 
 // Fetch current company data
 $stmt = $conn->prepare("SELECT name, email, website, location, logo_path FROM companies WHERE id = ?");
@@ -19,18 +20,40 @@ $stmt->execute();
 $company = $stmt->get_result()->fetch_assoc() ?? [];
 $stmt->close();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_token'] ?? '')) {
+    if ($accountAction === 'password') {
+        $pass_msg = "Invalid request. Please try again.";
+        $pass_type = 'danger';
+    } elseif ($accountAction === 'delete') {
+        $delete_msg = "Invalid request. Please try again.";
+        $delete_type = 'danger';
+    } else {
+        $msg = "Invalid request. Please try again.";
+        $msg_type = 'danger';
+    }
+}
+
 // Update profile
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'profile' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && $delete_msg === '' && $accountAction === 'profile') {
     $name    = trim($_POST['name'] ?? '');
-    $email   = trim($_POST['email'] ?? '');
+    $email   = strtolower(trim($_POST['email'] ?? ''));
     $website = trim($_POST['website'] ?? '');
     $location = trim($_POST['location'] ?? '');
 
-    if (empty($name) || empty($email)) {
-        $msg = "Name and email are required.";
+    if (empty($name) || empty($email) || empty($location)) {
+        $msg = "Company name, email, and location are required.";
+        $msg_type = 'danger';
+    } elseif ($nameError = jobhub_validate_company_name($name)) {
+        $msg = $nameError;
         $msg_type = 'danger';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $msg = "Invalid email format.";
+        $msg_type = 'danger';
+    } elseif ($website !== '' && !filter_var($website, FILTER_VALIDATE_URL)) {
+        $msg = "Please enter a valid website URL.";
+        $msg_type = 'danger';
+    } elseif ($locationError = jobhub_validate_location_value($location)) {
+        $msg = $locationError;
         $msg_type = 'danger';
     } else {
         // Check email uniqueness (exclude self)
@@ -61,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Change password
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'password' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && $delete_msg === '' && $accountAction === 'password') {
     $current = $_POST['current_password'] ?? '';
     $new     = $_POST['new_password'] ?? '';
     $confirm = $_POST['confirm_password'] ?? '';
@@ -72,8 +95,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     } elseif ($new !== $confirm) {
         $pass_msg = "New passwords do not match.";
         $pass_type = 'danger';
-    } elseif (strlen($new) < 8) {
-        $pass_msg = "New password must be at least 8 characters.";
+    } elseif ($passwordError = jobhub_validate_password_strength($new)) {
+        $pass_msg = $passwordError;
         $pass_type = 'danger';
     } else {
         $stmt = $conn->prepare("SELECT password FROM companies WHERE id = ?");
@@ -83,7 +106,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $row = $result->fetch_assoc();
         $stmt->close();
 
-        if ($row && password_verify($current, $row['password'])) {
+        if ($row && jobhub_verify_password_with_upgrade($conn, 'companies', $cid, $current, (string)$row['password'])) {
+            // password_hash() is used when the company updates the password.
             $newHash = password_hash($new, PASSWORD_DEFAULT);
             $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
             $stmt->bind_param("si", $newHash, $cid);
@@ -103,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Delete account (very dangerous – confirm twice)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && $delete_msg === '' && $accountAction === 'delete') {
     $confirm_pass = $_POST['confirm_password'] ?? '';
 
     $stmt = $conn->prepare("SELECT password FROM companies WHERE id = ?");
@@ -113,14 +137,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $row = $result->fetch_assoc();
     $stmt->close();
 
-    if ($row && password_verify($confirm_pass, $row['password'])) {
+    if ($row && jobhub_verify_password_with_upgrade($conn, 'companies', $cid, $confirm_pass, (string)$row['password'])) {
         // Delete related jobs first
-        $conn->prepare("DELETE FROM jobs WHERE company_id = ?")->bind_param("i", $cid)->execute();
+        $deleteJobsStmt = $conn->prepare("DELETE FROM jobs WHERE company_id = ?");
+        if ($deleteJobsStmt) {
+            $deleteJobsStmt->bind_param("i", $cid);
+            $deleteJobsStmt->execute();
+            $deleteJobsStmt->close();
+        }
         // Delete company
         $stmt = $conn->prepare("DELETE FROM companies WHERE id = ?");
         $stmt->bind_param("i", $cid);
         if ($stmt->execute()) {
-            session_destroy();
+            jobhub_destroy_session();
             header("Location: ../index.php?msg=company_deleted");
             exit;
         } else {
@@ -215,7 +244,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
                     <div class="mb-4">
                         <label class="form-label">Location</label>
-                        <input type="text" name="location" class="form-control" value="<?= htmlspecialchars($company['location'] ?? '') ?>">
+                        <input type="text" name="location" class="form-control" value="<?= htmlspecialchars($company['location'] ?? '') ?>" required>
                     </div>
 
                     <button type="submit" class="btn btn-primary">Update Profile</button>
@@ -247,6 +276,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                     <div class="mb-3">
                         <label class="form-label">New Password *</label>
                         <input type="password" name="new_password" class="form-control" required minlength="8">
+                        <div class="form-text">Use at least 8 characters with one letter and one number.</div>
                     </div>
 
                     <div class="mb-4">

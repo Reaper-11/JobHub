@@ -68,6 +68,10 @@ $bodyClass = isset($bodyClass) ? trim($bodyClass) : '';
                     <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>admin/dashboard.php">Admin Panel</a></li>
                 <?php endif; ?>
 
+                <?php if ($isJobSeeker || $isCompany): ?>
+                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>contact-support.php">Contact Support</a></li>
+                <?php endif; ?>
+
                 <?php if ($isLoggedIn): ?>
                     <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>logout.php">Logout</a></li>
                 <?php else: ?>

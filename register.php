@@ -23,9 +23,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg = "Invalid request. Please try again.";
     } else {
         $name      = trim($_POST['name'] ?? '');
-        $email     = trim($_POST['email'] ?? '');
+        $email     = strtolower(trim($_POST['email'] ?? ''));
         $phone     = trim($_POST['phone'] ?? '');
         $password  = $_POST['password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
         $category  = trim($_POST['preferred_category'] ?? '');
         $experience_level = trim($_POST['experience_level'] ?? '');
         $debug_info[] = "name_len=" . strlen($name);
@@ -40,8 +41,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($name) || empty($email) || empty($password) || empty($category)) {
             $msg = "All required fields must be filled.";
             $has_error = true;
+        } elseif ($nameError = jobhub_validate_person_name($name)) {
+            $msg = $nameError;
+            $has_error = true;
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $msg = "Please enter a valid email address.";
+            $has_error = true;
+        } elseif ($password !== $confirm_password) {
+            $msg = "Password and confirmation do not match.";
             $has_error = true;
         }
 
@@ -62,8 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if (!$has_error && strlen($password) < 8) {
-            $msg = "Password must be at least 8 characters long.";
+        if (!$has_error && ($passwordError = jobhub_validate_password_strength($password))) {
+            $msg = $passwordError;
             $has_error = true;
         }
 
@@ -90,6 +97,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($stmt->num_rows > 0) {
                     $msg = "This email is already registered.";
                 } else {
+                    // password_hash() stores new passwords securely in the database.
                     $hash = password_hash($password, PASSWORD_DEFAULT);
 
                     $insert = $conn->prepare("
@@ -114,9 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 $user_id
                             );
 
-                            $_SESSION['user_id']   = $user_id;
-                            $_SESSION['user_name'] = $name;
-                            $_SESSION['role']      = 'seeker';
+                            jobhub_complete_login('seeker', $user_id, $name, 'seeker');
 
                             header("Location: index.php?welcome=1");
                             exit;
@@ -218,7 +224,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="mb-4">
                         <label class="form-label">Password <span class="text-danger">*</span></label>
                         <input type="password" name="password" class="form-control" required minlength="8">
-                        <div class="form-text">Minimum 8 characters</div>
+                        <div class="form-text">Minimum 8 characters with at least one letter and one number.</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                        <input type="password" name="confirm_password" class="form-control" required minlength="8">
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100 mb-3">

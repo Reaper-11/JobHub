@@ -668,7 +668,7 @@ $basePath = '';
                         <div class="h-px w-12 md:w-20 bg-gradient-to-r from-transparent via-[#ff9800] to-transparent"></div>
                     </div>
                     <p class="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
-                        Personalized openings based on your preferences and recent activity
+                        Personalized openings based on your profile, preferred category, experience, and skills
                     </p>
                 </div>
 
@@ -732,7 +732,7 @@ $basePath = '';
 
                                     <?php if (!empty($job['reason_text'])): ?>
                                         <div class="mb-4 rounded-lg bg-orange-50 border border-orange-100 px-3 py-2 text-xs text-orange-800">
-                                            <?= htmlspecialchars($job['reason_text']) ?>
+                                            Recommended because: <?= htmlspecialchars($job['reason_text']) ?>
                                         </div>
                                     <?php endif; ?>
 
@@ -765,7 +765,7 @@ $basePath = '';
                             Recommendations Are Warming Up
                         </h3>
                         <p class="text-lg md:text-xl text-gray-700 mb-8 max-w-2xl mx-auto leading-relaxed">
-                            Update your profile and preferences to unlock personalized job matches.
+                            Add your preferred category, experience level, and skills to unlock personalized job matches.
                         </p>
                         <div class="flex flex-col sm:flex-row gap-4 justify-center">
                             <a href="<?= $basePath ?>user-account.php"
@@ -1037,25 +1037,15 @@ $basePath = '';
             </p>
 
             <div class="flex flex-wrap justify-center gap-6 md:gap-8 mb-12">
-                <a href="#" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-[#1a237e]/20 to-[#283593]/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-shield-alt text-sm"></i>
-                    </div>
-                    <span>Safety Guidelines</span>
-                </a>
-                <a href="#" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-[#ff9800]/20 to-[#ffb74d]/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-question-circle text-sm"></i>
-                    </div>
-                    <span>FAQ</span>
-                </a>
-                <a href="#" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-[#388e3c]/20 to-[#4caf50]/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-envelope text-sm"></i>
-                    </div>
-                    <span>Contact Support</span>
-                </a>
-                <a href="#" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
+                <?php if ($isJobSeeker || $isCompany): ?>
+                    <a href="contact-support.php" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
+                        <div class="w-10 h-10 bg-gradient-to-r from-[#388e3c]/20 to-[#4caf50]/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                            <i class="fas fa-envelope text-sm"></i>
+                        </div>
+                        <span>Contact Support</span>
+                    </a>
+                <?php endif; ?>
+                <a href="terms-policies.php" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
                     <div class="w-10 h-10 bg-gradient-to-r from-gray-600/20 to-gray-700/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                         <i class="fas fa-file-alt text-sm"></i>
                     </div>

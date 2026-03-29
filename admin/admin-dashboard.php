@@ -1,11 +1,14 @@
 <?php
 // admin/admin-dashboard.php
 require '../db.php';
+require_once '../includes/support_helper.php';
 
 if (!isset($_SESSION['admin_id'])) {
     header("Location: admin-login.php");
     exit;
 }
+
+$supportCounts = support_fetch_counts($conn);
 
 $stats = [
     'jobs' => db_query_value("SELECT COUNT(*) FROM jobs"),
@@ -21,6 +24,8 @@ $stats = [
     'approved_jobs' => db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = 1"),
     'rejected_jobs' => db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = -1"),
     'recent_activities' => db_query_value("SELECT COUNT(*) FROM activity_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)", '', [], 0),
+    'support_messages' => (int)$supportCounts['total'],
+    'support_unread' => (int)$supportCounts['unread'],
 ];
 ?>
 
@@ -62,6 +67,15 @@ $stats = [
                 <h3 class="mb-0"><?= number_format($stats['companies']) ?></h3>
                 <div class="small text-muted mt-1">Pending: <?= (int)$stats['pending'] ?> | Approved: <?= (int)$stats['approved'] ?></div>
                 <div class="small text-muted mt-1">Verification Pending: <?= (int)$stats['verification_pending'] ?></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body text-center">
+                <h6 class="text-muted mb-1">Support Messages</h6>
+                <h3 class="mb-0"><?= number_format($stats['support_messages']) ?></h3>
+                <div class="small text-muted mt-1">Unread: <?= (int)$stats['support_unread'] ?></div>
             </div>
         </div>
     </div>
@@ -114,6 +128,16 @@ $stats = [
                 <div class="card-body">
                     <h5>Activity Monitor</h5>
                     <p class="text-muted small">Recent platform events in the last 7 days: <?= (int)$stats['recent_activities'] ?></p>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a href="support-messages.php" class="text-decoration-none">
+            <div class="card shadow-sm h-100 border-0 hover-lift">
+                <div class="card-body">
+                    <h5>Support Messages</h5>
+                    <p class="text-muted small">Review support requests, reply to senders, and resolve issues.</p>
                 </div>
             </div>
         </a>

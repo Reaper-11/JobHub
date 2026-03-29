@@ -112,6 +112,7 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
                     <?php endif; ?>
                 </a>
             </li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'contact-support.php' ? 'active' : '' ?>" href="../contact-support.php">Contact Support</a></li>
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-account.php' ? 'active' : '' ?>" href="company-account.php">Account Settings</a></li>
             <li class="nav-item mt-4"><a class="nav-link text-danger" href="../logout.php">Logout</a></li>
         </ul>

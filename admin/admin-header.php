@@ -58,6 +58,10 @@ $hasSidebarLayout = true;
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-applications.php' ? 'active' : '' ?>" 
                    href="admin-applications.php">Applications</a>
             </li>
+            <li class="nav-item">
+                <a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['support-messages.php', 'support-view.php'], true) ? 'active' : '' ?>"
+                   href="support-messages.php">Support Messages</a>
+            </li>
             <li class="nav-item mt-4">
                 <a class="nav-link text-danger" href="../logout.php">Logout</a>
             </li>

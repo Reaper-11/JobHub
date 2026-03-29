@@ -4,6 +4,7 @@ require '../db.php';
 
 $msg = '';
 $msg_type = 'alert-danger';
+$username = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -12,8 +13,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = trim($_POST['username'] ?? '');
         $password = $_POST['password'] ?? '';
 
-        if (empty($username) || empty($password)) {
+        $throttle = jobhub_auth_throttle_status('admin_login');
+        if (!$throttle['allowed']) {
+            $msg = "Too many failed login attempts. Please try again later.";
+        } elseif (empty($username) || empty($password)) {
             $msg = "Username and password are required.";
+        } elseif (strlen($username) > 80) {
+            $msg = "Invalid login credentials.";
         } else {
             $stmt = $conn->prepare("SELECT id, username, password FROM admins WHERE username = ? LIMIT 1");
             $stmt->bind_param("s", $username);
@@ -22,17 +28,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $admin = $result->fetch_assoc();
             $stmt->close();
 
-            if ($admin && password_verify($password, $admin['password'])) {
-                $_SESSION['admin_id'] = $admin['id'];
-                $_SESSION['admin_username'] = $admin['username'];
+            $passwordOk = $admin
+                ? jobhub_verify_password_with_upgrade($conn, 'admins', (int)$admin['id'], $password, (string)$admin['password'])
+                : false;
 
-                // Regenerate session to prevent fixation
-                session_regenerate_id(true);
-
+            if ($passwordOk) {
+                jobhub_auth_clear_failures('admin_login');
+                jobhub_complete_login('admin', (int)$admin['id'], (string)$admin['username']);
                 header("Location: admin-dashboard.php");
                 exit;
             } else {
-                $msg = "Invalid username or password.";
+                jobhub_auth_register_failure('admin_login');
+                $msg = "Invalid login credentials.";
             }
         }
     }
@@ -58,7 +65,8 @@ require '../header.php';
 
                 <div class="mb-3">
                     <label class="form-label">Username</label>
-                    <input type="text" name="username" class="form-control" required autofocus>
+                    <input type="text" name="username" class="form-control" required autofocus
+                           value="<?= htmlspecialchars($username) ?>">
                 </div>
 
                 <div class="mb-4">

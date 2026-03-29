@@ -1,9 +1,12 @@
 <?php
 // company/company-register.php
 require '../db.php';
-require '../header.php';
 
 $msg = $msg_type = '';
+$name = '';
+$email = '';
+$website = '';
+$location = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -11,19 +14,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $msg_type = 'danger';
     } else {
         $name     = trim($_POST['name'] ?? '');
-        $email    = trim($_POST['email'] ?? '');
+        $email    = strtolower(trim($_POST['email'] ?? ''));
         $password = $_POST['password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
         $website  = trim($_POST['website'] ?? '');
         $location = trim($_POST['location'] ?? '');
 
         if (empty($name) || empty($email) || empty($password) || empty($location)) {
             $msg = "Company name, email, password, and location are required.";
             $msg_type = 'danger';
+        } elseif ($nameError = jobhub_validate_company_name($name)) {
+            $msg = $nameError;
+            $msg_type = 'danger';
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $msg = "Invalid email format.";
             $msg_type = 'danger';
-        } elseif (strlen($password) < 8) {
-            $msg = "Password must be at least 8 characters.";
+        } elseif ($website !== '' && !filter_var($website, FILTER_VALIDATE_URL)) {
+            $msg = "Please enter a valid website URL.";
+            $msg_type = 'danger';
+        } elseif ($locationError = jobhub_validate_location_value($location)) {
+            $msg = $locationError;
+            $msg_type = 'danger';
+        } elseif ($password !== $confirm_password) {
+            $msg = "Password and confirmation do not match.";
+            $msg_type = 'danger';
+        } elseif ($passwordError = jobhub_validate_password_strength($password)) {
+            $msg = $passwordError;
             $msg_type = 'danger';
         } else {
             $check = $conn->prepare("SELECT id FROM companies WHERE email = ? LIMIT 1");
@@ -33,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $msg = "This email is already registered.";
                 $msg_type = 'danger';
             } else {
+                // password_hash() stores new company passwords securely.
                 $hash = password_hash($password, PASSWORD_DEFAULT);
 
                 $stmt = $conn->prepare("
@@ -54,8 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $company_id
                     );
 
-                    $_SESSION['company_id'] = $company_id;
-                    $_SESSION['company_name'] = $name;
+                    jobhub_complete_login('company', $company_id, $name);
 
                     header("Location: company-dashboard.php");
                     exit;
@@ -69,6 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+require '../header.php';
 ?>
 
 <div class="row justify-content-center">
@@ -86,27 +104,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="mb-3">
                         <label class="form-label">Company Name <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="form-control" required>
+                        <input type="text" name="name" class="form-control" required
+                               value="<?= htmlspecialchars($name) ?>">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Company Email <span class="text-danger">*</span></label>
-                        <input type="email" name="email" class="form-control" required>
+                        <input type="email" name="email" class="form-control" required
+                               value="<?= htmlspecialchars($email) ?>">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Password <span class="text-danger">*</span></label>
                         <input type="password" name="password" class="form-control" required minlength="8">
+                        <div class="form-text">Minimum 8 characters with at least one letter and one number.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
+                        <input type="password" name="confirm_password" class="form-control" required minlength="8">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Website (optional)</label>
-                        <input type="url" name="website" class="form-control">
+                        <input type="url" name="website" class="form-control"
+                               value="<?= htmlspecialchars($website) ?>">
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label">Location <span class="text-danger">*</span></label>
-                        <input type="text" name="location" class="form-control" placeholder="e.g. Kathmandu, Nepal" required>
+                        <input type="text" name="location" class="form-control" placeholder="e.g. Kathmandu, Nepal" required
+                               value="<?= htmlspecialchars($location) ?>">
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">Register Company</button>

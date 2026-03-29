@@ -25,8 +25,18 @@ if (!defined('JOBHUB_EMAIL_FROM_NAME')) {
     define('JOBHUB_EMAIL_FROM_NAME', 'JobHub');
 }
 
+require_once __DIR__ . '/includes/security.php';
+
 // Start session if not already started
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.use_strict_mode', '1');
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
@@ -34,6 +44,7 @@ require_once __DIR__ . '/includes/admin_activity_helper.php';
 require_once __DIR__ . '/includes/cv_helper.php';
 
 enforce_user_session_status($conn);
+enforce_company_session_status($conn);
 
 // ================== HELPER FUNCTIONS ==================
 

@@ -1,55 +1,82 @@
 <?php
 // company/company-login.php
 require '../db.php';
-require '../header.php';
 
 $msg = $msg_type = '';
+$email = '';
+
+if (!empty($_SESSION['company_auth_error'])) {
+    $msg = $_SESSION['company_auth_error'];
+    $msg_type = 'danger';
+    unset($_SESSION['company_auth_error']);
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
         $msg = "Invalid request.";
         $msg_type = 'danger';
     } else {
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-
-        if (empty($email) || empty($password)) {
-            $msg = "Email and password are required.";
+        $throttle = jobhub_auth_throttle_status('company_login');
+        if (!$throttle['allowed']) {
+            $msg = "Too many failed login attempts. Please try again later.";
             $msg_type = 'danger';
         } else {
-            $stmt = $conn->prepare("
-                SELECT id, name, password, is_approved, rejection_reason 
-                FROM companies 
-                WHERE email = ? 
-                LIMIT 1
-            ");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $company = $result->fetch_assoc();
-            $stmt->close();
+            $email = strtolower(trim($_POST['email'] ?? ''));
+            $password = $_POST['password'] ?? '';
 
-            if ($company && password_verify($password, $company['password'])) {
-                if ($company['is_approved'] == -1) {
-                    $reason = $company['rejection_reason'] ? "Reason: " . htmlspecialchars($company['rejection_reason']) : "";
-                    $msg = "Your account was rejected. $reason";
+            if (empty($email) || empty($password)) {
+                $msg = "Email and password are required.";
+                $msg_type = 'danger';
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $msg = "Please enter a valid email address.";
+                $msg_type = 'danger';
+            } else {
+                $stmt = $conn->prepare("
+                    SELECT id, name, password, is_approved, rejection_reason, is_active
+                    FROM companies 
+                    WHERE email = ? 
+                    LIMIT 1
+                ");
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $company = $result->fetch_assoc();
+                $stmt->close();
+
+                $passwordOk = $company
+                    ? jobhub_verify_password_with_upgrade($conn, 'companies', (int)$company['id'], $password, (string)$company['password'])
+                    : false;
+
+                if (!$passwordOk) {
+                    jobhub_auth_register_failure('company_login');
+                    $msg = "Invalid login credentials.";
                     $msg_type = 'danger';
                 } else {
-                    $_SESSION['company_id'] = $company['id'];
-                    $_SESSION['company_name'] = $company['name'];
+                    if ((int)($company['is_active'] ?? 1) !== 1) {
+                        jobhub_auth_clear_failures('company_login');
+                        $msg = "Your company account is inactive. Please contact admin.";
+                        $msg_type = 'danger';
+                    } elseif ((int)($company['is_approved'] ?? 0) === -1) {
+                        jobhub_auth_clear_failures('company_login');
+                        $msg = "Your company account has been rejected by admin.";
+                        if (!empty($company['rejection_reason'])) {
+                            $msg .= " Reason: " . $company['rejection_reason'];
+                        }
+                        $msg_type = 'danger';
+                    } else {
+                        jobhub_auth_clear_failures('company_login');
+                        jobhub_complete_login('company', (int)$company['id'], (string)$company['name']);
 
-                    session_regenerate_id(true);
-
-                    header("Location: company-dashboard.php");
-                    exit;
+                        header("Location: company-dashboard.php");
+                        exit;
+                    }
                 }
-            } else {
-                $msg = "Invalid email or password.";
-                $msg_type = 'danger';
             }
         }
     }
 }
+
+require '../header.php';
 ?>
 
 <div class="row justify-content-center">
@@ -67,7 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="mb-3">
                         <label class="form-label">Company Email</label>
-                        <input type="email" name="email" class="form-control" required autofocus>
+                        <input type="email" name="email" class="form-control" required autofocus
+                               value="<?= htmlspecialchars($email) ?>">
                     </div>
 
                     <div class="mb-4">

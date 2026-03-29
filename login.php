@@ -1,11 +1,10 @@
 <?php
 // login.php
 require 'db.php';
-$bodyClass = 'user-ui';
-require 'header.php';
 
 $msg = '';
 $msg_type = 'alert-danger';
+$email = '';
 
 if (!empty($_SESSION['auth_error'])) {
     $msg = $_SESSION['auth_error'];
@@ -16,43 +15,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
         $msg = "Invalid request. Please try again.";
     } else {
-        $email    = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-
-        if (empty($email) || empty($password)) {
-            $msg = "Email and password are required.";
+        $throttle = jobhub_auth_throttle_status('user_login');
+        if (!$throttle['allowed']) {
+            $msg = "Too many failed login attempts. Please try again later.";
         } else {
-            $stmt = $conn->prepare("SELECT id, name, password, role, account_status
-                                    FROM users 
-                                    WHERE email = ?
-                                    LIMIT 1");
-            $stmt->bind_param("s", $email);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $user = $result->fetch_assoc();
-            $stmt->close();
+            $email    = strtolower(trim($_POST['email'] ?? ''));
+            $password = $_POST['password'] ?? '';
 
-            if ($user && ($user['account_status'] ?? 'active') === 'blocked') {
-                $msg = "Your account has been blocked by admin.";
-            } elseif ($user && ($user['account_status'] ?? 'active') === 'removed') {
-                $msg = "Your account is no longer available.";
-            } elseif ($user && password_verify($password, $user['password'])) {
-                // Login successful
-                $_SESSION['user_id']   = $user['id'];
-                $_SESSION['user_name'] = $user['name'];
-                $_SESSION['role']      = $user['role'];
-
-                // Optional: regenerate session ID to prevent fixation
-                session_regenerate_id(true);
-
-                header("Location: index.php");
-                exit;
+            if (empty($email) || empty($password)) {
+                $msg = "Email and password are required.";
+            } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $msg = "Please enter a valid email address.";
             } else {
-                $msg = "Invalid email or password.";
+                $stmt = $conn->prepare("SELECT id, name, password, role, account_status, is_active
+                                        FROM users 
+                                        WHERE email = ?
+                                        LIMIT 1");
+                $stmt->bind_param("s", $email);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                $user = $result->fetch_assoc();
+                $stmt->close();
+
+                $passwordOk = $user
+                    ? jobhub_verify_password_with_upgrade($conn, 'users', (int)$user['id'], $password, (string)$user['password'])
+                    : false;
+
+                if (!$passwordOk) {
+                    jobhub_auth_register_failure('user_login');
+                    $msg = "Invalid login credentials.";
+                } else {
+                    $status = strtolower((string)($user['account_status'] ?? 'active'));
+                    if ($status !== 'blocked' && $status !== 'removed' && (int)($user['is_active'] ?? 1) !== 1) {
+                        $status = 'blocked';
+                    }
+
+                    // Account status checks stop blocked or removed accounts from being used.
+                    if ($status === 'blocked') {
+                        jobhub_auth_clear_failures('user_login');
+                        $msg = "Your account has been blocked by admin.";
+                    } elseif ($status === 'removed') {
+                        jobhub_auth_clear_failures('user_login');
+                        $msg = "Your account is no longer available.";
+                    } else {
+                        jobhub_auth_clear_failures('user_login');
+                        jobhub_complete_login('seeker', (int)$user['id'], (string)$user['name'], (string)$user['role']);
+
+                        header("Location: index.php");
+                        exit;
+                    }
+                }
             }
         }
     }
 }
+
+$bodyClass = 'user-ui';
+require 'header.php';
 ?>
 
 <div class="row justify-content-center">
@@ -71,7 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="mb-3">
                         <label class="form-label">Email address</label>
                         <input type="email" name="email" class="form-control" 
-                               placeholder="name@example.com" required autofocus>
+                               placeholder="name@example.com" required autofocus
+                               value="<?= htmlspecialchars($email) ?>">
                     </div>
 
                     <div class="mb-4">
@@ -85,7 +105,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </button>
 
                     <div class="text-center small">
-                        <a href="#" class="text-muted">Forgot password?</a><br>
                         Don't have an account? 
                         <a href="register.php" class="text-primary">Create one</a>
                     </div>

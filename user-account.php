@@ -38,9 +38,8 @@ if ($hasExperienceColumn) {
     $userSelect .= ", experience_level";
 }
 $userSelect .= $hasSkillsColumn ? ", skills" : ", '' AS skills";
-$userSelect .= " FROM users WHERE id = $uid";
-$userRes = $conn->query($userSelect);
-$user = $userRes ? $userRes->fetch_assoc() : [
+$userSelect .= " FROM users WHERE id = ?";
+$user = [
     'name' => '',
     'email' => '',
     'phone' => '',
@@ -48,7 +47,16 @@ $user = $userRes ? $userRes->fetch_assoc() : [
     'cv_path' => '',
     'profile_image' => '',
     'experience_level' => '',
+    'skills' => '',
 ];
+
+$userStmt = $conn->prepare($userSelect);
+if ($userStmt) {
+    $userStmt->bind_param("i", $uid);
+    $userStmt->execute();
+    $user = $userStmt->get_result()->fetch_assoc() ?: $user;
+    $userStmt->close();
+}
 
 $preferenceProfile = function_exists('get_user_preferences') ? get_user_preferences($conn, $uid) : [];
 if (!empty($preferenceProfile['preferred_category'])) {
@@ -82,11 +90,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === '' && $profileMsg === '') {
         $profileMsg = "No action received. Please try saving your profile again.";
         $profileType = "alert-danger";
+    } elseif ($profileMsg === '' && !validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        if ($action === 'password') {
+            $passMsg = "Invalid request. Please try again.";
+            $passType = "alert-danger";
+        } elseif ($action === 'delete') {
+            $deleteMsg = "Invalid request. Please try again.";
+            $deleteType = "alert-danger";
+        } else {
+            $profileMsg = "Invalid request. Please try again.";
+            $profileType = "alert-danger";
+        }
     }
 
-    if ($action === 'profile') {
+    if ($action === 'profile' && $profileType === '') {
         $name = trim($_POST['name'] ?? '');
-        $email = trim($_POST['email'] ?? '');
+        $email = strtolower(trim($_POST['email'] ?? ''));
         $phone = trim($_POST['phone'] ?? '');
         $preferred_category = trim($_POST['preferred_category'] ?? '');
         $experience_level = trim($_POST['experience_level'] ?? '');
@@ -102,6 +121,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validation
         if ($name === '' || $email === '' || $preferred_category === '') {
             $profileMsg = "Name, email, and category are required.";
+            $profileType = "alert-danger";
+        } elseif ($nameError = jobhub_validate_person_name($name)) {
+            $profileMsg = $nameError;
             $profileType = "alert-danger";
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $profileMsg = "Please enter a valid email address.";
@@ -145,69 +167,78 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // DB update (only if validation/upload passed)
         if ($profileMsg === '') {
-            $emailEsc = $conn->real_escape_string($email);
-            $check = $conn->query("SELECT id FROM users WHERE email='$emailEsc' AND id <> $uid");
-            if ($check && $check->num_rows > 0) {
-                $profileMsg = "That email is already in use.";
+            $check = $conn->prepare("SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1");
+            if (!$check) {
+                $profileMsg = "Could not verify your email. Please try again.";
                 $profileType = "alert-danger";
             } else {
-                $phoneVal = $phone === '' ? null : $phone;
-                if ($hasExperienceColumn && $hasSkillsColumn) {
-                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, skills = ?, cv_path = ? WHERE id = ?");
-                } elseif ($hasExperienceColumn) {
-                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ? WHERE id = ?");
-                } elseif ($hasSkillsColumn) {
-                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, skills = ?, cv_path = ? WHERE id = ?");
+                $check->bind_param("si", $email, $uid);
+                $check->execute();
+                $duplicateEmail = $check->get_result()->num_rows > 0;
+                $check->close();
+
+                if ($duplicateEmail) {
+                    $profileMsg = "That email is already in use.";
+                    $profileType = "alert-danger";
                 } else {
-                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
-                }
-        $dbPrepareOk = $stmt ? true : false;
-        if (!$stmt) {
-            $dbStmtError = $conn->error ?? '';
-            $profileMsg = "Could not update profile. Please try again.";
-            $profileType = "alert-danger";
-        } else {
-            if ($hasExperienceColumn && $hasSkillsColumn) {
-                $stmt->bind_param("sssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $skills, $newCvPath, $uid);
-            } elseif ($hasExperienceColumn) {
-                $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $newCvPath, $uid);
-            } elseif ($hasSkillsColumn) {
-                $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $skills, $newCvPath, $uid);
-            } else {
-                $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
-            }
-            $dbExecuteOk = $stmt->execute();
-            $dbAffected = $stmt->affected_rows;
-            $finalCvPath = $newCvPath;
-            if ($dbExecuteOk) {
-                        if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
-                            $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
-                            if ($prefStmt) {
-                                $prefStmt->bind_param("is", $uid, $preferred_category);
-                                $prefStmt->execute();
-                                $prefStmt->close();
-                            }
-                        }
-                        $profileMsg = "Profile updated successfully.";
-                        $profileType = "alert-success";
-                        $_SESSION['user_name'] = $name;
-                        $_SESSION['preferred_category'] = $preferred_category;
-                        $user['name'] = $name;
-                        $user['email'] = $email;
-                        $user['phone'] = $phone;
-                        $user['preferred_category'] = $preferred_category;
-                        if ($hasExperienceColumn) {
-                            $user['experience_level'] = $experience_level;
-                        }
-                        if ($hasSkillsColumn) {
-                            $user['skills'] = $skills;
-                        }
-                        $user['cv_path'] = $newCvPath;
+                    $phoneVal = $phone === '' ? null : $phone;
+                    if ($hasExperienceColumn && $hasSkillsColumn) {
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, skills = ?, cv_path = ? WHERE id = ?");
+                    } elseif ($hasExperienceColumn) {
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ? WHERE id = ?");
+                    } elseif ($hasSkillsColumn) {
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, skills = ?, cv_path = ? WHERE id = ?");
                     } else {
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
+                    }
+                    $dbPrepareOk = $stmt ? true : false;
+                    if (!$stmt) {
+                        $dbStmtError = $conn->error ?? '';
                         $profileMsg = "Could not update profile. Please try again.";
                         $profileType = "alert-danger";
+                    } else {
+                        if ($hasExperienceColumn && $hasSkillsColumn) {
+                            $stmt->bind_param("sssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $skills, $newCvPath, $uid);
+                        } elseif ($hasExperienceColumn) {
+                            $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $newCvPath, $uid);
+                        } elseif ($hasSkillsColumn) {
+                            $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $skills, $newCvPath, $uid);
+                        } else {
+                            $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
+                        }
+                        $dbExecuteOk = $stmt->execute();
+                        $dbAffected = $stmt->affected_rows;
+                        $finalCvPath = $newCvPath;
+                        if ($dbExecuteOk) {
+                            if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
+                                $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
+                                if ($prefStmt) {
+                                    $prefStmt->bind_param("is", $uid, $preferred_category);
+                                    $prefStmt->execute();
+                                    $prefStmt->close();
+                                }
+                            }
+                            $profileMsg = "Profile updated successfully.";
+                            $profileType = "alert-success";
+                            $_SESSION['user_name'] = $name;
+                            $_SESSION['preferred_category'] = $preferred_category;
+                            $user['name'] = $name;
+                            $user['email'] = $email;
+                            $user['phone'] = $phone;
+                            $user['preferred_category'] = $preferred_category;
+                            if ($hasExperienceColumn) {
+                                $user['experience_level'] = $experience_level;
+                            }
+                            if ($hasSkillsColumn) {
+                                $user['skills'] = $skills;
+                            }
+                            $user['cv_path'] = $newCvPath;
+                        } else {
+                            $profileMsg = "Could not update profile. Please try again.";
+                            $profileType = "alert-danger";
+                        }
+                        $stmt->close();
                     }
-                    $stmt->close();
                 }
             }
         }
@@ -238,7 +269,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'conn_errno' => (string) ($conn->errno ?? ''),
             ];
         }
-    } elseif ($action === 'password') {
+    } elseif ($action === 'password' && $passType === '') {
         $old = $_POST['old_password'] ?? '';
         $new = $_POST['new_password'] ?? '';
         $confirm = $_POST['confirm_password'] ?? '';
@@ -249,17 +280,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($new !== $confirm) {
             $passMsg = "New password and confirmation do not match.";
             $passType = "alert-danger";
+        } elseif ($passwordError = jobhub_validate_password_strength($new)) {
+            $passMsg = $passwordError;
+            $passType = "alert-danger";
         } else {
-            $res = $conn->query("SELECT password FROM users WHERE id = $uid");
-            $row = $res ? $res->fetch_assoc() : null;
+            $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? LIMIT 1");
+            $stmt->bind_param("i", $uid);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc() ?: null;
+            $stmt->close();
             $storedHash = $row['password'] ?? '';
-            $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($old));
-            $validOld = password_verify($old, $storedHash) || $legacyMatch;
+            $validOld = $row
+                ? jobhub_verify_password_with_upgrade($conn, 'users', $uid, $old, $storedHash)
+                : false;
 
             if (!$row || !$validOld) {
                 $passMsg = "Old password is incorrect.";
                 $passType = "alert-danger";
             } else {
+                // password_hash() is used when a user changes the account password.
                 $newHash = password_hash($new, PASSWORD_DEFAULT);
                 $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
                 $stmt->bind_param("si", $newHash, $uid);
@@ -273,17 +312,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->close();
             }
         }
-    } elseif ($action === 'delete') {
+    } elseif ($action === 'delete' && $deleteType === '') {
         $confirmPassword = $_POST['confirm_password'] ?? '';
         if ($confirmPassword === '') {
             $deleteMsg = "Password is required to delete your account.";
             $deleteType = "alert-danger";
         } else {
-            $res = $conn->query("SELECT password FROM users WHERE id = $uid");
-            $row = $res ? $res->fetch_assoc() : null;
+            $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? LIMIT 1");
+            $stmt->bind_param("i", $uid);
+            $stmt->execute();
+            $row = $stmt->get_result()->fetch_assoc() ?: null;
+            $stmt->close();
             $storedHash = $row['password'] ?? '';
-            $legacyMatch = strlen($storedHash) === 32 && ctype_xdigit($storedHash) && hash_equals($storedHash, md5($confirmPassword));
-            $validConfirm = password_verify($confirmPassword, $storedHash) || $legacyMatch;
+            $validConfirm = $row
+                ? jobhub_verify_password_with_upgrade($conn, 'users', $uid, $confirmPassword, $storedHash)
+                : false;
 
             if (!$row || !$validConfirm) {
                 $deleteMsg = "Password is incorrect.";
@@ -300,8 +343,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
                 $stmt->bind_param("i", $uid);
                 if ($stmt->execute()) {
-                    session_unset();
-                    session_destroy();
+                    jobhub_destroy_session();
                     header("Location: index.php");
                     exit;
                 } else {
@@ -374,6 +416,7 @@ require 'header.php';
         <?php endif; ?>
         <form method="post" enctype="multipart/form-data" action="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>">
             <input type="hidden" name="action" value="profile">
+            <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
             <?php if ($debugUpload): ?>
                 <input type="hidden" name="debug_upload" value="1">
             <?php endif; ?>
@@ -468,6 +511,7 @@ require 'header.php';
         <?php endif; ?>
         <form method="post">
             <input type="hidden" name="action" value="password">
+            <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
             <div class="mb-3">
                 <label class="form-label">Old Password*</label>
                 <input type="password" class="form-control" name="old_password" placeholder="Old Password" required>
@@ -475,7 +519,8 @@ require 'header.php';
 
             <div class="mb-3">
                 <label class="form-label">New Password*</label>
-                <input type="password" class="form-control" name="new_password" placeholder="New Password" required>
+                <input type="password" class="form-control" name="new_password" placeholder="New Password" required minlength="8">
+                <div class="form-text">Use at least 8 characters with one letter and one number.</div>
             </div>
 
             <div class="mb-3">
@@ -496,6 +541,7 @@ require 'header.php';
         <?php endif; ?>
         <form method="post" onsubmit="return confirm('This will permanently delete your account. Continue?');">
             <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
             <div class="mb-3">
                 <label class="form-label">Confirm Password*</label>
                 <input type="password" class="form-control" name="confirm_password" required>
