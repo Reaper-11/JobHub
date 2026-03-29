@@ -51,7 +51,8 @@ function jobhub_cv_file_name(?string $path): string
 
 function jobhub_cv_upload(array $file, int $userId, ?string &$error = null): ?string
 {
-    $error = null;
+    // Keep the error output as a plain string so callers can safely test it.
+    $error = '';
 
     if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
         $uploadErrorMap = [

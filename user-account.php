@@ -104,18 +104,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'profile' && $profileType === '') {
+        $existingUser = $user;
         $name = trim($_POST['name'] ?? '');
         $email = strtolower(trim($_POST['email'] ?? ''));
         $phone = trim($_POST['phone'] ?? '');
         $preferred_category = trim($_POST['preferred_category'] ?? '');
         $experience_level = trim($_POST['experience_level'] ?? '');
         $skills = recommend_normalize_skill_string($_POST['skills'] ?? '');
+        $uploadedCvPath = null;
         if ($preferred_category !== '') {
             $preferredValue = $preferred_category;
             $legacyCategoryWarning = false;
         }
 
-        $currentCv = $user['cv_path'] ?? '';
+        $currentCv = (string) ($existingUser['cv_path'] ?? '');
         $newCvPath = $currentCv;
 
         // Validation
@@ -125,10 +127,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($nameError = jobhub_validate_person_name($name)) {
             $profileMsg = $nameError;
             $profileType = "alert-danger";
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        }
+
+        if ($profileMsg === '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $profileMsg = "Please enter a valid email address.";
             $profileType = "alert-danger";
-        } elseif ($phone !== '') {
+        }
+
+        if ($profileMsg === '' && $phone !== '') {
             $digits = preg_replace('/\D+/', '', $phone);
             if (strlen($digits) === 13 && substr($digits, 0, 3) === '977') {
                 $digits = substr($digits, 3);
@@ -139,10 +145,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $phone = $digits;
             }
-        } elseif (!in_array($preferred_category, $jobCategories, true)) {
+        }
+
+        if ($profileMsg === '' && !in_array($preferred_category, $jobCategories, true)) {
             $profileMsg = "Invalid job category selected.";
             $profileType = "alert-danger";
-        } elseif ($hasExperienceColumn && $experience_level !== '' && !in_array($experience_level, $experienceLevels, true)) {
+        }
+
+        if ($profileMsg === '' && $hasExperienceColumn && $experience_level !== '' && !in_array($experience_level, $experienceLevels, true)) {
             $profileMsg = "Invalid experience level selected.";
             $profileType = "alert-danger";
         }
@@ -160,7 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        if ($uploadError !== '') {
+        if (!empty($uploadError)) {
             $profileMsg = $uploadError;
             $profileType = "alert-danger";
         }
@@ -183,13 +193,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else {
                     $phoneVal = $phone === '' ? null : $phone;
                     if ($hasExperienceColumn && $hasSkillsColumn) {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, skills = ?, cv_path = ? WHERE id = ?");
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, skills = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
                     } elseif ($hasExperienceColumn) {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ? WHERE id = ?");
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
                     } elseif ($hasSkillsColumn) {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, skills = ?, cv_path = ? WHERE id = ?");
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, skills = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
                     } else {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ? WHERE id = ?");
+                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
                     }
                     $dbPrepareOk = $stmt ? true : false;
                     if (!$stmt) {
@@ -218,7 +228,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                     $prefStmt->close();
                                 }
                             }
-                            $profileMsg = "Profile updated successfully.";
+                            $phoneDisplay = $phone === '' ? '' : $phone;
+                            $experienceChanged = $hasExperienceColumn
+                                && $experience_level !== (string) ($existingUser['experience_level'] ?? '');
+                            $skillsChanged = $hasSkillsColumn
+                                && $skills !== (string) ($existingUser['skills'] ?? '');
+                            $cvChanged = $newCvPath !== $currentCv;
+                            $profileFieldsChanged = (
+                                $name !== (string) ($existingUser['name'] ?? '')
+                                || $email !== strtolower((string) ($existingUser['email'] ?? ''))
+                                || $phoneDisplay !== (string) ($existingUser['phone'] ?? '')
+                                || $preferred_category !== (string) ($existingUser['preferred_category'] ?? '')
+                                || $experienceChanged
+                            );
+
+                            if ($cvChanged && $skillsChanged && !$profileFieldsChanged) {
+                                $profileMsg = "Skills and CV updated successfully.";
+                            } elseif ($cvChanged && !$profileFieldsChanged && !$skillsChanged) {
+                                $profileMsg = "CV uploaded successfully.";
+                            } elseif ($skillsChanged && !$profileFieldsChanged && !$cvChanged) {
+                                $profileMsg = "Skills updated successfully.";
+                            } elseif (!$profileFieldsChanged && !$skillsChanged && !$cvChanged) {
+                                $profileMsg = "No profile changes were made.";
+                            } else {
+                                $profileMsg = "Profile updated successfully.";
+                            }
                             $profileType = "alert-success";
                             $_SESSION['user_name'] = $name;
                             $_SESSION['preferred_category'] = $preferred_category;
@@ -240,6 +274,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->close();
                     }
                 }
+            }
+        }
+
+        // If the upload succeeded but the profile update did not, remove the
+        // new file so the database and filesystem do not drift apart.
+        if ($profileType === 'alert-danger' && $uploadedCvPath !== null && jobhub_cv_is_stored_path($uploadedCvPath)) {
+            $uploadedAbsolutePath = jobhub_cv_absolute_path($uploadedCvPath);
+            if ($uploadedAbsolutePath !== null && is_file($uploadedAbsolutePath)) {
+                @unlink($uploadedAbsolutePath);
             }
         }
 

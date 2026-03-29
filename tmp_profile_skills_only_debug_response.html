@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobHub - Nepal&#039;s Job Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/JobHub/style.css?v=1774785531">
+    <link rel="stylesheet" href="/JobHub/custom.css?v=1774785531">
+</head>
+<body class="d-flex flex-column min-vh-100 account-page user-ui">
+
+<header class="navbar navbar-expand-lg navbar-dark bg-black shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/JobHub/index.php">JobHub</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="mainNavbar">
+            <ul class="navbar-nav ms-auto align-items-lg-center">
+                                    <li class="nav-item"><a class="nav-link text-white" href="/JobHub/my-bookmarks.php">Bookmarks</a></li>
+                    <li class="nav-item"><a class="nav-link text-white" href="/JobHub/my-applications.php">Applications</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="/JobHub/notifications.php">
+                            Notifications
+                                                    </a>
+                    </li>
+                    <li class="nav-item"><a class="nav-link text-white" href="/JobHub/user-account.php">Account</a></li>
+                
+                                    <li class="nav-item"><a class="nav-link text-white" href="/JobHub/contact-support.php">Contact Support</a></li>
+                
+                                    <li class="nav-item"><a class="nav-link text-white" href="/JobHub/logout.php">Logout</a></li>
+                            </ul>
+        </div>
+    </div>
+</header>
+
+<main class="container py-4 flex-grow-1">
+<h1 class="mb-3">Account</h1>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Profile</h2>
+                    <div class="alert alert-success">Profile updated successfully.</div>
+                                        <div class="alert alert-secondary small">
+                <div>Debug upload: enabled</div>
+                <div>request method: POST</div>
+                <div>file_uploads: 1</div>
+                <div>upload_max_filesize: 40M</div>
+                <div>post_max_size: 40M</div>
+                <div>upload_tmp_dir: C:\xampp\tmp</div>
+                <div>cv upload dir: C:\xampp\htdocs\JobHub\includes/../uploads/cv</div>
+                <div>cv dir exists: yes</div>
+                <div>cv dir writable: yes</div>
+                <div>cv_file present: no</div>
+                                                    <div>action: profile</div>
+                    <div>name: Codex Tester</div>
+                    <div>email: codex_profile_test_1774785345@example.com</div>
+                    <div>preferred_category: Information Technology</div>
+                    <div>experience_level: Fresher</div>
+                    <div>skills: PHP, MySQL, HTML</div>
+                    <div>upload_error: </div>
+                    <div>profile_msg: Profile updated successfully.</div>
+                    <div>profile_type: alert-success</div>
+                    <div>db_error: </div>
+                    <div>conn_errno: 0</div>
+                    <div>cv_moved: n/a</div>
+                    <div>db_prepare_ok: yes</div>
+                    <div>db_execute_ok: yes</div>
+                    <div>db_affected_rows: 1</div>
+                    <div>final_cv_path: </div>
+                    <div>user_cv_path: </div>
+                            </div>
+                <form method="post" enctype="multipart/form-data" action="/JobHub/user-account.php?debug_upload=1">
+            <input type="hidden" name="action" value="profile">
+            <input type="hidden" name="csrf_token" value="c2d7f2941a1cb6a1f6cc3c10e6287ce75f27b7da88e21987b029e92a004f4948">
+                            <input type="hidden" name="debug_upload" value="1">
+                        <div class="mb-3">
+                <label class="form-label">Full Name*</label>
+                <input type="text" class="form-control" name="name" value="Codex Tester" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Email*</label>
+                <input type="email" class="form-control" name="email" value="codex_profile_test_1774785345@example.com" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Phone (optional)</label>
+                <input
+                    type="tel"
+                    class="form-control"
+                    name="phone"
+                    value="9812345678"
+                    inputmode="numeric"
+                    maxlength="10"
+                    pattern="[0-9]{10}"
+                    oninput="this.value=this.value.replace(/\D/g,'').slice(0,10);"
+                    placeholder="98XXXXXXXX"
+                >
+                <div class="form-text">Must be exactly 10 digits.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Job Preference*</label>
+                <select name="preferred_category" class="form-select" required>
+                    <option value="">Prefer Job Category</option>
+                                            <option value="Information Technology"
+                            selected>
+                            Information Technology                        </option>
+                                            <option value="Finance"
+                            >
+                            Finance                        </option>
+                                            <option value="Marketing"
+                            >
+                            Marketing                        </option>
+                                            <option value="Human Resources"
+                            >
+                            Human Resources                        </option>
+                                            <option value="Sales"
+                            >
+                            Sales                        </option>
+                                            <option value="Design"
+                            >
+                            Design                        </option>
+                                            <option value="Customer Support"
+                            >
+                            Customer Support                        </option>
+                                            <option value="Internship"
+                            >
+                            Internship                        </option>
+                                            <option value="Freelance"
+                            >
+                            Freelance                        </option>
+                                            <option value="Other"
+                            >
+                            Other                        </option>
+                                    </select>
+            </div>
+                            <div class="mb-3">
+                    <label class="form-label">Experience Level (optional)</label>
+                    <select name="experience_level" class="form-select">
+                        <option value="">Select experience level</option>
+                                                    <option value="Fresher"
+                                selected>
+                                Fresher                            </option>
+                                                    <option value="0-1 years"
+                                >
+                                0-1 years                            </option>
+                                                    <option value="1-3 years"
+                                >
+                                1-3 years                            </option>
+                                                    <option value="3-5 years"
+                                >
+                                3-5 years                            </option>
+                                                    <option value="5+ years"
+                                >
+                                5+ years                            </option>
+                                            </select>
+                </div>
+            
+                            <div class="mb-3">
+                    <label class="form-label">Skills (optional)</label>
+                    <textarea name="skills" class="form-control" rows="3" placeholder="PHP, MySQL, HTML, CSS">PHP, MySQL, HTML</textarea>
+                    <div class="form-text">Enter comma-separated skills. Multiple separators like new lines or slashes will be normalized.</div>
+                </div>
+            
+            <div class="mb-3">
+                <label class="form-label">CV / Resume</label>
+                <input type="file" class="form-control" name="cv_file" accept=".pdf,.doc,.docx">
+                <div class="form-text">Allowed: PDF, DOC, DOCX. Maximum size: 5MB.</div>
+                                    <div class="form-text text-warning">No CV uploaded yet.</div>
+                            </div>
+
+            <button type="submit" class="btn btn-primary">Save Profile</button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Change Password</h2>
+                <form method="post">
+            <input type="hidden" name="action" value="password">
+            <input type="hidden" name="csrf_token" value="c2d7f2941a1cb6a1f6cc3c10e6287ce75f27b7da88e21987b029e92a004f4948">
+            <div class="mb-3">
+                <label class="form-label">Old Password*</label>
+                <input type="password" class="form-control" name="old_password" placeholder="Old Password" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">New Password*</label>
+                <input type="password" class="form-control" name="new_password" placeholder="New Password" required minlength="8">
+                <div class="form-text">Use at least 8 characters with one letter and one number.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Confirm Password*</label>
+                <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Update Password</button>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h2 class="h5">Delete Account</h2>
+                <form method="post" onsubmit="return confirm('This will permanently delete your account. Continue?');">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="csrf_token" value="c2d7f2941a1cb6a1f6cc3c10e6287ce75f27b7da88e21987b029e92a004f4948">
+            <div class="mb-3">
+                <label class="form-label">Confirm Password*</label>
+                <input type="password" class="form-control" name="confirm_password" required>
+            </div>
+            <button type="submit" class="btn btn-danger">Delete Account</button>
+        </form>
+    </div>
+</div>
+</main>
+
+<footer class="bg-dark text-white py-4 mt-auto">
+    <div class="container text-center">
+        <p class="mb-0">&copy; 2026 JobHub - A Simple & Practical Job Portal for Nepal</p>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
