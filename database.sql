@@ -142,6 +142,7 @@ CREATE TABLE applications (
     cover_letter TEXT NULL,
     cv_path VARCHAR(255) NULL,
     status ENUM('pending','shortlisted','interview','rejected','approved') NOT NULL DEFAULT 'pending',
+    response_message TEXT NULL,
     applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL,
     FOREIGN KEY (user_id) REFERENCES users(id),

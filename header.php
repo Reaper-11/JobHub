@@ -37,49 +37,126 @@ $bodyClass = isset($bodyClass) ? trim($bodyClass) : '';
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>style.css?v=<?= time() ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>custom.css?v=<?= time() ?>">
+    <style>
+        .simple-navbar {
+            background: #000000;
+        }
+
+        .simple-navbar-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 15px 0;
+        }
+
+        .simple-navbar-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 12px 25px;
+        }
+
+        .simple-navbar-brand {
+            display: inline-block;
+            background: #ffffff;
+            color: #000000;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 18px;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: opacity 0.2s ease;
+        }
+
+        .simple-navbar-link {
+            color: #ffffff;
+            text-decoration: none;
+            white-space: nowrap;
+            transition: opacity 0.2s ease;
+        }
+
+        .simple-navbar-logout {
+            display: inline-block;
+            background: #e53935;
+            color: #ffffff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 700;
+            white-space: nowrap;
+            transition: opacity 0.2s ease;
+        }
+
+        .simple-navbar-brand:hover,
+        .simple-navbar-brand:focus,
+        .simple-navbar-link:hover,
+        .simple-navbar-link:focus,
+        .simple-navbar-logout:hover,
+        .simple-navbar-logout:focus {
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .simple-navbar-inner {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .simple-navbar-links {
+                justify-content: flex-start;
+            }
+        }
+    </style>
 </head>
 <body class="d-flex flex-column min-vh-100<?= $bodyClass !== '' ? ' ' . htmlspecialchars($bodyClass) : '' ?>">
 
-<header class="navbar navbar-expand-lg navbar-dark bg-black shadow-sm">
-    <div class="container">
-        <a class="navbar-brand fw-bold" href="<?= $basePath ?>index.php">JobHub</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+<?php
+$navLinks = [];
 
-        <div class="collapse navbar-collapse" id="mainNavbar">
-            <ul class="navbar-nav ms-auto align-items-lg-center">
-                <?php if ($isLoggedIn && $isJobSeeker): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>my-bookmarks.php">Bookmarks</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>my-applications.php">Applications</a></li>
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="<?= $basePath ?>notifications.php">
-                            Notifications
-                            <?php if ($notificationCount > 0): ?>
-                                <span class="badge bg-warning text-dark ms-1"><?= (int)$notificationCount ?></span>
-                            <?php endif; ?>
-                        </a>
-                    </li>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>user-account.php">Account</a></li>
-                <?php elseif ($isCompany): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>company/company-dashboard.php">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>company/my-jobs.php">My Jobs</a></li>
-                <?php elseif ($isAdmin): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>admin/dashboard.php">Admin Panel</a></li>
-                <?php endif; ?>
+if ($isLoggedIn && $isJobSeeker) {
+    $notificationLabel = 'Notifications';
+    if ($notificationCount > 0) {
+        $notificationLabel .= ' (' . (int) $notificationCount . ')';
+    }
 
-                <?php if ($isJobSeeker || $isCompany): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>contact-support.php">Contact Support</a></li>
-                <?php endif; ?>
-
-                <?php if ($isLoggedIn): ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>logout.php">Logout</a></li>
-                <?php else: ?>
-                    <li class="nav-item"><a class="nav-link text-white" href="<?= $basePath ?>index.php">Home</a></li>
-                <?php endif; ?>
-            </ul>
+    $navLinks = [
+        ['href' => $basePath . 'my-bookmarks.php', 'label' => 'Bookmarks'],
+        ['href' => $basePath . 'my-applications.php', 'label' => 'Applications'],
+        ['href' => $basePath . 'notifications.php', 'label' => $notificationLabel],
+        ['href' => $basePath . 'user-account.php', 'label' => 'Account'],
+        ['href' => $basePath . 'contact-support.php', 'label' => 'Contact Support'],
+        ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
+    ];
+} elseif ($isCompany) {
+    $navLinks = [
+        ['href' => $basePath . 'company/company-dashboard.php', 'label' => 'Dashboard'],
+        ['href' => $basePath . 'company/company-my-jobs.php', 'label' => 'My Jobs'],
+        ['href' => $basePath . 'contact-support.php', 'label' => 'Contact Support'],
+        ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
+    ];
+} elseif ($isAdmin) {
+    $navLinks = [
+        ['href' => $basePath . 'admin/dashboard.php', 'label' => 'Admin Panel'],
+        ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
+    ];
+} else {
+    $navLinks = [
+        ['href' => $basePath . 'index.php', 'label' => 'Home'],
+    ];
+}
+?>
+<header class="simple-navbar">
+    <nav class="container simple-navbar-inner" aria-label="Main navigation">
+        <a class="simple-navbar-brand" href="<?= htmlspecialchars($basePath) ?>index.php">JobHub</a>
+        <div class="simple-navbar-links">
+            <?php foreach ($navLinks as $link): ?>
+                <?php $isLogoutLink = $link['href'] === $basePath . 'logout.php'; ?>
+                <a class="<?= $isLogoutLink ? 'simple-navbar-logout' : 'simple-navbar-link' ?>" href="<?= htmlspecialchars($link['href']) ?>"><?= htmlspecialchars($link['label']) ?></a>
+            <?php endforeach; ?>
         </div>
-    </div>
+    </nav>
 </header>
 
 <main class="container py-4 flex-grow-1">

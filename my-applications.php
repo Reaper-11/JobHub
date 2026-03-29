@@ -11,11 +11,11 @@ if (!isset($_SESSION['user_id'])) {
 
 $user_id = (int)$_SESSION['user_id'];
 
-$sql = "SELECT a.id, a.job_id, a.status, a.cover_letter, a.applied_at,
+$sql = "SELECT a.id, a.job_id, a.status, a.response_message, a.cover_letter, a.applied_at,
                j.title, j.company, j.location, j.type
-        FROM applications a
-        JOIN jobs j ON a.job_id = j.id
-        WHERE a.user_id = ?
+         FROM applications a
+         JOIN jobs j ON a.job_id = j.id
+         WHERE a.user_id = ?
         ORDER BY a.applied_at DESC";
 
 $stmt = $conn->prepare($sql);
@@ -68,6 +68,12 @@ $stmt->close();
                         };
                         ?>
                         <span class="badge <?= $badge ?>"><?= ucfirst($status) ?></span>
+                        <?php if (!empty(trim((string)($app['response_message'] ?? '')))): ?>
+                            <div class="small text-muted mt-2">
+                                <strong>Message:</strong>
+                                <div style="white-space: pre-wrap;"><?= nl2br(htmlspecialchars($app['response_message'])) ?></div>
+                            </div>
+                        <?php endif; ?>
                     </td>
                     <td><?= date('M d, Y', strtotime($app['applied_at'])) ?></td>
                     <td>

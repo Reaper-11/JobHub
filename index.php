@@ -17,7 +17,7 @@ $selectedExperience = in_array($experience, $experienceLevels, true) ? $experien
 $selectedJobType = in_array($jobType, $jobTypes, true) ? $jobType : '';
 $activeLocation = $location !== '' ? $location : '';
 $activeSalary = $salary !== '' ? $salary : '';
-$hasActiveFilters = (
+$isFilterActive = (
     $keyword !== '' ||
     $selectedCategory !== '' ||
     $selectedExperience !== '' ||
@@ -26,7 +26,7 @@ $hasActiveFilters = (
     $selectedJobType !== ''
 );
 
-if (isset($_SESSION['user_id']) && $hasActiveFilters) {
+if (isset($_SESSION['user_id']) && $isFilterActive) {
     $hasSearchLogsTable = $conn->query("SHOW TABLES LIKE 'job_search_logs'");
     if ($hasSearchLogsTable && $hasSearchLogsTable->num_rows > 0) {
         $hasJobTypeColumn = false;
@@ -71,67 +71,94 @@ if (isset($_SESSION['user_id']) && $hasActiveFilters) {
     }
 }
 
-$sql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
-        FROM jobs j
-        LEFT JOIN companies c ON j.company_id = c.id
-        WHERE (j.company_id IS NULL OR c.is_approved = 1)
-          AND j.is_approved = 1
-          AND j.status = 'active'";
+$jobWhereClauses = [
+    "(j.company_id IS NULL OR c.is_approved = 1)",
+    "j.is_approved = 1",
+    "j.status = 'active'",
+];
+$jobBindTypes = '';
+$jobBindParams = [];
 
-$types = '';
-$params = [];
-
-if ($keyword) {
-    $sql .= " AND (j.title LIKE ? OR j.description LIKE ? OR j.company LIKE ?)";
-    $like = "%$keyword%";
-    $types .= 'sss';
-    $params = [$like, $like, $like];
+if ($keyword !== '') {
+    $keywordLike = '%' . $keyword . '%';
+    $jobWhereClauses[] = "(j.title LIKE ? OR j.description LIKE ? OR j.company LIKE ? OR j.category LIKE ? OR j.location LIKE ? OR j.type LIKE ? OR j.experience_level LIKE ? OR j.skills_required LIKE ?)";
+    $jobBindTypes .= 'ssssssss';
+    array_push(
+        $jobBindParams,
+        $keywordLike,
+        $keywordLike,
+        $keywordLike,
+        $keywordLike,
+        $keywordLike,
+        $keywordLike,
+        $keywordLike,
+        $keywordLike
+    );
 }
 
 if ($selectedCategory !== '') {
-    $sql .= " AND j.category = ?";
-    $types .= 's';
-    $params[] = $selectedCategory;
+    $jobWhereClauses[] = "j.category = ?";
+    $jobBindTypes .= 's';
+    $jobBindParams[] = $selectedCategory;
 }
 
 if ($selectedExperience !== '') {
-    $sql .= " AND j.experience_level = ?";
-    $types .= 's';
-    $params[] = $selectedExperience;
+    $jobWhereClauses[] = "j.experience_level = ?";
+    $jobBindTypes .= 's';
+    $jobBindParams[] = $selectedExperience;
 }
 
 if ($activeLocation !== '') {
-    $sql .= " AND j.location LIKE ?";
-    $types .= 's';
-    $params[] = '%' . $activeLocation . '%';
+    $jobWhereClauses[] = "j.location LIKE ?";
+    $jobBindTypes .= 's';
+    $jobBindParams[] = '%' . $activeLocation . '%';
 }
 
 if ($activeSalary !== '') {
-    $sql .= " AND j.salary LIKE ?";
-    $types .= 's';
-    $params[] = '%' . $activeSalary . '%';
+    $jobWhereClauses[] = "j.salary LIKE ?";
+    $jobBindTypes .= 's';
+    $jobBindParams[] = '%' . $activeSalary . '%';
 }
 
 if ($selectedJobType !== '') {
-    $sql .= " AND j.type = ?";
-    $types .= 's';
-    $params[] = $selectedJobType;
+    $jobWhereClauses[] = "j.type = ?";
+    $jobBindTypes .= 's';
+    $jobBindParams[] = $selectedJobType;
 }
 
-$sql .= " ORDER BY application_count DESC, j.created_at DESC LIMIT 50";
+$jobsSql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
+    FROM jobs j
+    LEFT JOIN companies c ON j.company_id = c.id
+    WHERE " . implode(' AND ', $jobWhereClauses);
 
-$jobs = db_query_all($sql, $types, $params);
+if ($isFilterActive) {
+    $jobsSql .= " ORDER BY j.created_at DESC, application_count DESC";
+} else {
+    $jobsSql .= " ORDER BY application_count DESC, j.created_at DESC";
+}
 
-$topJobs = db_query_all(
-    "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
-     FROM jobs j
-     LEFT JOIN companies c ON j.company_id = c.id
-     WHERE (j.company_id IS NULL OR c.is_approved = 1)
-       AND j.is_approved = 1
-       AND j.status = 'active'
-     ORDER BY application_count DESC, j.created_at DESC
-     LIMIT 6"
-);
+$jobsSql .= " LIMIT 50";
+
+$jobs = db_query_all($jobsSql, $jobBindTypes, $jobBindParams);
+
+$resultsDescription = $isFilterActive
+    ? 'Showing jobs that match your current search and selected filters.'
+    : 'Browse recently posted opportunities from approved employers';
+$resultsStateMessage = $isFilterActive ? 'Showing filtered results' : 'Showing all jobs';
+
+$topJobs = [];
+if (!$isFilterActive) {
+    $topJobs = db_query_all(
+        "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
+         FROM jobs j
+         LEFT JOIN companies c ON j.company_id = c.id
+         WHERE (j.company_id IS NULL OR c.is_approved = 1)
+           AND j.is_approved = 1
+           AND j.status = 'active'
+         ORDER BY application_count DESC, j.created_at DESC
+         LIMIT 6"
+    );
+}
 
 $isJobSeeker = isset($_SESSION['user_id']);
 $isCompany   = isset($_SESSION['company_id']);
@@ -139,7 +166,7 @@ $isAdmin     = isset($_SESSION['admin_id']);
 $isLoggedIn  = $isJobSeeker || $isCompany || $isAdmin;
 
 $recommendedJobs = [];
-if ($isJobSeeker) {
+if ($isJobSeeker && !$isFilterActive) {
     require_once __DIR__ . '/includes/recommendation.php';
     $recommendedJobs = recommendJobs($conn, (int) $_SESSION['user_id'], 6);
 }
@@ -288,146 +315,73 @@ $basePath = '';
 <body class="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen antialiased text-gray-900">
     <header class="bg-black sticky top-0 z-50 border-b border-black/80 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div class="flex justify-between items-center">
-                <a href="<?= $basePath ?>index.php" class="flex items-center gap-3 group">
-                    <div class="p-3 bg-gradient-to-r from-[#1a237e] to-[#283593] rounded-xl shadow-lg group-hover:scale-105 transition-transform duration-300">
-                        <i class="fas fa-briefcase text-xl text-white"></i>
-                    </div>
-                    <h1 class="text-2xl md:text-3xl font-bold text-white tracking-tight">
-                        Job<span class="text-white">Hub</span>
-                    </h1>
+            <?php
+            $navLinks = [];
+            $navLinkClass = 'text-white no-underline hover:opacity-80 transition';
+            $logoutLinkClass = 'bg-red-600 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
+            $brandLinkClass = 'inline-block bg-white text-black no-underline px-4 py-2 rounded-md text-lg font-bold hover:opacity-80 transition';
+            $guestLoginLinkClass = 'bg-sky-400 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
+            $guestRegisterLinkClass = 'bg-green-500 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
+            $isGuestNavbar = false;
+
+            if ($isLoggedIn && $isJobSeeker) {
+                $notificationLabel = 'Notifications';
+                if (!empty($notificationCount)) {
+                    $notificationLabel .= ' (' . (int) $notificationCount . ')';
+                }
+
+                $navLinks = [
+                    ['href' => $basePath . 'my-bookmarks.php', 'label' => 'Bookmarks'],
+                    ['href' => $basePath . 'my-applications.php', 'label' => 'Applications'],
+                    ['href' => $basePath . 'notifications.php', 'label' => $notificationLabel],
+                    ['href' => $basePath . 'user-account.php', 'label' => 'Account'],
+                    ['href' => $basePath . 'contact-support.php', 'label' => 'Contact Support'],
+                    ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
+                ];
+            } elseif ($isCompany) {
+                $navLinks = [
+                    ['href' => $basePath . 'company/company-dashboard.php', 'label' => 'Dashboard'],
+                    ['href' => $basePath . 'company/company-my-jobs.php', 'label' => 'My Jobs'],
+                    ['href' => $basePath . 'contact-support.php', 'label' => 'Contact Support'],
+                    ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
+                ];
+            } elseif ($isAdmin) {
+                $navLinks = [
+                    ['href' => $basePath . 'admin/dashboard.php', 'label' => 'Admin Panel'],
+                    ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
+                ];
+            } else {
+                $isGuestNavbar = true;
+                $navLinks = [
+                    ['href' => $basePath . 'login-choice.php', 'label' => 'Log In'],
+                    ['href' => $basePath . 'register-choice.php', 'label' => 'Register'],
+                ];
+            }
+            ?>
+            <nav class="flex flex-wrap items-center justify-between gap-4" aria-label="Main navigation">
+                <a href="<?= $basePath ?>index.php" class="<?= $brandLinkClass ?>">
+                    JobHub
                 </a>
-
-                <div class="hidden md:flex items-center gap-6">
-                    <?php if ($isLoggedIn && $isJobSeeker): ?>
-                        <a href="<?= $basePath ?>my-bookmarks.php"
-                            class="relative text-white hover:text-white font-medium transition px-4 py-2.5 rounded-lg hover:bg-white/10 flex items-center gap-2 group">
-                            <i class="fas fa-bookmark"></i>
-                            <span>Bookmarks</span>
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-[#1a237e] group-hover:w-full transition-all duration-300"></span>
+                <?php if ($isGuestNavbar): ?>
+                    <div class="flex items-center gap-2.5">
+                        <a href="<?= htmlspecialchars($navLinks[0]['href']) ?>" class="<?= $guestLoginLinkClass ?>">
+                            <?= htmlspecialchars($navLinks[0]['label']) ?>
                         </a>
-                        <a href="<?= $basePath ?>my-applications.php"
-                            class="relative text-white hover:text-white font-medium transition px-4 py-2.5 rounded-lg hover:bg-white/10 flex items-center gap-2 group">
-                            <i class="fas fa-clipboard-list"></i>
-                            <span>Applications</span>
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-[#1a237e] group-hover:w-full transition-all duration-300"></span>
+                        <a href="<?= htmlspecialchars($navLinks[1]['href']) ?>" class="<?= $guestRegisterLinkClass ?>">
+                            <?= htmlspecialchars($navLinks[1]['label']) ?>
                         </a>
-                        <a href="<?= $basePath ?>user-account.php"
-                            class="relative text-white hover:text-white font-medium transition px-4 py-2.5 rounded-lg hover:bg-white/10 flex items-center gap-2 group">
-                            <i class="fas fa-user"></i>
-                            <span>Account</span>
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-[#1a237e] group-hover:w-full transition-all duration-300"></span>
-                        </a>
-                    <?php elseif ($isCompany): ?>
-                        <a href="<?= $basePath ?>company/company-dashboard.php"
-                            class="relative text-white hover:text-white font-medium transition px-4 py-2.5 rounded-lg hover:bg-white/10 flex items-center gap-2 group">
-                            <i class="fas fa-columns"></i>
-                            <span>Dashboard</span>
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-[#1a237e] group-hover:w-full transition-all duration-300"></span>
-                        </a>
-                        <a href="<?= $basePath ?>company/my-jobs.php"
-                            class="relative text-gray-700 hover:text-[#1a237e] font-medium transition px-4 py-2.5 rounded-lg hover:bg-[#1a237e]/5 flex items-center gap-2 group">
-                            <i class="fas fa-briefcase"></i>
-                            <span>My Jobs</span>
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-[#1a237e] group-hover:w-full transition-all duration-300"></span>
-                        </a>
-                    <?php elseif ($isAdmin): ?>
-                        <a href="<?= $basePath ?>admin/dashboard.php"
-                            class="relative text-gray-700 hover:text-[#1a237e] font-medium transition px-4 py-2.5 rounded-lg hover:bg-[#1a237e]/5 flex items-center gap-2 group">
-                            <i class="fas fa-user-shield"></i>
-                            <span>Admin Panel</span>
-                            <span class="absolute bottom-0 left-0 w-0 h-0.5 bg-[#1a237e] group-hover:w-full transition-all duration-300"></span>
-                        </a>
-                    <?php endif; ?>
-
-                    <?php if ($isLoggedIn): ?>
-                        <a href="<?= $basePath ?>logout.php"
-                            class="relative px-6 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:opacity-90 font-medium transition shadow-md hover:shadow-lg flex items-center gap-2 overflow-hidden group">
-                            <span class="relative z-10 flex items-center gap-2">
-                                <i class="fas fa-sign-out-alt"></i>
-                                Log Out
-                            </span>
-                            <div class="absolute inset-0 bg-white/20 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
-                        </a>
-                    <?php else: ?>
-                        <a href="<?= $basePath ?>login-choice.php"
-                            class="px-4 py-2.5 rounded-xl border border-white text-white bg-transparent font-semibold shadow-sm hover:bg-white/10 transition flex items-center gap-2">
-                            <i class="fas fa-sign-in-alt"></i>
-                            <span>Log In</span>
-                        </a>
-                        <a href="<?= $basePath ?>register-choice.php"
-                            class="relative px-6 py-3 bg-gradient-to-r from-[#ff9800] to-[#ffb74d] text-white rounded-xl hover:opacity-90 font-medium transition shadow-md hover:shadow-lg flex items-center gap-2 overflow-hidden group">
-                            <span class="relative z-10 flex items-center gap-2">
-                                <i class="fas fa-user-plus"></i>
-                                Register
-                            </span>
-                            <div class="absolute inset-0 bg-white/20 transform -translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
-                        </a>
-                    <?php endif; ?>
-                </div>
-
-                <button id="mobile-menu-button" class="md:hidden p-2 rounded-lg hover:bg-white/10 transition">
-                    <i class="fas fa-bars text-xl text-white"></i>
-                </button>
-            </div>
-
-            <div id="mobile-menu" class="hidden md:hidden mt-4 pt-4 border-t border-white/10">
-                <div class="space-y-3">
-                    <?php if ($isLoggedIn && $isJobSeeker): ?>
-                        <a href="<?= $basePath ?>my-bookmarks.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-white/5 text-white font-medium hover:bg-white/10 transition flex items-center gap-3">
-                            <i class="fas fa-bookmark"></i>
-                            Bookmarks
-                        </a>
-                        <a href="<?= $basePath ?>my-applications.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-white/5 text-white font-medium hover:bg-white/10 transition flex items-center gap-3">
-                            <i class="fas fa-clipboard-list"></i>
-                            Applications
-                        </a>
-                        <a href="<?= $basePath ?>user-account.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-white/5 text-white font-medium hover:bg-white/10 transition flex items-center gap-3">
-                            <i class="fas fa-user"></i>
-                            Account
-                        </a>
-                    <?php elseif ($isCompany): ?>
-                        <a href="<?= $basePath ?>company/company-dashboard.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-white/5 text-white font-medium hover:bg-white/10 transition flex items-center gap-3">
-                            <i class="fas fa-columns"></i>
-                            Dashboard
-                        </a>
-                        <a href="<?= $basePath ?>company/my-jobs.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-gradient-to-r from-[#1a237e]/5 to-[#283593]/5 text-gray-700 font-medium hover:from-[#1a237e]/10 hover:to-[#283593]/10 transition flex items-center gap-3">
-                            <i class="fas fa-briefcase"></i>
-                            My Jobs
-                        </a>
-                    <?php elseif ($isAdmin): ?>
-                        <a href="<?= $basePath ?>admin/dashboard.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-gradient-to-r from-[#1a237e]/5 to-[#283593]/5 text-gray-700 font-medium hover:from-[#1a237e]/10 hover:to-[#283593]/10 transition flex items-center gap-3">
-                            <i class="fas fa-user-shield"></i>
-                            Admin Panel
-                        </a>
-                    <?php endif; ?>
-
-                    <?php if ($isLoggedIn): ?>
-                        <a href="<?= $basePath ?>logout.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-medium hover:opacity-90 transition flex items-center gap-3">
-                            <i class="fas fa-sign-out-alt"></i>
-                            Log Out
-                        </a>
-                    <?php else: ?>
-                        <a href="<?= $basePath ?>login-choice.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg border border-white text-white bg-transparent font-semibold hover:bg-white/10 transition flex items-center gap-3">
-                            <i class="fas fa-sign-in-alt"></i>
-                            Log In
-                        </a>
-                        <a href="<?= $basePath ?>register-choice.php"
-                            class="block w-full text-left px-4 py-3 rounded-lg bg-gradient-to-r from-[#ff9800] to-[#ffb74d] text-white font-medium hover:opacity-90 transition flex items-center gap-3">
-                            <i class="fas fa-user-plus"></i>
-                            Register
-                        </a>
-                    <?php endif; ?>
-                </div>
-            </div>
+                    </div>
+                <?php else: ?>
+                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                        <?php foreach ($navLinks as $link): ?>
+                            <?php $isLogoutLink = $link['href'] === $basePath . 'logout.php'; ?>
+                            <a href="<?= htmlspecialchars($link['href']) ?>" class="<?= $isLogoutLink ? $logoutLinkClass : $navLinkClass ?>">
+                                <?= htmlspecialchars($link['label']) ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </nav>
         </div>
     </header>
 
@@ -549,7 +503,8 @@ $basePath = '';
         </div>
     </section>
 
-    <section id="featured" class="py-16 md:py-24 bg-gradient-to-b from-white to-gray-50">
+    <?php if (!$isFilterActive): ?>
+        <section id="featured" class="py-16 md:py-24 bg-gradient-to-b from-white to-gray-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-12 md:mb-20">
                 <div class="inline-flex items-center gap-4 mb-8">
@@ -654,9 +609,10 @@ $basePath = '';
                 </div>
             <?php endif; ?>
         </div>
-    </section>
+        </section>
+    <?php endif; ?>
 
-    <?php if ($isJobSeeker): ?>
+    <?php if ($isJobSeeker && !$isFilterActive): ?>
         <section id="recommended" class="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div class="text-center mb-12 md:mb-20">
@@ -784,16 +740,18 @@ $basePath = '';
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
                 <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-                    Latest <span class="text-[#1a237e]">Openings</span>
+                    <?php if ($isFilterActive): ?>
+                        Filtered <span class="text-[#1a237e]">Results</span>
+                    <?php else: ?>
+                        Latest <span class="text-[#1a237e]">Openings</span>
+                    <?php endif; ?>
                 </h2>
                 <p class="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
-                    Browse recently posted opportunities from approved employers
+                    <?= htmlspecialchars($resultsDescription) ?>
                 </p>
-                <?php if ($hasActiveFilters): ?>
-                    <p class="mt-4 text-sm font-medium text-gray-600">
-                        Showing <?= count($jobs) ?> filtered job result<?= count($jobs) === 1 ? '' : 's' ?>.
-                    </p>
-                <?php endif; ?>
+                <p class="mt-4 text-sm font-medium text-gray-600">
+                    <?= htmlspecialchars($resultsStateMessage) ?><?php if ($isFilterActive && !empty($jobs)): ?> | <?= count($jobs) ?> matching job result<?= count($jobs) === 1 ? '' : 's' ?> found.<?php endif; ?>
+                </p>
             </div>
 
             <?php if (empty($jobs)): ?>
@@ -805,7 +763,9 @@ $basePath = '';
                         No Jobs Found
                     </h3>
                     <p class="text-lg md:text-xl text-gray-700 mb-8 max-w-2xl mx-auto leading-relaxed">
-                        Try adjusting your search or check back later for new postings.
+                        <?= $isFilterActive
+                            ? 'No jobs found for your search/filter. Try adjusting the filters and search terms.'
+                            : 'There are no active jobs available right now. Please check back later for new postings.' ?>
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4 justify-center">
                         <a href="<?= $basePath ?>index.php"
@@ -1062,19 +1022,6 @@ $basePath = '';
     </footer>
 
     <script>
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileMenu = document.getElementById('mobile-menu');
-
-        mobileMenuButton.addEventListener('click', () => {
-            mobileMenu.classList.toggle('hidden');
-            const icon = mobileMenuButton.querySelector('i');
-            if (mobileMenu.classList.contains('hidden')) {
-                icon.className = 'fas fa-bars text-xl text-gray-700';
-            } else {
-                icon.className = 'fas fa-times text-xl text-gray-700';
-            }
-        });
-
         const scrollHint = document.getElementById('scroll-hint');
         window.addEventListener('scroll', () => {
             if (window.scrollY > 300) {

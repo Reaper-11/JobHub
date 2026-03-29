@@ -17,26 +17,18 @@ $where = $job_id > 0
 $params = $job_id > 0 ? [$cid, $job_id] : [$cid];
 $types  = $job_id > 0 ? "ii" : "i";
 
-$applications = db_query_all("
-    SELECT a.id, a.status, a.cover_letter, a.cv_path, a.applied_at,
-           u.name AS user_name, u.email AS user_email, u.cv_path AS user_cv_path,
-           j.title AS job_title
-    FROM applications a
-    JOIN users u ON u.id = a.user_id
-    JOIN jobs j ON j.id = a.job_id
-    WHERE $where
-    ORDER BY a.applied_at DESC
-", $types, $params);
-
 $msg = $msg_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $app_id = (int)($_POST['app_id'] ?? 0);
     $new_status = trim($_POST['status'] ?? '');
     $allowed_statuses = ['pending', 'shortlisted', 'interview', 'approved', 'rejected'];
+    $response_statuses = ['shortlisted', 'interview', 'approved', 'rejected'];
+    $response_message = trim($_POST['response_message'] ?? '');
+    $response_message = in_array($new_status, $response_statuses, true) && $response_message !== '' ? $response_message : null;
 
     if ($app_id > 0 && in_array($new_status, $allowed_statuses, true)) {
         $currentApplication = db_query_all("
-            SELECT a.id, a.user_id, a.status, j.title AS job_title,
+            SELECT a.id, a.user_id, a.status, a.response_message, j.title AS job_title,
                    COALESCE(c.name, j.company, 'Company') AS company_name
             FROM applications a
             JOIN jobs j ON j.id = a.job_id
@@ -48,46 +40,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         if (!$currentApplication) {
             $msg = "Application not found.";
             $msg_type = 'danger';
-        } elseif (strcasecmp((string)$currentApplication['status'], $new_status) === 0) {
-            $msg = "Application already has that status.";
-            $msg_type = 'info';
         } else {
-        $stmt = $conn->prepare("
-            UPDATE applications
-            SET status = ?, updated_at = NOW()
-            WHERE id = ? AND job_id IN (SELECT id FROM jobs WHERE company_id = ?)
-        ");
-        $stmt->bind_param("sii", $new_status, $app_id, $cid);
+            $currentResponse = trim((string)($currentApplication['response_message'] ?? ''));
+            $currentResponse = $currentResponse !== '' ? $currentResponse : null;
 
-        if ($stmt->execute()) {
-            $msg = "Application status updated.";
-            $msg_type = 'success';
+            if (
+                strcasecmp((string)$currentApplication['status'], $new_status) === 0
+                && $currentResponse === $response_message
+            ) {
+                $msg = "Application already has that status.";
+                $msg_type = 'info';
+            } else {
+                $stmt = $conn->prepare("
+                    UPDATE applications
+                    SET status = ?, response_message = NULLIF(?, ''), updated_at = NOW()
+                    WHERE id = ? AND job_id IN (SELECT id FROM jobs WHERE company_id = ?)
+                ");
+                $response_value = $response_message ?? '';
+                $stmt->bind_param("ssii", $new_status, $response_value, $app_id, $cid);
 
-            $jobTitle = $currentApplication['job_title'] ?? 'your application';
-            $companyName = $currentApplication['company_name'] ?? 'the company';
-            $statusLabel = notify_status_label($new_status);
+                if ($stmt->execute()) {
+                    $msg = "Application status updated.";
+                    $msg_type = 'success';
 
-            notify_create(
-                'user',
-                (int)$currentApplication['user_id'],
-                'Application Status Updated',
-                'Your application for "' . $jobTitle . '" at ' . $companyName . ' has been updated to "' . $statusLabel . '".',
-                'my-applications.php',
-                notify_status_type($new_status),
-                'application',
-                $app_id
-            );
-        } else {
-            $msg = "Update failed.";
-            $msg_type = 'danger';
-        }
-        $stmt->close();
+                    $jobTitle = $currentApplication['job_title'] ?? 'your application';
+                    $companyName = $currentApplication['company_name'] ?? 'the company';
+                    $statusLabel = notify_status_label($new_status);
+                    $notificationMessage = 'Your application for "' . $jobTitle . '" at ' . $companyName . ' has been updated to "' . $statusLabel . '".';
+                    if ($response_message !== null) {
+                        $notificationMessage .= ' Message from company: ' . $response_message;
+                    }
+
+                    notify_create(
+                        'user',
+                        (int)$currentApplication['user_id'],
+                        'Application Status Updated',
+                        $notificationMessage,
+                        'my-applications.php',
+                        notify_status_type($new_status),
+                        'application',
+                        $app_id
+                    );
+                } else {
+                    $msg = "Update failed.";
+                    $msg_type = 'danger';
+                }
+                $stmt->close();
+            }
         }
     } else {
         $msg = "Invalid status selection.";
         $msg_type = 'danger';
     }
 }
+
+$applications = db_query_all("
+    SELECT a.id, a.status, a.response_message, a.cover_letter, a.cv_path, a.applied_at,
+           u.name AS user_name, u.email AS user_email, u.cv_path AS user_cv_path,
+           j.title AS job_title
+    FROM applications a
+    JOIN users u ON u.id = a.user_id
+    JOIN jobs j ON j.id = a.job_id
+    WHERE $where
+    ORDER BY a.applied_at DESC
+", $types, $params);
 ?>
 
 <?php require 'company-header.php'; ?>
@@ -163,7 +179,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         <!-- Status Update Modal -->
         <div class="modal fade" id="statusModal<?= $app['id'] ?>" tabindex="-1">
             <div class="modal-dialog">
-                <form method="post" class="modal-content">
+                <form method="post" class="modal-content js-status-form">
                     <div class="modal-header">
                         <h5 class="modal-title">Update Application Status</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -174,13 +190,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 
                         <div class="mb-3">
                             <label class="form-label">New Status</label>
-                            <select name="status" class="form-select" required>
-                                <option value="pending">Pending</option>
-                                <option value="shortlisted">Shortlisted</option>
-                                <option value="interview">Interview</option>
-                                <option value="approved">Approved</option>
-                                <option value="rejected">Rejected</option>
+                            <select name="status" class="form-select js-status-select" required>
+                                <option value="pending" <?= strtolower($app['status'] ?? 'pending') === 'pending' ? 'selected' : '' ?>>Pending</option>
+                                <option value="shortlisted" <?= strtolower($app['status'] ?? '') === 'shortlisted' ? 'selected' : '' ?>>Shortlisted</option>
+                                <option value="interview" <?= strtolower($app['status'] ?? '') === 'interview' ? 'selected' : '' ?>>Interview</option>
+                                <option value="approved" <?= strtolower($app['status'] ?? '') === 'approved' ? 'selected' : '' ?>>Approved</option>
+                                <option value="rejected" <?= strtolower($app['status'] ?? '') === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                             </select>
+                        </div>
+
+                        <div class="js-response-box" style="display:none; margin-top:10px;">
+                            <label class="form-label" for="response_message_<?= (int)$app['id'] ?>">Response Message</label>
+                            <textarea
+                                name="response_message"
+                                id="response_message_<?= (int)$app['id'] ?>"
+                                class="form-control"
+                                rows="4"
+                                placeholder="Write message for applicant..."
+                            ><?= htmlspecialchars($app['response_message'] ?? '') ?></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -192,5 +219,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         </div>
     <?php endforeach; ?>
 <?php endif; ?>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const statusesWithResponse = new Set(["shortlisted", "interview", "approved", "rejected"]);
+
+    document.querySelectorAll(".js-status-form").forEach(function (form) {
+        const statusSelect = form.querySelector(".js-status-select");
+        const responseBox = form.querySelector(".js-response-box");
+
+        if (!statusSelect || !responseBox) {
+            return;
+        }
+
+        const toggleResponseBox = function () {
+            responseBox.style.display = statusesWithResponse.has(statusSelect.value) ? "block" : "none";
+        };
+
+        statusSelect.addEventListener("change", toggleResponseBox);
+        toggleResponseBox();
+    });
+});
+</script>
 
 <?php require '../footer.php'; ?>
