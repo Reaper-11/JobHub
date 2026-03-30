@@ -1,21 +1,15 @@
 <?php
-// company/company-header.php
 require_once '../db.php';
 require_once '../includes/company_verification_helper.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
+require_role('company');
 
 $hasSidebarLayout = true;
+$cid = current_company_id();
+$notificationCount = notify_unread_count('company', $cid ?? 0);
 
-$cid = (int)$_SESSION['company_id'];
-$notificationCount = notify_unread_count('company', $cid);
-
-// Fetch company status once
 $stmt = $conn->prepare("
-    SELECT name, is_approved, rejection_reason, operational_state, restriction_reason, restricted_at,
+    SELECT name, email, is_approved, rejection_reason, operational_state, restriction_reason, restricted_at,
            verification_company_name, verification_registration_number, verification_phone,
            verification_address, verification_document_path, verification_status,
            verification_admin_remarks, verification_submitted_at, verification_verified_at
@@ -26,6 +20,7 @@ $stmt->bind_param("i", $cid);
 $stmt->execute();
 $company = $stmt->get_result()->fetch_assoc() ?? [
     'name' => 'Company',
+    'email' => '',
     'is_approved' => 0,
     'rejection_reason' => null,
     'operational_state' => 'active',
@@ -43,8 +38,8 @@ $company = $stmt->get_result()->fetch_assoc() ?? [
 ];
 $stmt->close();
 
-$isApproved = (int)$company['is_approved'] === 1;
-$isRejected = (int)$company['is_approved'] === -1;
+$isApproved = (int) $company['is_approved'] === 1;
+$isRejected = (int) $company['is_approved'] === -1;
 $operationalState = $company['operational_state'] ?? 'active';
 $restrictionReason = $company['restriction_reason'] ?? '';
 $restrictedAt = $company['restricted_at'] ?? null;
@@ -52,6 +47,7 @@ $rejectionReason = $company['rejection_reason'] ?? '';
 $verificationStatus = get_company_verification_status($company);
 $isVerified = is_company_verified($company);
 $canPostJobs = $isApproved && $operationalState === 'active' && $isVerified;
+$authFlash = jobhub_take_auth_flash();
 
 $approvalBadge = $isApproved
     ? '<span class="badge bg-success">Approved</span>'
@@ -86,7 +82,6 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
 <body>
 
 <div class="d-flex">
-    <!-- Company Sidebar -->
     <div class="company-sidebar col-auto p-3">
         <h4 class="text-white mb-4">Company Dashboard</h4>
         <div class="mb-3 p-2 bg-dark rounded text-center">
@@ -108,16 +103,20 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
                 <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-notifications.php' ? 'active' : '' ?>" href="company-notifications.php">
                     Notifications
                     <?php if ($notificationCount > 0): ?>
-                        <span class="badge bg-warning text-dark ms-1"><?= (int)$notificationCount ?></span>
+                        <span class="badge bg-warning text-dark ms-1"><?= (int) $notificationCount ?></span>
                     <?php endif; ?>
                 </a>
             </li>
-            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'contact-support.php' ? 'active' : '' ?>" href="../contact-support.php">Contact Support</a></li>
+            <li class="nav-item"><a class="nav-link" href="../contact-support.php">Contact Support</a></li>
             <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-account.php' ? 'active' : '' ?>" href="company-account.php">Account Settings</a></li>
             <li class="nav-item mt-4"><a class="nav-link text-danger" href="../logout.php">Logout</a></li>
         </ul>
     </div>
 
-    <!-- Main content -->
     <div class="main-content flex-grow-1">
         <main class="container-fluid py-4">
+            <?php if ($authFlash): ?>
+                <div class="alert alert-<?= htmlspecialchars($authFlash['type'] ?? 'info') ?>">
+                    <?= htmlspecialchars($authFlash['message'] ?? '') ?>
+                </div>
+            <?php endif; ?>

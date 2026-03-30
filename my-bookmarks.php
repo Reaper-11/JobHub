@@ -1,15 +1,10 @@
 <?php
 // my-bookmarks.php
 require 'db.php';
+require_role('jobseeker');
+$user_id = current_user_id() ?? 0;
 $bodyClass = 'user-ui';
 require 'header.php';
-
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
-
-$user_id = (int)$_SESSION['user_id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_bookmark'])) {
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {

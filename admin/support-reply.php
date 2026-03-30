@@ -2,10 +2,7 @@
 require '../db.php';
 require_once '../includes/support_helper.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: support-messages.php');
@@ -25,7 +22,7 @@ $sendEmail = !empty($_POST['send_email']);
 $previousSupportMessage = support_fetch_message($conn, $messageId);
 $previousReply = trim((string)($previousSupportMessage['admin_reply'] ?? ''));
 
-$result = support_reply_message($conn, $messageId, $replyMessage, (int)$_SESSION['admin_id'], $sendEmail);
+$result = support_reply_message($conn, $messageId, $replyMessage, current_admin_id() ?? 0, $sendEmail);
 
 if (!empty($result['success'])) {
     $supportMessage = support_fetch_message($conn, $messageId);

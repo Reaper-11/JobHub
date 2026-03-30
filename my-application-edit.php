@@ -1,15 +1,13 @@
 <?php
 // my-application-edit.php
 require 'db.php';
-$bodyClass = 'user-ui';
-require 'header.php';
+require_role('jobseeker');
+$user_id = current_user_id() ?? 0;
 
-if (!isset($_SESSION['user_id']) || !isset($_GET['id']) || !is_numeric($_GET['id'])) {
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: my-applications.php");
     exit;
 }
-
-$user_id = (int)$_SESSION['user_id'];
 $app_id  = (int)$_GET['id'];
 
 $stmt = $conn->prepare("
@@ -50,6 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->close();
     }
 }
+
+$bodyClass = 'user-ui';
+require 'header.php';
 ?>
 
 <h1 class="mb-4">Edit Application</h1>

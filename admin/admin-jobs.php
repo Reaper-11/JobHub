@@ -2,10 +2,7 @@
 require '../db.php';
 require_once '../includes/recommendation.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $statusFilter = $_GET['approval'] ?? 'all';
 if (!in_array($statusFilter, ['all', 'pending', 'approved', 'rejected'], true)) {
@@ -18,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $jobId = (int)($_POST['job_id'] ?? 0);
     $action = trim($_POST['action'] ?? '');
     $remarks = trim($_POST['remarks'] ?? '');
-    $adminId = (int)$_SESSION['admin_id'];
+    $adminId = current_admin_id() ?? 0;
 
     if ($jobId > 0 && in_array($action, ['approve', 'reject'], true)) {
         $stmt = $conn->prepare("

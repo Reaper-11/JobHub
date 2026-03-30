@@ -2,10 +2,7 @@
 require '../db.php';
 require_once '../includes/support_helper.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: support-messages.php');
@@ -24,7 +21,7 @@ if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
     if ($ok && function_exists('log_activity')) {
         log_activity(
             $conn,
-            (int)$_SESSION['admin_id'],
+            current_admin_id() ?? 0,
             'admin',
             'support_message_resolved',
             'Admin resolved support message #' . $messageId,

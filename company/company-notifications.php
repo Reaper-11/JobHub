@@ -2,7 +2,7 @@
 // company/company-notifications.php
 require 'company-header.php';
 
-$cid = (int)$_SESSION['company_id'];
+$cid = current_company_id() ?? 0;
 $msg = '';
 $msg_type = '';
 

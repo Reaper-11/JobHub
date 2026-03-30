@@ -1,13 +1,8 @@
 <?php
 // company/company-my-jobs.php
 require '../db.php';
-
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
-
-$cid = (int)$_SESSION['company_id'];
+require_role('company');
+$cid = current_company_id() ?? 0;
 
 // Optional filters (you can expand later)
 $statusFilter = $_GET['status'] ?? 'all';

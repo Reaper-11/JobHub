@@ -1,10 +1,7 @@
 <?php
 require '../db.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $msg = $msg_type = '';
 
@@ -13,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $action = trim($_POST['action'] ?? '');
 
     if ($uid > 0 && in_array($action, ['block', 'unblock', 'remove'], true)) {
-        $stmt = $conn->prepare("SELECT id, name FROM users WHERE id = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, name, account_id FROM users WHERE id = ? LIMIT 1");
         $stmt->bind_param("i", $uid);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -25,18 +22,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         } else {
             if ($action === 'block') {
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'blocked', is_active = 0, updated_at = NOW() WHERE id = ?");
+                $accountStatus = 'blocked';
                 $activityType = 'user_blocked';
                 $description = "Admin blocked user {$user['name']}";
                 $successMessage = "User blocked successfully.";
                 $failureMessage = "Failed to block user.";
             } elseif ($action === 'unblock') {
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'active', is_active = 1, updated_at = NOW() WHERE id = ?");
+                $accountStatus = 'active';
                 $activityType = 'user_unblocked';
                 $description = "Admin unblocked user {$user['name']}";
                 $successMessage = "User unblocked successfully.";
                 $failureMessage = "Failed to unblock user.";
             } else {
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'removed', is_active = 0, updated_at = NOW() WHERE id = ?");
+                $accountStatus = 'inactive';
                 $activityType = 'user_removed';
                 $description = "Admin removed user {$user['name']}";
                 $successMessage = "User removed safely.";
@@ -44,15 +44,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             }
 
             if ($stmt) {
+                $conn->begin_transaction();
+
                 $stmt->bind_param("i", $uid);
                 $ok = $stmt->execute();
                 $stmt->close();
 
+                if ($ok && !empty($user['account_id'])) {
+                    $ok = jobhub_update_account_status($conn, (int) $user['account_id'], $accountStatus);
+                }
+
                 if ($ok) {
+                    $conn->commit();
                     $msg = $successMessage;
                     $msg_type = 'success';
-                    log_activity($conn, (int)$_SESSION['admin_id'], 'admin', $activityType, $description, 'user', $uid);
+                    log_activity($conn, current_admin_id(), 'admin', $activityType, $description, 'user', $uid);
                 } else {
+                    $conn->rollback();
                     $msg = $failureMessage;
                     $msg_type = 'danger';
                 }
@@ -65,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 }
 
 $users = db_query_all("
-    SELECT id, name, email, phone, role, account_status, is_active, created_at
+    SELECT id, account_id, name, email, phone, role, account_status, is_active, created_at
     FROM users
     ORDER BY created_at DESC
 ");

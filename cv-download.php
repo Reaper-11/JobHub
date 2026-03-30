@@ -4,13 +4,8 @@ require 'db.php';
 $scope = $_GET['scope'] ?? '';
 
 if ($scope === 'profile') {
-    if (!isset($_SESSION['user_id'])) {
-        http_response_code(403);
-        echo 'Access denied';
-        exit;
-    }
-
-    $userId = (int) $_SESSION['user_id'];
+    require_role('jobseeker');
+    $userId = current_user_id() ?? 0;
     $cvPath = db_query_value("SELECT cv_path FROM users WHERE id = ?", 'i', [$userId], null);
     if (!jobhub_cv_is_stored_path($cvPath)) {
         http_response_code(404);
@@ -45,11 +40,11 @@ if ($scope === 'application') {
     }
 
     $isAllowed = false;
-    if (isset($_SESSION['admin_id'])) {
+    if (current_admin_id() !== null) {
         $isAllowed = true;
-    } elseif (isset($_SESSION['company_id']) && (int) $_SESSION['company_id'] === (int) ($application['company_id'] ?? 0)) {
+    } elseif ((current_company_id() ?? 0) === (int) ($application['company_id'] ?? 0)) {
         $isAllowed = true;
-    } elseif (isset($_SESSION['user_id']) && (int) $_SESSION['user_id'] === (int) ($application['user_id'] ?? 0)) {
+    } elseif ((current_user_id() ?? 0) === (int) ($application['user_id'] ?? 0)) {
         $isAllowed = true;
     }
 

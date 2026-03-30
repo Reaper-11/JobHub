@@ -2,7 +2,9 @@
 // admin/application-details.php
 require '../db.php';
 
-if (!isset($_SESSION['admin_id']) || !isset($_GET['id']) || !is_numeric($_GET['id'])) {
+require_role('admin');
+
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: admin-applications.php");
     exit;
 }

@@ -1,167 +1,153 @@
 <?php
-// register.php
 require 'db.php';
 
-$debug = isset($_GET['debug']);
-if ($debug) {
-    error_reporting(E_ALL);
-    ini_set('display_errors', 1);
-}
-
 $msg = '';
-$msg_type = 'alert-danger';
-$debug_info = [];
+$msgType = 'alert-danger';
 
-$job_categories = require __DIR__ . '/includes/categories.php';
-$experience_levels = require __DIR__ . '/includes/experience_levels.php';
+$jobCategories = require __DIR__ . '/includes/categories.php';
+$experienceLevels = require __DIR__ . '/includes/experience_levels.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $debug_info[] = "method=POST";
-    $csrf_ok = validate_csrf_token($_POST['csrf_token'] ?? '');
-    $debug_info[] = "csrf_ok=" . ($csrf_ok ? 'yes' : 'no');
-    if (!$csrf_ok) {
-        $msg = "Invalid request. Please try again.";
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $msg = 'Invalid request. Please try again.';
+    } elseif (!jobhub_table_exists($conn, 'accounts') || !jobhub_column_exists($conn, 'users', 'account_id')) {
+        $msg = 'Unified auth schema is not ready. Run the migration first.';
     } else {
-        $name      = trim($_POST['name'] ?? '');
-        $email     = strtolower(trim($_POST['email'] ?? ''));
-        $phone     = trim($_POST['phone'] ?? '');
-        $password  = $_POST['password'] ?? '';
-        $confirm_password = $_POST['confirm_password'] ?? '';
-        $category  = trim($_POST['preferred_category'] ?? '');
-        $experience_level = trim($_POST['experience_level'] ?? '');
-        $debug_info[] = "name_len=" . strlen($name);
-        $debug_info[] = "email=" . $email;
-        $debug_info[] = "phone=" . $phone;
-        $debug_info[] = "category=" . $category;
-        $debug_info[] = "experience_level=" . $experience_level;
-        $debug_info[] = "password_len=" . strlen($password);
+        $name = trim($_POST['name'] ?? '');
+        $email = strtolower(trim($_POST['email'] ?? ''));
+        $phone = trim($_POST['phone'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $confirmPassword = $_POST['confirm_password'] ?? '';
+        $category = trim($_POST['preferred_category'] ?? '');
+        $experienceLevel = trim($_POST['experience_level'] ?? '');
 
-        // Basic validation
-        $has_error = false;
-        if (empty($name) || empty($email) || empty($password) || empty($category)) {
-            $msg = "All required fields must be filled.";
-            $has_error = true;
+        if ($name === '' || $email === '' || $password === '' || $category === '') {
+            $msg = 'All required fields must be filled.';
         } elseif ($nameError = jobhub_validate_person_name($name)) {
             $msg = $nameError;
-            $has_error = true;
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $msg = "Please enter a valid email address.";
-            $has_error = true;
-        } elseif ($password !== $confirm_password) {
-            $msg = "Password and confirmation do not match.";
-            $has_error = true;
-        }
-
-        if (!$has_error && $phone !== '') {
-            // Keep only digits
-            $digits = preg_replace('/\D+/', '', $phone);
-
-            // If user enters +977XXXXXXXXXX or 977XXXXXXXXXX
-            if (strlen($digits) === 13 && substr($digits, 0, 3) === '977') {
-                $digits = substr($digits, 3);
-            }
-
-            if (strlen($digits) !== 10) {
-                $msg = "Phone number must be exactly 10 digits.";
-                $has_error = true;
-            } else {
-                $phone = $digits;
-            }
-        }
-
-        if (!$has_error && ($passwordError = jobhub_validate_password_strength($password))) {
+            $msg = 'Please enter a valid email address.';
+        } elseif ($password !== $confirmPassword) {
+            $msg = 'Password and confirmation do not match.';
+        } elseif ($passwordError = jobhub_validate_password_strength($password)) {
             $msg = $passwordError;
-            $has_error = true;
-        }
-
-        if (!$has_error && !in_array($category, $job_categories, true)) {
-            $msg = "Invalid job category selected.";
-            $has_error = true;
-        }
-
-        if (!$has_error && $experience_level !== '' && !in_array($experience_level, $experience_levels, true)) {
-            $msg = "Invalid experience level selected.";
-            $has_error = true;
-        }
-
-        if (!$has_error) {
-            // Check if email exists
-            $stmt = $conn->prepare("SELECT id FROM users WHERE email = ? LIMIT 1");
-            if (!$stmt) {
-                $msg = "Prepare failed: " . $conn->error;
-            } else {
-                $stmt->bind_param("s", $email);
-                $stmt->execute();
-                $stmt->store_result();
-                $debug_info[] = "email_check_rows=" . $stmt->num_rows;
-                if ($stmt->num_rows > 0) {
-                    $msg = "This email is already registered.";
-                } else {
-                    // password_hash() stores new passwords securely in the database.
-                    $hash = password_hash($password, PASSWORD_DEFAULT);
-
-                    $insert = $conn->prepare("
-                        INSERT INTO users (name, email, phone, password, preferred_category, experience_level, role, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, 'seeker', NOW())
-                    ");
-                    if (!$insert) {
-                        $msg = "Prepare failed: " . $conn->error;
-                    } else {
-                        $insert->bind_param("ssssss", $name, $email, $phone, $hash, $category, $experience_level);
-                        if ($insert->execute()) {
-                            $user_id = $conn->insert_id;
-                            $debug_info[] = "insert_ok=yes";
-
-                            log_activity(
-                                $conn,
-                                $user_id,
-                                'seeker',
-                                'user_registration',
-                                "New user registered: {$name}",
-                                'user',
-                                $user_id
-                            );
-
-                            jobhub_complete_login('seeker', $user_id, $name, 'seeker');
-
-                            header("Location: index.php?welcome=1");
-                            exit;
-                        } else {
-                            // Log the DB error for debugging without exposing it to users
-                            error_log("Job seeker registration failed: " . $insert->error);
-                            $debug_info[] = "insert_ok=no";
-                            $msg = $debug ? ("Registration failed: " . $insert->error) : "Registration failed. Please try again later.";
-                        }
-                        $insert->close();
-                    }
+        } elseif (!in_array($category, $jobCategories, true)) {
+            $msg = 'Invalid job category selected.';
+        } elseif ($experienceLevel !== '' && !in_array($experienceLevel, $experienceLevels, true)) {
+            $msg = 'Invalid experience level selected.';
+        } else {
+            if ($phone !== '') {
+                $digits = preg_replace('/\D+/', '', $phone);
+                if (strlen($digits) === 13 && substr($digits, 0, 3) === '977') {
+                    $digits = substr($digits, 3);
                 }
-                $stmt->close();
+
+                if (strlen($digits) !== 10) {
+                    $msg = 'Phone number must be exactly 10 digits.';
+                } else {
+                    $phone = $digits;
+                }
+            }
+
+            if ($msg === '' && jobhub_email_exists($conn, $email)) {
+                $msg = 'This email is already registered.';
             }
         }
-    }
-    if ($debug && $msg === '') {
-        $msg = "Debug: form submitted but no success or error was detected.";
+
+        if ($msg === '') {
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+            $phoneValue = $phone === '' ? null : $phone;
+            $mirrorPassword = jobhub_column_exists($conn, 'users', 'password');
+            $hasExperienceColumn = jobhub_column_exists($conn, 'users', 'experience_level');
+
+            $conn->begin_transaction();
+
+            try {
+                $accountId = jobhub_create_account($conn, $name, $email, $passwordHash, 'jobseeker', 'active');
+                if (!$accountId) {
+                    throw new RuntimeException('Could not create account.');
+                }
+
+                $columns = ['account_id', 'name', 'email', 'phone', 'preferred_category'];
+                $placeholders = ['?', '?', '?', '?', '?'];
+                $types = 'issss';
+                $params = [$accountId, $name, $email, $phoneValue, $category];
+
+                if ($hasExperienceColumn) {
+                    $columns[] = 'experience_level';
+                    $placeholders[] = '?';
+                    $types .= 's';
+                    $params[] = $experienceLevel;
+                }
+
+                if ($mirrorPassword) {
+                    $columns[] = 'password';
+                    $placeholders[] = '?';
+                    $types .= 's';
+                    $params[] = $passwordHash;
+                }
+
+                if (jobhub_column_exists($conn, 'users', 'role')) {
+                    $columns[] = 'role';
+                    $placeholders[] = '?';
+                    $types .= 's';
+                    $params[] = 'seeker';
+                }
+
+                $columns[] = 'created_at';
+                $placeholders[] = 'NOW()';
+
+                $sql = 'INSERT INTO users (' . implode(', ', $columns) . ') VALUES (' . implode(', ', $placeholders) . ')';
+                $stmt = $conn->prepare($sql);
+                if (!$stmt) {
+                    throw new RuntimeException('Could not prepare profile insert.');
+                }
+
+                $stmt->bind_param($types, ...$params);
+                if (!$stmt->execute()) {
+                    $error = $stmt->error;
+                    $stmt->close();
+                    throw new RuntimeException($error !== '' ? $error : 'Could not create job seeker profile.');
+                }
+
+                $userId = (int) $conn->insert_id;
+                $stmt->close();
+
+                log_activity(
+                    $conn,
+                    $userId,
+                    'jobseeker',
+                    'user_registration',
+                    "New user registered: {$name}",
+                    'user',
+                    $userId
+                );
+
+                $conn->commit();
+                jobhub_complete_login('jobseeker', $userId, $name);
+                header('Location: index.php?welcome=1');
+                exit;
+            } catch (Throwable $e) {
+                $conn->rollback();
+                error_log('Job seeker registration failed: ' . $e->getMessage());
+                $msg = 'Registration failed. Please try again later.';
+            }
+        }
     }
 }
-?>
 
-<?php $bodyClass = 'user-ui'; require 'header.php'; ?>
+$bodyClass = 'user-ui';
+require 'header.php';
+?>
 
 <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
         <div class="card shadow-sm border-0">
             <div class="card-body p-4 p-md-5">
-                <h2 class="h4 mb-4 text-center">Create Job Seeker Account</h2>
+                <h1 class="h4 mb-4 text-center">Create Job Seeker Account</h1>
 
-                <?php if ($debug): ?>
-                    <div class="alert alert-info">Debug mode is ON.</div>
-                    <div class="alert alert-secondary">
-                        <?= htmlspecialchars(implode(' | ', $debug_info)) ?>
-                    </div>
-                <?php endif; ?>
-
-                <?php if ($msg): ?>
-                    <div class="alert <?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
+                <?php if ($msg !== ''): ?>
+                    <div class="alert <?= htmlspecialchars($msgType) ?>"><?= htmlspecialchars($msg) ?></div>
                 <?php endif; ?>
 
                 <form method="post" action="<?= htmlspecialchars($_SERVER['REQUEST_URI']) ?>">
@@ -169,14 +155,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="mb-3">
                         <label class="form-label">Full Name <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="form-control" required
-                               value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
+                        <input type="text" name="name" class="form-control" required value="<?= htmlspecialchars($_POST['name'] ?? '') ?>">
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Email <span class="text-danger">*</span></label>
-                        <input type="email" name="email" class="form-control" required
-                               value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                        <input type="email" name="email" class="form-control" required value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
                     </div>
 
                     <div class="mb-3">
@@ -199,10 +183,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="form-label">Preferred Job Category <span class="text-danger">*</span></label>
                         <select name="preferred_category" class="form-select" required>
                             <option value="">Select category...</option>
-                            <?php foreach ($job_categories as $cat): ?>
-                                <option value="<?= htmlspecialchars($cat) ?>"
-                                    <?= ($_POST['preferred_category'] ?? '') === $cat ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($cat) ?>
+                            <?php foreach ($jobCategories as $category): ?>
+                                <option value="<?= htmlspecialchars($category) ?>" <?= ($_POST['preferred_category'] ?? '') === $category ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($category) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -212,9 +195,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <label class="form-label">Experience Level</label>
                         <select name="experience_level" class="form-select">
                             <option value="">Select experience level...</option>
-                            <?php foreach ($experience_levels as $level): ?>
-                                <option value="<?= htmlspecialchars($level) ?>"
-                                    <?= ($_POST['experience_level'] ?? '') === $level ? 'selected' : '' ?>>
+                            <?php foreach ($experienceLevels as $level): ?>
+                                <option value="<?= htmlspecialchars($level) ?>" <?= ($_POST['experience_level'] ?? '') === $level ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($level) ?>
                                 </option>
                             <?php endforeach; ?>
@@ -232,9 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <input type="password" name="confirm_password" class="form-control" required minlength="8">
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100 mb-3">
-                        Create Account
-                    </button>
+                    <button type="submit" class="btn btn-primary w-100 mb-3">Create Account</button>
 
                     <div class="text-center small">
                         Already have an account?

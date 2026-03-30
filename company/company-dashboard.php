@@ -1,13 +1,8 @@
 <?php
 // company/company-dashboard.php
 require '../db.php';
-
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
-
-$cid = (int)$_SESSION['company_id'];
+require_role('company');
+$cid = current_company_id() ?? 0;
 
 $jobsCount = db_query_value("SELECT COUNT(*) FROM jobs WHERE company_id = ?", "i", [$cid]);
 $activeJobs = db_query_value("SELECT COUNT(*) FROM jobs WHERE company_id = ? AND status = 'active'", "i", [$cid]);

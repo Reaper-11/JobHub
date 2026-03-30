@@ -2,10 +2,7 @@
 require '../db.php';
 require_once '../includes/company_verification_helper.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $companyId = (int)($_GET['id'] ?? $_POST['company_id'] ?? 0);
 if ($companyId <= 0) {
@@ -28,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     $remarks = trim($_POST['remarks'] ?? '');
-    $adminId = (int)($_SESSION['admin_id'] ?? 0);
+    $adminId = current_admin_id() ?? 0;
 
     if ($status === 'not_submitted') {
         $msg = "This company has not submitted a verification request.";

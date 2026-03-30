@@ -1,13 +1,8 @@
 <?php
 // company/company-applications.php
 require '../db.php';
-
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
-
-$cid = (int)$_SESSION['company_id'];
+require_role('company');
+$cid = current_company_id() ?? 0;
 $job_id = isset($_GET['job_id']) ? (int)$_GET['job_id'] : 0;
 
 $where = $job_id > 0 

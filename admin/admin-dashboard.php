@@ -2,11 +2,7 @@
 // admin/admin-dashboard.php
 require '../db.php';
 require_once '../includes/support_helper.php';
-
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $supportCounts = support_fetch_counts($conn);
 

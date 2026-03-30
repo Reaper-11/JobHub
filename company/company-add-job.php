@@ -4,10 +4,7 @@ require '../db.php';
 require_once '../includes/company_verification_helper.php';
 require_once '../includes/recommendation.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
+require_role('company');
 
 if (!function_exists('company_add_job_string_length')) {
     function company_add_job_string_length(string $value): int
@@ -23,7 +20,7 @@ if (!function_exists('company_add_job_input_class')) {
     }
 }
 
-$cid = (int) $_SESSION['company_id'];
+$cid = current_company_id() ?? 0;
 $msg = '';
 $msg_type = '';
 $submitState = '';

@@ -141,7 +141,7 @@ require 'header.php';
                     <div class="card-body p-4">
                         <h2 class="h5 mb-3">Before You Submit</h2>
                         <ul class="mb-0">
-                            <li>Use the correct login type for user, company, or admin.</li>
+                            <li>Log in from the main JobHub login page before contacting support.</li>
                             <li>Explain the issue clearly and include the page or action where it happened.</li>
                             <li>For company verification problems, submit using your registered company email.</li>
                         </ul>

@@ -2,12 +2,10 @@
 // company/company-account.php
 require '../db.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
+require_role('company');
 
-$cid = (int)$_SESSION['company_id'];
+$cid = current_company_id() ?? 0;
+$accountId = current_account_id() ?? 0;
 $msg = $msg_type = '';
 $pass_msg = $pass_type = '';
 $delete_msg = $delete_type = '';
@@ -17,7 +15,7 @@ $accountAction = $_POST['action'] ?? '';
 $stmt = $conn->prepare("SELECT name, email, website, location, logo_path FROM companies WHERE id = ?");
 $stmt->bind_param("i", $cid);
 $stmt->execute();
-$company = $stmt->get_result()->fetch_assoc() ?? [];
+$companyProfile = $stmt->get_result()->fetch_assoc() ?? [];
 $stmt->close();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -56,30 +54,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
         $msg = $locationError;
         $msg_type = 'danger';
     } else {
-        // Check email uniqueness (exclude self)
-        $check = $conn->prepare("SELECT id FROM companies WHERE email = ? AND id != ?");
-        $check->bind_param("si", $email, $cid);
-        $check->execute();
-        if ($check->get_result()->num_rows > 0) {
-            $msg = "This email is already used by another company.";
+        if (jobhub_email_exists($conn, $email, $accountId)) {
+            $msg = "This email is already used by another account.";
             $msg_type = 'danger';
         } else {
             $stmt = $conn->prepare("UPDATE companies SET name = ?, email = ?, website = ?, location = ?, updated_at = NOW() WHERE id = ?");
-            $stmt->bind_param("ssssi", $name, $email, $website, $location, $cid);
-            if ($stmt->execute()) {
-                $msg = "Profile updated successfully.";
-                $msg_type = 'success';
-                $company['name'] = $name;
-                $company['email'] = $email;
-                $company['website'] = $website;
-                $company['location'] = $location;
-            } else {
+            if (!$stmt) {
                 $msg = "Update failed. Please try again.";
                 $msg_type = 'danger';
+            } else {
+                $stmt->bind_param("ssssi", $name, $email, $website, $location, $cid);
+                $conn->begin_transaction();
+
+                try {
+                    if (!jobhub_update_account_identity($conn, $accountId, $name, $email)) {
+                        throw new RuntimeException('Could not update company account.');
+                    }
+
+                    if (!$stmt->execute()) {
+                        $error = $stmt->error;
+                        throw new RuntimeException($error !== '' ? $error : 'Could not update company profile.');
+                    }
+
+                    $conn->commit();
+                    $msg = "Profile updated successfully.";
+                    $msg_type = 'success';
+                    $companyProfile['name'] = $name;
+                    $companyProfile['email'] = $email;
+                    $companyProfile['website'] = $website;
+                    $companyProfile['location'] = $location;
+                } catch (Throwable $e) {
+                    $conn->rollback();
+                    $msg = "Update failed. Please try again.";
+                    $msg_type = 'danger';
+
+                    $refreshedAccount = jobhub_fetch_account_by_id($conn, $accountId);
+                    if ($refreshedAccount) {
+                        jobhub_sync_session_from_account($refreshedAccount);
+                    }
+                }
+
+                $stmt->close();
             }
-            $stmt->close();
         }
-        $check->close();
     }
 }
 
@@ -99,26 +116,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
         $pass_msg = $passwordError;
         $pass_type = 'danger';
     } else {
-        $stmt = $conn->prepare("SELECT password FROM companies WHERE id = ?");
-        $stmt->bind_param("i", $cid);
+        $stmt = $conn->prepare("SELECT password FROM accounts WHERE id = ?");
+        $stmt->bind_param("i", $accountId);
         $stmt->execute();
         $result = $stmt->get_result();
         $row = $result->fetch_assoc();
         $stmt->close();
 
-        if ($row && jobhub_verify_password_with_upgrade($conn, 'companies', $cid, $current, (string)$row['password'])) {
-            // password_hash() is used when the company updates the password.
+        if ($row && jobhub_verify_password_with_upgrade($conn, 'accounts', $accountId, $current, (string)$row['password'])) {
             $newHash = password_hash($new, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
-            $stmt->bind_param("si", $newHash, $cid);
-            if ($stmt->execute()) {
+            $conn->begin_transaction();
+
+            try {
+                if (!jobhub_update_account_password($conn, $accountId, $newHash)) {
+                    throw new RuntimeException('Could not update account password.');
+                }
+
+                if (jobhub_column_exists($conn, 'companies', 'password')) {
+                    $stmt = $conn->prepare("UPDATE companies SET password = ? WHERE id = ?");
+                    if (!$stmt) {
+                        throw new RuntimeException('Could not prepare legacy password update.');
+                    }
+
+                    $stmt->bind_param("si", $newHash, $cid);
+                    if (!$stmt->execute()) {
+                        $error = $stmt->error;
+                        $stmt->close();
+                        throw new RuntimeException($error !== '' ? $error : 'Could not update legacy password.');
+                    }
+                    $stmt->close();
+                }
+
+                $conn->commit();
                 $pass_msg = "Password changed successfully.";
                 $pass_type = 'success';
-            } else {
+            } catch (Throwable $e) {
+                $conn->rollback();
                 $pass_msg = "Failed to update password.";
                 $pass_type = 'danger';
             }
-            $stmt->close();
         } else {
             $pass_msg = "Current password is incorrect.";
             $pass_type = 'danger';
@@ -130,33 +166,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && $delete_msg === '' && $accountAction === 'delete') {
     $confirm_pass = $_POST['confirm_password'] ?? '';
 
-    $stmt = $conn->prepare("SELECT password FROM companies WHERE id = ?");
-    $stmt->bind_param("i", $cid);
+    $stmt = $conn->prepare("SELECT password FROM accounts WHERE id = ?");
+    $stmt->bind_param("i", $accountId);
     $stmt->execute();
     $result = $stmt->get_result();
     $row = $result->fetch_assoc();
     $stmt->close();
 
-    if ($row && jobhub_verify_password_with_upgrade($conn, 'companies', $cid, $confirm_pass, (string)$row['password'])) {
-        // Delete related jobs first
-        $deleteJobsStmt = $conn->prepare("DELETE FROM jobs WHERE company_id = ?");
-        if ($deleteJobsStmt) {
-            $deleteJobsStmt->bind_param("i", $cid);
-            $deleteJobsStmt->execute();
-            $deleteJobsStmt->close();
-        }
-        // Delete company
-        $stmt = $conn->prepare("DELETE FROM companies WHERE id = ?");
-        $stmt->bind_param("i", $cid);
-        if ($stmt->execute()) {
-            jobhub_destroy_session();
+    if ($row && jobhub_verify_password_with_upgrade($conn, 'accounts', $accountId, $confirm_pass, (string)$row['password'])) {
+        $conn->begin_transaction();
+
+        try {
+            $deleteJobsStmt = $conn->prepare("DELETE FROM jobs WHERE company_id = ?");
+            if ($deleteJobsStmt) {
+                $deleteJobsStmt->bind_param("i", $cid);
+                if (!$deleteJobsStmt->execute()) {
+                    $error = $deleteJobsStmt->error;
+                    $deleteJobsStmt->close();
+                    throw new RuntimeException($error !== '' ? $error : 'Could not delete company jobs.');
+                }
+                $deleteJobsStmt->close();
+            }
+
+            $stmt = $conn->prepare("DELETE FROM companies WHERE id = ?");
+            if (!$stmt) {
+                throw new RuntimeException('Could not prepare company deletion.');
+            }
+
+            $stmt->bind_param("i", $cid);
+            if (!$stmt->execute()) {
+                $error = $stmt->error;
+                $stmt->close();
+                throw new RuntimeException($error !== '' ? $error : 'Could not delete company profile.');
+            }
+            $stmt->close();
+
+            if (!jobhub_delete_account($conn, $accountId)) {
+                throw new RuntimeException('Could not delete company account.');
+            }
+
+            $conn->commit();
+            logout_user();
             header("Location: ../index.php?msg=company_deleted");
             exit;
-        } else {
+        } catch (Throwable $e) {
+            $conn->rollback();
             $delete_msg = "Failed to delete account.";
             $delete_type = 'danger';
         }
-        $stmt->close();
     } else {
         $delete_msg = "Incorrect password.";
         $delete_type = 'danger';
@@ -229,22 +286,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
 
                     <div class="mb-3">
                         <label class="form-label">Company Name *</label>
-                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($company['name'] ?? '') ?>" required>
+                        <input type="text" name="name" class="form-control" value="<?= htmlspecialchars($companyProfile['name'] ?? '') ?>" required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Email *</label>
-                        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($company['email'] ?? '') ?>" required>
+                        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($companyProfile['email'] ?? '') ?>" required>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Website</label>
-                        <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($company['website'] ?? '') ?>">
+                        <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($companyProfile['website'] ?? '') ?>">
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label">Location</label>
-                        <input type="text" name="location" class="form-control" value="<?= htmlspecialchars($company['location'] ?? '') ?>" required>
+                        <input type="text" name="location" class="form-control" value="<?= htmlspecialchars($companyProfile['location'] ?? '') ?>" required>
                     </div>
 
                     <button type="submit" class="btn btn-primary">Update Profile</button>

@@ -26,7 +26,11 @@ $isFilterActive = (
     $selectedJobType !== ''
 );
 
-if (isset($_SESSION['user_id']) && $isFilterActive) {
+$currentUserId = current_user_id();
+$currentCompanyId = current_company_id();
+$currentAdminId = current_admin_id();
+
+if ($currentUserId !== null && $isFilterActive) {
     $hasSearchLogsTable = $conn->query("SHOW TABLES LIKE 'job_search_logs'");
     if ($hasSearchLogsTable && $hasSearchLogsTable->num_rows > 0) {
         $hasJobTypeColumn = false;
@@ -40,7 +44,7 @@ if (isset($_SESSION['user_id']) && $isFilterActive) {
         $logValues = ['?', '?', '?', '?'];
         $logTypes = 'isss';
         $logParams = [
-            (int) $_SESSION['user_id'],
+            $currentUserId,
             $keyword !== '' ? $keyword : null,
             $selectedCategory !== '' ? $selectedCategory : null,
             $activeLocation !== '' ? $activeLocation : null,
@@ -160,15 +164,15 @@ if (!$isFilterActive) {
     );
 }
 
-$isJobSeeker = isset($_SESSION['user_id']);
-$isCompany   = isset($_SESSION['company_id']);
-$isAdmin     = isset($_SESSION['admin_id']);
+$isJobSeeker = $currentUserId !== null;
+$isCompany   = $currentCompanyId !== null;
+$isAdmin     = $currentAdminId !== null;
 $isLoggedIn  = $isJobSeeker || $isCompany || $isAdmin;
 
 $recommendedJobs = [];
 if ($isJobSeeker && !$isFilterActive) {
     require_once __DIR__ . '/includes/recommendation.php';
-    $recommendedJobs = recommendJobs($conn, (int) $_SESSION['user_id'], 6);
+    $recommendedJobs = recommendJobs($conn, $currentUserId, 6);
 }
 
 $basePath = '';
@@ -353,7 +357,7 @@ $basePath = '';
             } else {
                 $isGuestNavbar = true;
                 $navLinks = [
-                    ['href' => $basePath . 'login-choice.php', 'label' => 'Log In'],
+                    ['href' => $basePath . 'login.php', 'label' => 'Log In'],
                     ['href' => $basePath . 'register-choice.php', 'label' => 'Register'],
                 ];
             }
@@ -964,11 +968,30 @@ $basePath = '';
             </p>
             <?php if ($isLoggedIn): ?>
                 <div class="flex flex-col sm:flex-row gap-6 justify-center">
-                    <a href="<?= $basePath ?>my-applications.php"
+                    <?php
+                    $ctaHref = $basePath . 'index.php';
+                    $ctaIcon = 'fa-clipboard-list';
+                    $ctaLabel = 'Browse Jobs';
+
+                    if ($isJobSeeker) {
+                        $ctaHref = $basePath . 'my-applications.php';
+                        $ctaIcon = 'fa-clipboard-list';
+                        $ctaLabel = 'View Applications';
+                    } elseif ($isCompany) {
+                        $ctaHref = $basePath . 'company/company-dashboard.php';
+                        $ctaIcon = 'fa-building';
+                        $ctaLabel = 'Open Company Dashboard';
+                    } elseif ($isAdmin) {
+                        $ctaHref = $basePath . 'admin/admin-dashboard.php';
+                        $ctaIcon = 'fa-shield-halved';
+                        $ctaLabel = 'Open Admin Dashboard';
+                    }
+                    ?>
+                    <a href="<?= htmlspecialchars($ctaHref) ?>"
                         class="group relative px-8 py-4 bg-white text-[#1a237e] rounded-xl text-lg md:text-xl font-bold hover:bg-gray-50 transition shadow-xl hover:shadow-2xl hover-lift flex items-center justify-center gap-3 overflow-hidden">
                         <span class="relative z-10 flex items-center gap-3">
-                            <i class="fas fa-clipboard-list"></i>
-                            View Applications
+                            <i class="fas <?= htmlspecialchars($ctaIcon) ?>"></i>
+                            <?= htmlspecialchars($ctaLabel) ?>
                         </span>
                         <div class="absolute inset-0 bg-gradient-to-r from-[#1a237e]/0 via-[#1a237e]/5 to-[#1a237e]/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                     </a>

@@ -1,13 +1,8 @@
 <?php
 // notifications.php
-require_once __DIR__ . '/header.php';
-
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
-
-$userId = (int)$_SESSION['user_id'];
+require_once __DIR__ . '/db.php';
+require_role('jobseeker');
+$userId = current_user_id() ?? 0;
 $msg = '';
 $msg_type = '';
 
@@ -24,6 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 }
 
 $notifications = notify_fetch('user', $userId, 100);
+require_once __DIR__ . '/header.php';
 ?>
 
 <h1 class="mb-4">Notifications</h1>

@@ -1,69 +1,5 @@
 <?php
 
-function jobhub_clear_auth_session(): void
-{
-    unset(
-        $_SESSION['user_id'],
-        $_SESSION['user_name'],
-        $_SESSION['role'],
-        $_SESSION['company_id'],
-        $_SESSION['company_name'],
-        $_SESSION['admin_id'],
-        $_SESSION['admin_username'],
-        $_SESSION['authenticated_role']
-    );
-}
-
-function jobhub_complete_login(string $accountType, int $accountId, string $displayName, ?string $userRole = null): void
-{
-    jobhub_clear_auth_session();
-
-    switch ($accountType) {
-        case 'seeker':
-            $_SESSION['user_id'] = $accountId;
-            $_SESSION['user_name'] = $displayName;
-            $_SESSION['role'] = $userRole ?? 'seeker';
-            break;
-        case 'company':
-            $_SESSION['company_id'] = $accountId;
-            $_SESSION['company_name'] = $displayName;
-            break;
-        case 'admin':
-            $_SESSION['admin_id'] = $accountId;
-            $_SESSION['admin_username'] = $displayName;
-            break;
-        default:
-            return;
-    }
-
-    $_SESSION['authenticated_role'] = $accountType;
-
-    // Regenerate the session ID after login to reduce session fixation risk.
-    session_regenerate_id(true);
-}
-
-function jobhub_destroy_session(): void
-{
-    $_SESSION = [];
-
-    if (ini_get('session.use_cookies')) {
-        $params = session_get_cookie_params();
-        setcookie(
-            session_name(),
-            '',
-            time() - 42000,
-            $params['path'],
-            $params['domain'],
-            $params['secure'],
-            $params['httponly']
-        );
-    }
-
-    if (session_status() === PHP_SESSION_ACTIVE) {
-        session_destroy();
-    }
-}
-
 function jobhub_validate_password_strength(string $password): ?string
 {
     if (strlen($password) < 8) {
@@ -190,7 +126,7 @@ function jobhub_auth_clear_failures(string $scope): void
 
 function jobhub_is_supported_password_table(string $table): bool
 {
-    return in_array($table, ['users', 'companies', 'admins'], true);
+    return in_array($table, ['accounts', 'users', 'companies', 'admins'], true);
 }
 
 function jobhub_verify_password_with_upgrade(mysqli $conn, string $table, int $accountId, string $password, string $storedPassword): bool
@@ -284,6 +220,6 @@ function enforce_company_session_status(mysqli $conn): void
         ? 'Your company account has been rejected by admin.'
         : 'Your company account is inactive. Please contact admin.';
 
-    header('Location: ' . JOBHUB_APP_URL . 'company/company-login.php');
+    header('Location: ' . JOBHUB_APP_URL . 'login.php');
     exit;
 }

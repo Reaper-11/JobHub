@@ -1,28 +1,26 @@
 <?php
 // includes/functions.php
-
-function is_logged_in() {
-    return isset($_SESSION['user_id']) || isset($_SESSION['company_id']) || isset($_SESSION['admin_id']);
-}
+require_once __DIR__ . '/auth.php';
 
 function is_job_seeker() {
-    return isset($_SESSION['user_id']);
+    return current_role() === 'jobseeker';
 }
 
 function is_company() {
-    return isset($_SESSION['company_id']);
+    return current_role() === 'company';
 }
 
 function redirect_if_not_logged_in($role = null) {
     if (!is_logged_in()) {
-        header("Location: login-choice.php");
-        exit;
+        $_SESSION['auth_error'] = 'Please log in to continue.';
+        jobhub_redirect('login.php');
     }
-    if ($role === 'seeker' && !is_job_seeker()) {
-        header("Location: index.php");
-        exit;
+
+    $role = jobhub_role_alias($role);
+    if ($role !== null && current_role() !== $role) {
+        jobhub_set_auth_flash('warning', 'Unauthorized access.');
+        jobhub_redirect(jobhub_role_home());
     }
-    // similar for company & admin
 }
 
 function safe_file_upload($file, $allowed = ['pdf'], $max_size = 5*1024*1024, $dest_folder = 'uploads/resumes/') {

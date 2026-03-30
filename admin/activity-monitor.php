@@ -1,10 +1,7 @@
 <?php
 require '../db.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $activities = db_query_all("
     SELECT a.*,

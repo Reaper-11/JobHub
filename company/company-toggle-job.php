@@ -2,12 +2,9 @@
 // company/company-toggle-job.php
 require '../db.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
+require_role('company');
 
-$cid = (int)$_SESSION['company_id'];
+$cid = current_company_id() ?? 0;
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !validate_csrf_token($_POST['csrf_token'] ?? '')) {
     header("Location: company-my-jobs.php");

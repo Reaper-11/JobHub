@@ -1,11 +1,7 @@
 <?php
 // admin/admin-applications.php
 require '../db.php';
-
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 // Basic stats
 $totalApps   = db_query_value("SELECT COUNT(*) FROM applications");

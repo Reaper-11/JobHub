@@ -1,14 +1,15 @@
 <?php
-// header.php
 require_once __DIR__ . '/db.php';
 
-$isJobSeeker = isset($_SESSION['user_id']);
-$isCompany   = isset($_SESSION['company_id']);
-$isAdmin     = isset($_SESSION['admin_id']);
-$isLoggedIn  = $isJobSeeker || $isCompany || $isAdmin;
+$role = current_role();
+$isJobSeeker = $role === 'jobseeker';
+$isCompany = $role === 'company';
+$isAdmin = $role === 'admin';
+$isLoggedIn = $role !== null;
 $notificationCount = 0;
-if ($isJobSeeker && isset($_SESSION['user_id'])) {
-    $notificationCount = notify_unread_count('user', (int)$_SESSION['user_id']);
+
+if ($isJobSeeker && current_user_id() !== null) {
+    $notificationCount = notify_unread_count('user', current_user_id());
 }
 
 $basePath = isset($basePath) ? trim($basePath) : '';
@@ -25,8 +26,10 @@ if ($basePath === '') {
         }
     }
 }
+
 $pageTitle = isset($pageTitle) ? trim($pageTitle) : '';
 $bodyClass = isset($bodyClass) ? trim($bodyClass) : '';
+$authFlash = jobhub_take_auth_flash();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -138,12 +141,14 @@ if ($isLoggedIn && $isJobSeeker) {
     ];
 } elseif ($isAdmin) {
     $navLinks = [
-        ['href' => $basePath . 'admin/dashboard.php', 'label' => 'Admin Panel'],
+        ['href' => $basePath . 'admin/admin-dashboard.php', 'label' => 'Admin Panel'],
         ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
     ];
 } else {
     $navLinks = [
         ['href' => $basePath . 'index.php', 'label' => 'Home'],
+        ['href' => $basePath . 'login.php', 'label' => 'Login'],
+        ['href' => $basePath . 'register-choice.php', 'label' => 'Register'],
     ];
 }
 ?>
@@ -160,3 +165,8 @@ if ($isLoggedIn && $isJobSeeker) {
 </header>
 
 <main class="container py-4 flex-grow-1">
+    <?php if ($authFlash): ?>
+        <div class="alert alert-<?= htmlspecialchars($authFlash['type'] ?? 'info') ?>">
+            <?= htmlspecialchars($authFlash['message'] ?? '') ?>
+        </div>
+    <?php endif; ?>

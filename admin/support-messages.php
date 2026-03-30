@@ -2,10 +2,7 @@
 require '../db.php';
 require_once '../includes/support_helper.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $flash = support_get_flash('admin');
 $counts = support_fetch_counts($conn);

@@ -1,15 +1,10 @@
 <?php
 // my-applications.php
 require 'db.php';
+require_role('jobseeker');
+$user_id = current_user_id() ?? 0;
 $bodyClass = 'user-ui';
 require 'header.php';
-
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
-
-$user_id = (int)$_SESSION['user_id'];
 
 $sql = "SELECT a.id, a.job_id, a.status, a.response_message, a.cover_letter, a.applied_at,
                j.title, j.company, j.location, j.type

@@ -1,12 +1,10 @@
 <?php
 require 'db.php';
 require 'includes/recommendation.php';
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
+require_role('jobseeker');
 
-$uid = (int) $_SESSION['user_id'];
+$uid = current_user_id() ?? 0;
+$accountId = current_account_id() ?? 0;
 $profileMsg = "";
 $profileType = "";
 $passMsg = "";
@@ -177,102 +175,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // DB update (only if validation/upload passed)
         if ($profileMsg === '') {
-            $check = $conn->prepare("SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1");
-            if (!$check) {
-                $profileMsg = "Could not verify your email. Please try again.";
+            if (jobhub_email_exists($conn, $email, $accountId)) {
+                $profileMsg = "That email is already in use.";
                 $profileType = "alert-danger";
             } else {
-                $check->bind_param("si", $email, $uid);
-                $check->execute();
-                $duplicateEmail = $check->get_result()->num_rows > 0;
-                $check->close();
-
-                if ($duplicateEmail) {
-                    $profileMsg = "That email is already in use.";
+                $phoneVal = $phone === '' ? null : $phone;
+                if ($hasExperienceColumn && $hasSkillsColumn) {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, skills = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                } elseif ($hasExperienceColumn) {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                } elseif ($hasSkillsColumn) {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, skills = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                } else {
+                    $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                }
+                $dbPrepareOk = $stmt ? true : false;
+                if (!$stmt) {
+                    $dbStmtError = $conn->error ?? '';
+                    $profileMsg = "Could not update profile. Please try again.";
                     $profileType = "alert-danger";
                 } else {
-                    $phoneVal = $phone === '' ? null : $phone;
                     if ($hasExperienceColumn && $hasSkillsColumn) {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, skills = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                        $stmt->bind_param("sssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $skills, $newCvPath, $uid);
                     } elseif ($hasExperienceColumn) {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, experience_level = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                        $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $newCvPath, $uid);
                     } elseif ($hasSkillsColumn) {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, skills = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                        $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $skills, $newCvPath, $uid);
                     } else {
-                        $stmt = $conn->prepare("UPDATE users SET name = ?, email = ?, phone = ?, preferred_category = ?, cv_path = ?, updated_at = NOW() WHERE id = ?");
+                        $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
                     }
-                    $dbPrepareOk = $stmt ? true : false;
-                    if (!$stmt) {
-                        $dbStmtError = $conn->error ?? '';
-                        $profileMsg = "Could not update profile. Please try again.";
-                        $profileType = "alert-danger";
-                    } else {
-                        if ($hasExperienceColumn && $hasSkillsColumn) {
-                            $stmt->bind_param("sssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $skills, $newCvPath, $uid);
-                        } elseif ($hasExperienceColumn) {
-                            $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $experience_level, $newCvPath, $uid);
-                        } elseif ($hasSkillsColumn) {
-                            $stmt->bind_param("ssssssi", $name, $email, $phoneVal, $preferred_category, $skills, $newCvPath, $uid);
-                        } else {
-                            $stmt->bind_param("sssssi", $name, $email, $phoneVal, $preferred_category, $newCvPath, $uid);
+
+                    $conn->begin_transaction();
+
+                    try {
+                        if (!jobhub_update_account_identity($conn, $accountId, $name, $email)) {
+                            throw new RuntimeException('Could not update account identity.');
                         }
+
                         $dbExecuteOk = $stmt->execute();
                         $dbAffected = $stmt->affected_rows;
                         $finalCvPath = $newCvPath;
-                        if ($dbExecuteOk) {
-                            if (function_exists('db_table_exists') && db_table_exists('user_preferences')) {
-                                $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
-                                if ($prefStmt) {
-                                    $prefStmt->bind_param("is", $uid, $preferred_category);
-                                    $prefStmt->execute();
-                                    $prefStmt->close();
-                                }
-                            }
-                            $phoneDisplay = $phone === '' ? '' : $phone;
-                            $experienceChanged = $hasExperienceColumn
-                                && $experience_level !== (string) ($existingUser['experience_level'] ?? '');
-                            $skillsChanged = $hasSkillsColumn
-                                && $skills !== (string) ($existingUser['skills'] ?? '');
-                            $cvChanged = $newCvPath !== $currentCv;
-                            $profileFieldsChanged = (
-                                $name !== (string) ($existingUser['name'] ?? '')
-                                || $email !== strtolower((string) ($existingUser['email'] ?? ''))
-                                || $phoneDisplay !== (string) ($existingUser['phone'] ?? '')
-                                || $preferred_category !== (string) ($existingUser['preferred_category'] ?? '')
-                                || $experienceChanged
-                            );
-
-                            if ($cvChanged && $skillsChanged && !$profileFieldsChanged) {
-                                $profileMsg = "Skills and CV updated successfully.";
-                            } elseif ($cvChanged && !$profileFieldsChanged && !$skillsChanged) {
-                                $profileMsg = "CV uploaded successfully.";
-                            } elseif ($skillsChanged && !$profileFieldsChanged && !$cvChanged) {
-                                $profileMsg = "Skills updated successfully.";
-                            } elseif (!$profileFieldsChanged && !$skillsChanged && !$cvChanged) {
-                                $profileMsg = "No profile changes were made.";
-                            } else {
-                                $profileMsg = "Profile updated successfully.";
-                            }
-                            $profileType = "alert-success";
-                            $_SESSION['user_name'] = $name;
-                            $_SESSION['preferred_category'] = $preferred_category;
-                            $user['name'] = $name;
-                            $user['email'] = $email;
-                            $user['phone'] = $phone;
-                            $user['preferred_category'] = $preferred_category;
-                            if ($hasExperienceColumn) {
-                                $user['experience_level'] = $experience_level;
-                            }
-                            if ($hasSkillsColumn) {
-                                $user['skills'] = $skills;
-                            }
-                            $user['cv_path'] = $newCvPath;
-                        } else {
-                            $profileMsg = "Could not update profile. Please try again.";
-                            $profileType = "alert-danger";
+                        if (!$dbExecuteOk) {
+                            throw new RuntimeException($stmt->error ?: 'Could not update profile.');
                         }
-                        $stmt->close();
+
+                        if (jobhub_table_exists($conn, 'user_preferences')) {
+                            $prefStmt = $conn->prepare("INSERT INTO user_preferences (user_id, preferred_category) VALUES (?, ?) ON DUPLICATE KEY UPDATE preferred_category = VALUES(preferred_category), updated_at = CURRENT_TIMESTAMP");
+                            if ($prefStmt) {
+                                $prefStmt->bind_param("is", $uid, $preferred_category);
+                                $prefStmt->execute();
+                                $prefStmt->close();
+                            }
+                        }
+
+                        $conn->commit();
+
+                        $phoneDisplay = $phone === '' ? '' : $phone;
+                        $experienceChanged = $hasExperienceColumn
+                            && $experience_level !== (string) ($existingUser['experience_level'] ?? '');
+                        $skillsChanged = $hasSkillsColumn
+                            && $skills !== (string) ($existingUser['skills'] ?? '');
+                        $cvChanged = $newCvPath !== $currentCv;
+                        $profileFieldsChanged = (
+                            $name !== (string) ($existingUser['name'] ?? '')
+                            || $email !== strtolower((string) ($existingUser['email'] ?? ''))
+                            || $phoneDisplay !== (string) ($existingUser['phone'] ?? '')
+                            || $preferred_category !== (string) ($existingUser['preferred_category'] ?? '')
+                            || $experienceChanged
+                        );
+
+                        if ($cvChanged && $skillsChanged && !$profileFieldsChanged) {
+                            $profileMsg = "Skills and CV updated successfully.";
+                        } elseif ($cvChanged && !$profileFieldsChanged && !$skillsChanged) {
+                            $profileMsg = "CV uploaded successfully.";
+                        } elseif ($skillsChanged && !$profileFieldsChanged && !$cvChanged) {
+                            $profileMsg = "Skills updated successfully.";
+                        } elseif (!$profileFieldsChanged && !$skillsChanged && !$cvChanged) {
+                            $profileMsg = "No profile changes were made.";
+                        } else {
+                            $profileMsg = "Profile updated successfully.";
+                        }
+
+                        $profileType = "alert-success";
+                        $_SESSION['preferred_category'] = $preferred_category;
+                        $user['name'] = $name;
+                        $user['email'] = $email;
+                        $user['phone'] = $phone;
+                        $user['preferred_category'] = $preferred_category;
+                        if ($hasExperienceColumn) {
+                            $user['experience_level'] = $experience_level;
+                        }
+                        if ($hasSkillsColumn) {
+                            $user['skills'] = $skills;
+                        }
+                        $user['cv_path'] = $newCvPath;
+                    } catch (Throwable $e) {
+                        $conn->rollback();
+                        $dbStmtError = $e->getMessage();
+                        $profileMsg = "Could not update profile. Please try again.";
+                        $profileType = "alert-danger";
+
+                        $refreshedAccount = jobhub_fetch_account_by_id($conn, $accountId);
+                        if ($refreshedAccount) {
+                            jobhub_sync_session_from_account($refreshedAccount);
+                        }
                     }
+
+                    $stmt->close();
                 }
             }
         }
@@ -327,32 +336,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $passMsg = $passwordError;
             $passType = "alert-danger";
         } else {
-            $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? LIMIT 1");
-            $stmt->bind_param("i", $uid);
+            $stmt = $conn->prepare("SELECT password FROM accounts WHERE id = ? LIMIT 1");
+            $stmt->bind_param("i", $accountId);
             $stmt->execute();
             $row = $stmt->get_result()->fetch_assoc() ?: null;
             $stmt->close();
             $storedHash = $row['password'] ?? '';
             $validOld = $row
-                ? jobhub_verify_password_with_upgrade($conn, 'users', $uid, $old, $storedHash)
+                ? jobhub_verify_password_with_upgrade($conn, 'accounts', $accountId, $old, $storedHash)
                 : false;
 
             if (!$row || !$validOld) {
                 $passMsg = "Old password is incorrect.";
                 $passType = "alert-danger";
             } else {
-                // password_hash() is used when a user changes the account password.
                 $newHash = password_hash($new, PASSWORD_DEFAULT);
-                $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
-                $stmt->bind_param("si", $newHash, $uid);
-                if ($stmt->execute()) {
+                $conn->begin_transaction();
+
+                try {
+                    if (!jobhub_update_account_password($conn, $accountId, $newHash)) {
+                        throw new RuntimeException('Could not update account password.');
+                    }
+
+                    if (jobhub_column_exists($conn, 'users', 'password')) {
+                        $stmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+                        if (!$stmt) {
+                            throw new RuntimeException('Could not prepare legacy password update.');
+                        }
+
+                        $stmt->bind_param("si", $newHash, $uid);
+                        if (!$stmt->execute()) {
+                            $error = $stmt->error;
+                            $stmt->close();
+                            throw new RuntimeException($error !== '' ? $error : 'Could not update legacy password.');
+                        }
+                        $stmt->close();
+                    }
+
+                    $conn->commit();
                     $passMsg = "Password updated successfully.";
                     $passType = "alert-success";
-                } else {
+                } catch (Throwable $e) {
+                    $conn->rollback();
                     $passMsg = "Could not update password. Please try again.";
                     $passType = "alert-danger";
                 }
-                $stmt->close();
             }
         }
     } elseif ($action === 'delete' && $deleteType === '') {
@@ -361,14 +389,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $deleteMsg = "Password is required to delete your account.";
             $deleteType = "alert-danger";
         } else {
-            $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? LIMIT 1");
-            $stmt->bind_param("i", $uid);
+            $stmt = $conn->prepare("SELECT password FROM accounts WHERE id = ? LIMIT 1");
+            $stmt->bind_param("i", $accountId);
             $stmt->execute();
             $row = $stmt->get_result()->fetch_assoc() ?: null;
             $stmt->close();
             $storedHash = $row['password'] ?? '';
             $validConfirm = $row
-                ? jobhub_verify_password_with_upgrade($conn, 'users', $uid, $confirmPassword, $storedHash)
+                ? jobhub_verify_password_with_upgrade($conn, 'accounts', $accountId, $confirmPassword, $storedHash)
                 : false;
 
             if (!$row || !$validConfirm) {
@@ -383,17 +411,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-                $stmt->bind_param("i", $uid);
-                if ($stmt->execute()) {
-                    jobhub_destroy_session();
+                $conn->begin_transaction();
+
+                try {
+                    $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+                    if (!$stmt) {
+                        throw new RuntimeException('Could not prepare user deletion.');
+                    }
+
+                    $stmt->bind_param("i", $uid);
+                    if (!$stmt->execute()) {
+                        $error = $stmt->error;
+                        $stmt->close();
+                        throw new RuntimeException($error !== '' ? $error : 'Could not delete user profile.');
+                    }
+                    $stmt->close();
+
+                    if (!jobhub_delete_account($conn, $accountId)) {
+                        throw new RuntimeException('Could not delete account.');
+                    }
+
+                    $conn->commit();
+                    logout_user();
                     header("Location: index.php");
                     exit;
-                } else {
+                } catch (Throwable $e) {
+                    $conn->rollback();
                     $deleteMsg = "Could not delete account. Please try again.";
                     $deleteType = "alert-danger";
                 }
-                $stmt->close();
             }
         }
     }

@@ -2,10 +2,7 @@
 // admin/admin-companies.php
 require '../db.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $status = strtolower($_GET['status'] ?? 'pending');
 if (!in_array($status, ['pending','approved','rejected','all'])) $status = 'pending';
@@ -32,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 
     if ($id > 0 && in_array($action, ['approve','unapprove','reject','hold','suspend','activate'])) {
         $companyRow = null;
-        $companyInfo = db_query_all("SELECT name, email FROM companies WHERE id = ? LIMIT 1", "i", [$id])[0] ?? null;
+        $companyInfo = db_query_all("SELECT id, account_id, name, email FROM companies WHERE id = ? LIMIT 1", "i", [$id])[0] ?? null;
         $checkStmt = $conn->prepare("SELECT is_approved, operational_state FROM companies WHERE id = ? LIMIT 1");
         if ($checkStmt) {
             $checkStmt->bind_param("i", $id);
@@ -46,8 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             $msg_type = 'danger';
         } else {
             $isApproved = (int)$companyRow['is_approved'] === 1;
-            $adminId = (int)($_SESSION['admin_id'] ?? 0);
+            $adminId = current_admin_id() ?? 0;
             $reason = '';
+            $accountStatus = 'active';
 
             if ($action === 'reject') {
                 $reason = trim($_POST['reason'] ?? '');
@@ -56,17 +54,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     $msg_type = 'danger';
                 } else {
                     $stmt = $conn->prepare("UPDATE companies SET is_approved = -1, rejection_reason = ? WHERE id = ?");
+                    $accountStatus = 'inactive';
                     if ($stmt) {
                         $stmt->bind_param("si", $reason, $id);
                     }
                 }
             } elseif ($action === 'approve') {
                 $stmt = $conn->prepare("UPDATE companies SET is_approved = 1, rejection_reason = NULL, operational_state = 'active', restriction_reason = NULL, restricted_at = NULL, restricted_by_admin_id = NULL WHERE id = ?");
+                $accountStatus = 'active';
                 if ($stmt) {
                     $stmt->bind_param("i", $id);
                 }
             } elseif ($action === 'unapprove') {
                 $stmt = $conn->prepare("UPDATE companies SET is_approved = 0, rejection_reason = NULL WHERE id = ?");
+                $accountStatus = 'active';
                 if ($stmt) {
                     $stmt->bind_param("i", $id);
                 }
@@ -76,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     $msg_type = 'danger';
                 } elseif ($action === 'activate') {
                     $stmt = $conn->prepare("UPDATE companies SET operational_state = 'active', restriction_reason = NULL, restricted_at = NULL, restricted_by_admin_id = NULL WHERE id = ?");
+                    $accountStatus = 'active';
                     if ($stmt) {
                         $stmt->bind_param("i", $id);
                     }
@@ -87,6 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     } else {
                         $newState = $action === 'hold' ? 'on_hold' : 'suspended';
                         $stmt = $conn->prepare("UPDATE companies SET operational_state = ?, restriction_reason = ?, restricted_at = NOW(), restricted_by_admin_id = ? WHERE id = ?");
+                        $accountStatus = 'active';
                         if ($stmt) {
                             $stmt->bind_param("ssii", $newState, $reason, $adminId, $id);
                         }
@@ -95,7 +98,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             }
 
             if (!isset($msg) || $msg === '') {
+                $conn->begin_transaction();
+
                 if (isset($stmt) && $stmt && $stmt->execute()) {
+                    $ok = true;
+                    if (!empty($companyInfo['account_id'])) {
+                        $ok = jobhub_update_account_status($conn, (int) $companyInfo['account_id'], $accountStatus);
+                    }
+
+                    if (!$ok) {
+                        $conn->rollback();
+                        $msg = "Operation failed.";
+                        $msg_type = 'danger';
+                    } else {
+                        $conn->commit();
                     $msg = "Company status updated successfully.";
                     $msg_type = 'success';
 
@@ -132,7 +148,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     }
                     header("Location: admin-companies.php?$query");
                     exit;
+                    }
                 } elseif (!isset($msg) || $msg === '') {
+                    $conn->rollback();
                     $msg = "Operation failed.";
                     $msg_type = 'danger';
                 }

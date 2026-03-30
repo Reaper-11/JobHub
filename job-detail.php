@@ -1,8 +1,6 @@
 <?php
 // job-detail.php
 require 'db.php';
-$bodyClass = 'user-ui';
-require 'header.php';
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: index.php");
@@ -27,10 +25,15 @@ $job = $stmt->get_result()->fetch_assoc();
 $stmt->close();
 
 if (!$job) {
+    $bodyClass = 'user-ui';
+    require 'header.php';
     echo '<div class="alert alert-danger">Job not found or no longer available.</div>';
     require 'footer.php';
     exit;
 }
+
+$bodyClass = 'user-ui';
+require 'header.php';
 
 $is_expired = is_job_expired($job);
 $is_closed  = is_job_closed($job);
@@ -38,7 +41,7 @@ $is_inactive = $is_expired || $is_closed;
 
 $already_applied = false;
 $already_bookmarked = false;
-$user_id = $_SESSION['user_id'] ?? null;
+$user_id = current_user_id();
 $user_cv_path = null;
 
 if ($user_id) {

@@ -1,9 +1,6 @@
 <?php
 require '../db.php';
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $jobId = (int) ($_GET['id'] ?? 0);
 if ($jobId <= 0) {

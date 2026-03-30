@@ -1,10 +1,7 @@
 <?php
 require '../db.php';
-if (!isset($_SESSION['admin_id'])) {
-    header('Location: admin-login.php');
-    exit;
-}
-if ((int)$_SESSION['admin_id'] !== 5) {
+require_role('admin');
+if ((current_admin_id() ?? 0) !== 5) {
     header('Location: admin-dashboard.php');
     exit;
 }

@@ -1,14 +1,11 @@
 <?php
 require 'db.php';
-if (!isset($_SESSION['user_id'])) {
-    header("Location: login.php");
-    exit;
-}
+require_role('jobseeker');
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header("Location: my-applications.php");
     exit;
 }
-$uid = (int) $_SESSION['user_id'];
+$uid = current_user_id() ?? 0;
 $appId = (int) ($_POST['app_id'] ?? 0);
 if ($appId <= 0) {
     header("Location: my-applications.php");

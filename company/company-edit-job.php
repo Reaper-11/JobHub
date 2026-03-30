@@ -4,12 +4,9 @@ require '../db.php';
 require_once '../includes/company_verification_helper.php';
 require_once '../includes/recommendation.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
+require_role('company');
 
-$cid = (int)$_SESSION['company_id'];
+$cid = current_company_id() ?? 0;
 $jobId = (int)($_GET['id'] ?? 0);
 
 $stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND company_id = ? LIMIT 1");

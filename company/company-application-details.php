@@ -2,12 +2,14 @@
 // company/company-application-details.php
 require '../db.php';
 
-if (!isset($_SESSION['company_id']) || !isset($_GET['id']) || !is_numeric($_GET['id'])) {
+require_role('company');
+
+if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: company-applications.php");
     exit;
 }
 
-$cid = (int)$_SESSION['company_id'];
+$cid = current_company_id() ?? 0;
 $app_id = (int)$_GET['id'];
 
 $app = db_query_all("

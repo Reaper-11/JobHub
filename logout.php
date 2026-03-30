@@ -1,8 +1,7 @@
 <?php
-// logout.php
 require 'db.php';
 
-jobhub_destroy_session();
+logout_user();
 
 header("Location: index.php");
 exit;

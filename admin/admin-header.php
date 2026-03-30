@@ -1,11 +1,10 @@
 <?php
-// admin/admin-header.php
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_once '../db.php';
+
+require_role('admin');
 
 $hasSidebarLayout = true;
+$authFlash = jobhub_take_auth_flash();
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -25,49 +24,26 @@ $hasSidebarLayout = true;
 <body>
 
 <div class="d-flex">
-    <!-- Sidebar -->
     <div class="sidebar col-auto p-3">
         <h4 class="text-white mb-4">Admin Panel</h4>
         <hr class="text-white-50">
         <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-dashboard.php' ? 'active' : '' ?>" 
-                   href="admin-dashboard.php">Dashboard</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-jobs.php' ? 'active' : '' ?>" 
-                   href="admin-jobs.php">Job Approval</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-companies.php' ? 'active' : '' ?>" 
-                   href="admin-companies.php">Companies</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['company-verifications.php', 'company-verification-view.php'], true) ? 'active' : '' ?>" 
-                   href="company-verifications.php">Verifications</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-users.php' ? 'active' : '' ?>" 
-                   href="admin-users.php">Users</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'activity-monitor.php' ? 'active' : '' ?>" 
-                   href="activity-monitor.php">Activity Monitor</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-applications.php' ? 'active' : '' ?>" 
-                   href="admin-applications.php">Applications</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['support-messages.php', 'support-view.php'], true) ? 'active' : '' ?>"
-                   href="support-messages.php">Support Messages</a>
-            </li>
-            <li class="nav-item mt-4">
-                <a class="nav-link text-danger" href="../logout.php">Logout</a>
-            </li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-dashboard.php' ? 'active' : '' ?>" href="admin-dashboard.php">Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-jobs.php' ? 'active' : '' ?>" href="admin-jobs.php">Job Approval</a></li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-companies.php' ? 'active' : '' ?>" href="admin-companies.php">Companies</a></li>
+            <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['company-verifications.php', 'company-verification-view.php'], true) ? 'active' : '' ?>" href="company-verifications.php">Verifications</a></li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-users.php' ? 'active' : '' ?>" href="admin-users.php">Users</a></li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'activity-monitor.php' ? 'active' : '' ?>" href="activity-monitor.php">Activity Monitor</a></li>
+            <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-applications.php' ? 'active' : '' ?>" href="admin-applications.php">Applications</a></li>
+            <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['support-messages.php', 'support-view.php'], true) ? 'active' : '' ?>" href="support-messages.php">Support Messages</a></li>
+            <li class="nav-item mt-4"><a class="nav-link text-danger" href="../logout.php">Logout</a></li>
         </ul>
     </div>
 
-    <!-- Main content -->
     <div class="main-content flex-grow-1">
         <main class="container-fluid py-4">
+            <?php if ($authFlash): ?>
+                <div class="alert alert-<?= htmlspecialchars($authFlash['type'] ?? 'info') ?>">
+                    <?= htmlspecialchars($authFlash['message'] ?? '') ?>
+                </div>
+            <?php endif; ?>

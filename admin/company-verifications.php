@@ -2,10 +2,7 @@
 require '../db.php';
 require_once '../includes/company_verification_helper.php';
 
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: admin-login.php");
-    exit;
-}
+require_role('admin');
 
 $status = strtolower($_GET['status'] ?? 'pending');
 if (!in_array($status, ['pending', 'approved', 'rejected', 'all'], true)) {

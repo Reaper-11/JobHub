@@ -2,12 +2,9 @@
 require '../db.php';
 require_once '../includes/company_verification_helper.php';
 
-if (!isset($_SESSION['company_id'])) {
-    header("Location: company-login.php");
-    exit;
-}
+require_role('company');
 
-$cid = (int)$_SESSION['company_id'];
+$cid = current_company_id() ?? 0;
 $record = get_company_verification_record($conn, $cid);
 $status = get_company_verification_status($record);
 $msg = '';
