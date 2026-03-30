@@ -9,49 +9,84 @@ if (!isset($_SESSION['company_id'])) {
     exit;
 }
 
-$cid = (int)$_SESSION['company_id'];
-$msg = $msg_type = '';
-$categoryError = '';
-$experienceError = '';
-$jobTypeError = '';
+if (!function_exists('company_add_job_string_length')) {
+    function company_add_job_string_length(string $value): int
+    {
+        return function_exists('mb_strlen') ? mb_strlen($value) : strlen($value);
+    }
+}
+
+if (!function_exists('company_add_job_input_class')) {
+    function company_add_job_input_class(array $errors, string $field, string $baseClass): string
+    {
+        return $baseClass . (isset($errors[$field]) ? ' is-invalid' : '');
+    }
+}
+
+$cid = (int) $_SESSION['company_id'];
+$msg = '';
+$msg_type = '';
+$submitState = '';
+$errors = [];
 $categories = require __DIR__ . '/../includes/categories.php';
 $jobTypes = require __DIR__ . '/../includes/job_types.php';
-$category = '';
-$experienceLevel = '';
-$title = '';
-$location = '';
-$type = 'Full-time';
-$salary = '';
-$duration = '';
-$description = '';
-$skillsRequired = '';
 $experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
-$hasSkillsRequiredColumn = false;
 
+$defaultFormData = [
+    'job_title' => '',
+    'location' => '',
+    'job_type' => 'Full-time',
+    'category' => '',
+    'salary' => '',
+    'application_duration' => '',
+    'experience_required' => '',
+    'description' => '',
+    'skills_required' => '',
+];
+$formData = $defaultFormData;
+
+$hasSkillsRequiredColumn = false;
 $checkSkillsRequired = $conn->query("SHOW COLUMNS FROM jobs LIKE 'skills_required'");
 if ($checkSkillsRequired) {
     $hasSkillsRequiredColumn = $checkSkillsRequired->num_rows > 0;
     $checkSkillsRequired->close();
 }
 
+$hasDeadlineColumn = false;
+$checkDeadline = $conn->query("SHOW COLUMNS FROM jobs LIKE 'deadline'");
+if ($checkDeadline) {
+    $hasDeadlineColumn = $checkDeadline->num_rows > 0;
+    $checkDeadline->close();
+}
+
 $statusStmt = $conn->prepare("
-    SELECT is_approved, operational_state, restriction_reason, verification_status
+    SELECT name, is_approved, operational_state, restriction_reason, verification_status
     FROM companies
     WHERE id = ?
+    LIMIT 1
 ");
-$statusStmt->bind_param("i", $cid);
-$statusStmt->execute();
-$companyStatus = $statusStmt->get_result()->fetch_assoc() ?? [
+$companyStatus = [
+    'name' => $_SESSION['company_name'] ?? 'Company',
     'is_approved' => 0,
     'operational_state' => 'active',
     'restriction_reason' => null,
     'verification_status' => null,
 ];
-$statusStmt->close();
+if ($statusStmt) {
+    $statusStmt->bind_param("i", $cid);
+    $statusStmt->execute();
+    $companyStatus = $statusStmt->get_result()->fetch_assoc() ?: $companyStatus;
+    $statusStmt->close();
+}
 
-$isApproved = (int)($companyStatus['is_approved'] ?? 0) === 1;
+$companyName = trim((string) ($companyStatus['name'] ?? ($_SESSION['company_name'] ?? 'Company')));
+if ($companyName === '') {
+    $companyName = 'Company';
+}
+
+$isApproved = (int) ($companyStatus['is_approved'] ?? 0) === 1;
 $operationalState = $companyStatus['operational_state'] ?? 'active';
-$restrictionReason = $companyStatus['restriction_reason'] ?? '';
+$restrictionReason = trim((string) ($companyStatus['restriction_reason'] ?? ''));
 $verificationStatus = get_company_verification_status($companyStatus);
 $isVerified = is_company_verified($companyStatus);
 $canPostJobs = $isApproved && $operationalState === 'active' && $isVerified;
@@ -66,80 +101,211 @@ if (!$isApproved) {
 } elseif ($operationalState === 'suspended') {
     $blockMsg = "Your company account is suspended due to policy violations.";
 }
-if ($blockMsg !== '' && $restrictionReason) {
+if ($blockMsg !== '' && $restrictionReason !== '') {
     $blockMsg .= " Reason: " . $restrictionReason;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
-    $title = trim($_POST['title'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $type = trim($_POST['type'] ?? 'Full-time');
-    $category = trim($_POST['category'] ?? '');
-    $salary = trim($_POST['salary'] ?? '');
-    $duration = trim($_POST['application_duration'] ?? '');
-    $experienceLevel = trim($_POST['experience_level'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $skillsRequired = recommend_normalize_skill_string($_POST['skills_required'] ?? '');
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
+    $formData = [
+        'job_title' => trim((string) ($_POST['job_title'] ?? '')),
+        'location' => trim((string) ($_POST['location'] ?? '')),
+        'job_type' => trim((string) ($_POST['job_type'] ?? '')),
+        'category' => trim((string) ($_POST['category'] ?? '')),
+        'salary' => trim((string) ($_POST['salary'] ?? '')),
+        'application_duration' => trim((string) ($_POST['application_duration'] ?? '')),
+        'experience_required' => trim((string) ($_POST['experience_required'] ?? '')),
+        'description' => trim((string) ($_POST['description'] ?? '')),
+        'skills_required' => recommend_normalize_skill_string($_POST['skills_required'] ?? ''),
+    ];
 
-    if (!$canPostJobs) {
-        $msg = $blockMsg !== '' ? $blockMsg : "Your company is not allowed to post jobs at this time.";
-        $msg_type = 'danger';
-    } elseif (empty($title) || empty($location) || empty($category) || empty($experienceLevel) || empty($description)) {
-        $msg = "Required fields are missing.";
-        $msg_type = 'danger';
-        if (empty($category)) {
-            $categoryError = "Please select a category.";
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $errors['form'] = "Invalid request. Please refresh the page and try again.";
+    }
+
+    if (!$canPostJobs && $blockMsg === '') {
+        $errors['form'] = "Your company is not allowed to post jobs at this time.";
+    }
+
+    $titleLength = company_add_job_string_length($formData['job_title']);
+    if ($formData['job_title'] === '') {
+        $errors['job_title'] = "Job title is required.";
+    } elseif ($titleLength < 3 || $titleLength > 150) {
+        $errors['job_title'] = "Job title must be between 3 and 150 characters.";
+    }
+
+    if ($formData['location'] === '') {
+        $errors['location'] = "Location is required.";
+    } elseif (
+        !preg_match("/^(?=.*[\p{L}])[\p{L}\s,.'-]+$/u", $formData['location']) ||
+        preg_match('/^\d+$/', $formData['location'])
+    ) {
+        $errors['location'] = "Location must contain letters and cannot be numeric only.";
+    } elseif (company_add_job_string_length($formData['location']) > 200) {
+        $errors['location'] = "Location must be 200 characters or fewer.";
+    }
+
+    if ($formData['job_type'] === '') {
+        $errors['job_type'] = "Job type is required.";
+    } elseif (!in_array($formData['job_type'], $jobTypes, true)) {
+        $errors['job_type'] = "Please select a valid job type.";
+    }
+
+    if ($formData['category'] === '') {
+        $errors['category'] = "Category is required.";
+    } elseif (!in_array($formData['category'], $categories, true)) {
+        $errors['category'] = "Please select a valid category.";
+    }
+
+    if ($formData['salary'] !== '') {
+        if (!is_numeric($formData['salary'])) {
+            $errors['salary'] = "Salary must be a numeric value.";
+        } elseif ((float) $formData['salary'] < 0) {
+            $errors['salary'] = "Salary cannot be negative.";
         }
-        if (empty($experienceLevel)) {
-            $experienceError = "Please select an experience level.";
+    }
+
+    if ($formData['application_duration'] !== '') {
+        $durationValue = filter_var($formData['application_duration'], FILTER_VALIDATE_INT);
+        if ($durationValue === false) {
+            $errors['application_duration'] = "Application duration must be a whole number.";
+        } elseif ($durationValue < 1 || $durationValue > 365) {
+            $errors['application_duration'] = "Application duration must be between 1 and 365 days.";
         }
-    } elseif (!in_array($experienceLevel, $experienceLevels, true)) {
-        $msg = "Please select a valid experience level.";
+    }
+
+    if ($formData['experience_required'] === '') {
+        $errors['experience_required'] = "Experience required is required.";
+    } elseif (!in_array($formData['experience_required'], $experienceLevels, true)) {
+        $errors['experience_required'] = "Please select a valid experience level.";
+    }
+
+    $descriptionLength = company_add_job_string_length($formData['description']);
+    if ($formData['description'] === '') {
+        $errors['description'] = "Description is required.";
+    } elseif ($descriptionLength < 20) {
+        $errors['description'] = "Description must be at least 20 characters.";
+    }
+
+    if (!empty($errors)) {
+        $msg = "Validation failed. Please fix the errors below.";
         $msg_type = 'danger';
-        $experienceError = "Invalid experience level selected.";
-    } elseif (!in_array($type, $jobTypes, true)) {
-        $msg = "Please select a valid job type.";
-        $msg_type = 'danger';
-        $jobTypeError = "Invalid job type selected.";
-    } elseif (!in_array($category, $categories, true)) {
-        $msg = "Please correct the errors below.";
-        $msg_type = 'danger';
-        $categoryError = "Invalid category selected.";
+        $submitState = 'validation_failed';
     } else {
-        if ($hasSkillsRequiredColumn) {
-            $stmt = $conn->prepare("
-                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, skills_required, description, status, is_approved, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, NOW())
-            ");
-            $stmt->bind_param("isssssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $skillsRequired, $description);
-        } else {
-            $stmt = $conn->prepare("
-                INSERT INTO jobs (company_id, title, location, type, category, salary, application_duration, experience_level, description, status, is_approved, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, NOW())
-            ");
-            $stmt->bind_param("issssssss", $cid, $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description);
+        $salaryValue = null;
+        if ($formData['salary'] !== '') {
+            $salaryValue = rtrim(rtrim(number_format((float) $formData['salary'], 2, '.', ''), '0'), '.');
+            if ($salaryValue === '') {
+                $salaryValue = '0';
+            }
         }
 
-        if ($stmt->execute()) {
-            $jobId = (int)$conn->insert_id;
-            $msg = "Job submitted successfully and is awaiting admin approval.";
-            $msg_type = 'success';
-            $skillsRequired = '';
-            log_activity(
-                $conn,
-                $cid,
-                'company',
-                'job_posted',
-                "Company posted a new job: {$title}",
-                'job',
-                $jobId
-            );
-            // Optional: redirect to my-jobs
-        } else {
-            $msg = "Failed to post job. Please try again.";
-            $msg_type = 'danger';
+        $applicationDurationValue = null;
+        $deadlineValue = null;
+        if ($formData['application_duration'] !== '') {
+            $durationDays = (int) $formData['application_duration'];
+            $applicationDurationValue = $durationDays . ' days';
+            if ($hasDeadlineColumn) {
+                $deadlineValue = date('Y-m-d', strtotime('+' . $durationDays . ' days'));
+            }
         }
-        $stmt->close();
+
+        $insertColumns = [
+            'company_id',
+            'company',
+            'title',
+            'location',
+            'type',
+            'category',
+            'salary',
+            'application_duration',
+            'experience_level',
+            'description',
+            'status',
+            'is_approved',
+            'created_at',
+        ];
+        $insertValues = [
+            '?',
+            '?',
+            '?',
+            '?',
+            '?',
+            '?',
+            '?',
+            '?',
+            '?',
+            '?',
+            "'active'",
+            '0',
+            'NOW()',
+        ];
+        $insertTypes = 'isssssssss';
+        $insertParams = [
+            $cid,
+            $companyName,
+            $formData['job_title'],
+            $formData['location'],
+            $formData['job_type'],
+            $formData['category'],
+            $salaryValue,
+            $applicationDurationValue,
+            $formData['experience_required'],
+            $formData['description'],
+        ];
+
+        if ($hasSkillsRequiredColumn) {
+            $skillsRequiredValue = $formData['skills_required'] !== '' ? $formData['skills_required'] : null;
+            $insertColumns[] = 'skills_required';
+            $insertValues[] = '?';
+            $insertTypes .= 's';
+            $insertParams[] = $skillsRequiredValue;
+        }
+
+        if ($hasDeadlineColumn) {
+            $insertColumns[] = 'deadline';
+            $insertValues[] = '?';
+            $insertTypes .= 's';
+            $insertParams[] = $deadlineValue;
+        }
+
+        $insertSql = "
+            INSERT INTO jobs (" . implode(', ', $insertColumns) . ")
+            VALUES (" . implode(', ', $insertValues) . ")
+        ";
+
+        $stmt = $conn->prepare($insertSql);
+        if (!$stmt) {
+            error_log("company/company-add-job.php prepare failed for company {$cid}: " . $conn->error);
+            $msg = "The job could not be saved because of a database error. Please try again.";
+            $msg_type = 'danger';
+            $submitState = 'sql_failed';
+        } else {
+            $stmt->bind_param($insertTypes, ...$insertParams);
+            if ($stmt->execute()) {
+                $jobId = (int) $conn->insert_id;
+                $msg = "Job submitted successfully and is awaiting admin approval.";
+                $msg_type = 'success';
+                $submitState = 'success';
+                $postedTitle = $formData['job_title'];
+                $formData = $defaultFormData;
+
+                log_activity(
+                    $conn,
+                    $cid,
+                    'company',
+                    'job_posted',
+                    "Company posted a new job: {$postedTitle}",
+                    'job',
+                    $jobId
+                );
+            } else {
+                error_log("company/company-add-job.php insert failed for company {$cid}: " . $stmt->error);
+                $msg = "The job could not be saved because of a database error. Please try again.";
+                $msg_type = 'danger';
+                $submitState = 'sql_failed';
+            }
+            $stmt->close();
+        }
     }
 }
 ?>
@@ -158,90 +324,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 <?php endif; ?>
 
 <?php if ($msg): ?>
-    <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
+    <div class="alert alert-<?= $msg_type ?>">
+        <?= htmlspecialchars($msg) ?>
+        <?php if ($submitState === 'validation_failed' && !empty($errors)): ?>
+            <ul class="mb-0 mt-2 ps-3">
+                <?php foreach ($errors as $error): ?>
+                    <li><?= htmlspecialchars($error) ?></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
 <?php endif; ?>
 
 <div class="card shadow-sm">
     <div class="card-body">
-        <form method="post">
+        <form method="POST" action="company-add-job.php">
             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
 
             <div class="mb-3">
                 <label class="form-label">Job Title *</label>
-                <input type="text" name="title" class="form-control" required value="<?= htmlspecialchars($title) ?>">
+                <input
+                    type="text"
+                    name="job_title"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'job_title', 'form-control')) ?>"
+                    required
+                    minlength="3"
+                    maxlength="150"
+                    value="<?= htmlspecialchars($formData['job_title']) ?>"
+                >
+                <?php if (isset($errors['job_title'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['job_title']) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Location *</label>
-                <input type="text" name="location" class="form-control" required placeholder="Kathmandu, Nepal" value="<?= htmlspecialchars($location) ?>">
+                <input
+                    type="text"
+                    name="location"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'location', 'form-control')) ?>"
+                    required
+                    placeholder="Kathmandu, Nepal"
+                    value="<?= htmlspecialchars($formData['location']) ?>"
+                >
+                <?php if (isset($errors['location'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['location']) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Job Type</label>
-                <select name="type" class="form-select">
+                <label class="form-label">Job Type *</label>
+                <select
+                    name="job_type"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'job_type', 'form-select')) ?>"
+                    required
+                >
                     <?php foreach ($jobTypes as $jobType): ?>
-                        <option value="<?= htmlspecialchars($jobType) ?>" <?= $type === $jobType ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars($jobType) ?>" <?= $formData['job_type'] === $jobType ? 'selected' : '' ?>>
                             <?= htmlspecialchars($jobType) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <?php if ($jobTypeError): ?>
-                    <div class="text-danger small mt-1"><?= htmlspecialchars($jobTypeError) ?></div>
+                <?php if (isset($errors['job_type'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['job_type']) ?></div>
                 <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Category *</label>
-                <select name="category" class="form-select" required>
-                    <option value="" disabled <?= $category === '' ? 'selected' : '' ?>>Select category...</option>
+                <select
+                    name="category"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'category', 'form-select')) ?>"
+                    required
+                >
+                    <option value="" disabled <?= $formData['category'] === '' ? 'selected' : '' ?>>Select category...</option>
                     <?php foreach ($categories as $cat): ?>
-                        <option value="<?= htmlspecialchars($cat) ?>" <?= ($category ?? '') === $cat ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars($cat) ?>" <?= $formData['category'] === $cat ? 'selected' : '' ?>>
                             <?= htmlspecialchars($cat) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <?php if ($categoryError): ?>
-                    <div class="text-danger small mt-1"><?= htmlspecialchars($categoryError) ?></div>
+                <?php if (isset($errors['category'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['category']) ?></div>
                 <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Salary (optional)</label>
-                <input type="text" name="salary" class="form-control" placeholder="e.g. 30,000 - 50,000 NPR" value="<?= htmlspecialchars($salary) ?>">
+                <input
+                    type="number"
+                    name="salary"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary', 'form-control')) ?>"
+                    min="0"
+                    step="0.01"
+                    value="<?= htmlspecialchars($formData['salary']) ?>"
+                >
+                <?php if (isset($errors['salary'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['salary']) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Application Duration (optional)</label>
-                <input type="text" name="application_duration" class="form-control" placeholder="e.g. 30 days" value="<?= htmlspecialchars($duration) ?>">
+                <input
+                    type="number"
+                    name="application_duration"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'application_duration', 'form-control')) ?>"
+                    min="1"
+                    max="365"
+                    step="1"
+                    value="<?= htmlspecialchars($formData['application_duration']) ?>"
+                >
+                <?php if (isset($errors['application_duration'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['application_duration']) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Experience Required *</label>
-                <select name="experience_level" class="form-select" required>
-                    <option value="" disabled <?= $experienceLevel === '' ? 'selected' : '' ?>>Select experience level...</option>
+                <select
+                    name="experience_required"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'experience_required', 'form-select')) ?>"
+                    required
+                >
+                    <option value="" disabled <?= $formData['experience_required'] === '' ? 'selected' : '' ?>>Select experience level...</option>
                     <?php foreach ($experienceLevels as $level): ?>
-                        <option value="<?= htmlspecialchars($level) ?>" <?= ($experienceLevel ?? '') === $level ? 'selected' : '' ?>>
+                        <option value="<?= htmlspecialchars($level) ?>" <?= $formData['experience_required'] === $level ? 'selected' : '' ?>>
                             <?= htmlspecialchars($level) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
-                <?php if ($experienceError): ?>
-                    <div class="text-danger small mt-1"><?= htmlspecialchars($experienceError) ?></div>
+                <?php if (isset($errors['experience_required'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['experience_required']) ?></div>
                 <?php endif; ?>
             </div>
 
             <div class="mb-4">
                 <label class="form-label">Required Skills (optional)</label>
-                <textarea name="skills_required" class="form-control" rows="3" placeholder="Laravel, PHP, MySQL, REST API"><?= htmlspecialchars($skillsRequired) ?></textarea>
+                <textarea name="skills_required" class="form-control" rows="3" placeholder="Laravel, PHP, MySQL, REST API"><?= htmlspecialchars($formData['skills_required']) ?></textarea>
                 <div class="form-text">Enter comma-separated skills to improve job recommendations.</div>
             </div>
 
             <div class="mb-4">
                 <label class="form-label">Description *</label>
-                <textarea name="description" class="form-control" rows="6" required><?= htmlspecialchars($description) ?></textarea>
+                <textarea
+                    name="description"
+                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'description', 'form-control')) ?>"
+                    rows="6"
+                    required
+                    minlength="20"
+                ><?= htmlspecialchars($formData['description']) ?></textarea>
+                <?php if (isset($errors['description'])): ?>
+                    <div class="invalid-feedback"><?= htmlspecialchars($errors['description']) ?></div>
+                <?php endif; ?>
             </div>
 
-            <button type="submit" class="btn btn-primary" <?= $canPostJobs ? '' : 'disabled' ?>>Publish Job</button>
+            <button type="submit" name="submit_job" class="btn btn-primary" <?= $canPostJobs ? '' : 'disabled' ?>>Publish Job</button>
             <a href="company-dashboard.php" class="btn btn-outline-secondary ms-2">Cancel</a>
         </form>
     </div>
