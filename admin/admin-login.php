@@ -60,6 +60,10 @@ require '../header.php';
                 <div class="alert <?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
             <?php endif; ?>
 
+            <div style="color: red; background: #ffe6e6; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-weight: bold; text-align: center;">
+                Restricted area &ndash; only admin is allowed to login.
+            </div>
+
             <form method="post">
                 <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
 

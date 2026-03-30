@@ -40,11 +40,24 @@ $notifications = notify_fetch('company', $cid, 100);
             <?php
                 $isRead = (int)($n['is_read'] ?? 0) === 1;
                 $link = trim((string)($n['link'] ?? ''));
+                $type = strtolower(trim((string)($n['type'] ?? 'info')));
+                $relatedType = strtolower(trim((string)($n['related_type'] ?? '')));
+                $isSupportReply = $relatedType === 'support_reply';
+                $typeBadge = match ($type) {
+                    'success' => 'bg-success',
+                    'warning' => 'bg-warning text-dark',
+                    'danger' => 'bg-danger',
+                    default => 'bg-info text-dark',
+                };
             ?>
             <div class="list-group-item d-flex justify-content-between align-items-start<?= $isRead ? '' : ' list-group-item-warning' ?>">
                 <div class="me-3">
                     <div class="d-flex align-items-center gap-2">
                         <strong><?= htmlspecialchars($n['title']) ?></strong>
+                        <span class="badge <?= $typeBadge ?>"><?= ucfirst($type) ?></span>
+                        <?php if ($isSupportReply): ?>
+                            <span class="badge text-bg-secondary">Support</span>
+                        <?php endif; ?>
                         <?php if (!$isRead): ?>
                             <span class="badge bg-warning text-dark">Unread</span>
                         <?php endif; ?>
@@ -53,7 +66,7 @@ $notifications = notify_fetch('company', $cid, 100);
                     <div><?= nl2br(htmlspecialchars($n['message'])) ?></div>
                     <?php if ($link !== ''): ?>
                         <div class="mt-2">
-                            <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars($link) ?>">View</a>
+                            <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars($link) ?>"><?= $isSupportReply ? 'View Reply' : 'View' ?></a>
                         </div>
                     <?php endif; ?>
                 </div>

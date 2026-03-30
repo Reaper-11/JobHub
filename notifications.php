@@ -46,6 +46,8 @@ $notifications = notify_fetch('user', $userId, 100);
                 $isRead = (int)($n['is_read'] ?? 0) === 1;
                 $link = trim((string)($n['link'] ?? ''));
                 $type = strtolower(trim((string)($n['type'] ?? 'info')));
+                $relatedType = strtolower(trim((string)($n['related_type'] ?? '')));
+                $isSupportReply = $relatedType === 'support_reply';
                 $accentClass = match ($type) {
                     'success' => 'border-success-subtle',
                     'warning' => 'border-warning-subtle',
@@ -64,6 +66,9 @@ $notifications = notify_fetch('user', $userId, 100);
                     <div class="d-flex align-items-center gap-2">
                         <strong><?= htmlspecialchars($n['title']) ?></strong>
                         <span class="badge <?= $typeBadge ?>"><?= ucfirst($type) ?></span>
+                        <?php if ($isSupportReply): ?>
+                            <span class="badge text-bg-secondary">Support</span>
+                        <?php endif; ?>
                         <?php if (!$isRead): ?>
                             <span class="badge bg-warning text-dark">Unread</span>
                         <?php endif; ?>
@@ -72,7 +77,7 @@ $notifications = notify_fetch('user', $userId, 100);
                     <div><?= nl2br(htmlspecialchars($n['message'])) ?></div>
                     <?php if ($link !== ''): ?>
                         <div class="mt-2">
-                            <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars($link) ?>">View</a>
+                            <a class="btn btn-sm btn-outline-primary" href="<?= htmlspecialchars($link) ?>"><?= $isSupportReply ? 'View Reply' : 'View' ?></a>
                         </div>
                     <?php endif; ?>
                 </div>

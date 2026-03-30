@@ -22,7 +22,6 @@ if (empty($supportMessage['is_read'])) {
 }
 
 $flash = support_get_flash('admin');
-$mailStatus = jobhub_support_mail_status();
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -137,25 +136,6 @@ $mailStatus = jobhub_support_mail_status();
                     <div class="mb-3">
                         <label class="form-label">Reply Message <span class="text-danger">*</span></label>
                         <textarea name="reply_message" class="form-control" rows="8" required><?= htmlspecialchars($supportMessage['admin_reply'] ?? '') ?></textarea>
-                    </div>
-
-                    <div class="form-check mb-3">
-                        <input
-                            class="form-check-input"
-                            type="checkbox"
-                            name="send_email"
-                            id="send_email"
-                            value="1"
-                            <?= $mailStatus['can_send'] ? 'checked' : '' ?>
-                            <?= $mailStatus['can_send'] ? '' : 'disabled' ?>
-                        >
-                        <label class="form-check-label" for="send_email">
-                            Send email reply if SMTP is configured
-                        </label>
-                    </div>
-
-                    <div class="small text-muted mb-3">
-                        <?= htmlspecialchars($mailStatus['message']) ?>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100">Save Reply</button>
