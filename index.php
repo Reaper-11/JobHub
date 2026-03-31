@@ -1,6 +1,8 @@
 <?php
 require 'db.php';
 
+update_expired_jobs($conn);
+
 $keyword = trim($_GET['q'] ?? '');
 $filter  = trim($_GET['filter'] ?? '');
 $location = trim($_GET['location'] ?? '');
@@ -293,6 +295,83 @@ $basePath = '';
             height: 2px;
         }
 
+        .job-card-shell {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .job-card-visual {
+            position: relative;
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+            isolation: isolate;
+        }
+
+        .job-card-visual::before,
+        .job-card-visual::after {
+            content: '';
+            position: absolute;
+            border-radius: 9999px;
+            pointer-events: none;
+        }
+
+        .job-card-visual::before {
+            width: 168px;
+            height: 168px;
+            top: -72px;
+            left: -36px;
+            background: rgba(79, 70, 229, 0.10);
+        }
+
+        .job-card-visual::after {
+            width: 150px;
+            height: 150px;
+            right: -36px;
+            bottom: -78px;
+            background: rgba(255, 255, 255, 0.72);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+        }
+
+        .job-card-visual--warm {
+            background: linear-gradient(180deg, #fff7ed 0%, #fffbf5 100%);
+        }
+
+        .job-card-visual--warm::before {
+            background: rgba(249, 115, 22, 0.10);
+        }
+
+        .job-card-category-icon {
+            position: relative;
+            z-index: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 96px;
+            height: 96px;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.10);
+            font-size: 56px;
+            line-height: 1;
+            font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+        }
+
+        .job-card-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .job-card-footer {
+            margin-top: auto;
+        }
+
         .timeline-connector {
             position: relative;
         }
@@ -311,6 +390,18 @@ $basePath = '';
         @media (max-width: 768px) {
             .timeline-connector::after {
                 display: none;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .job-card-visual {
+                height: 144px;
+            }
+
+            .job-card-category-icon {
+                width: 88px;
+                height: 88px;
+                font-size: 52px;
             }
         }
     </style>
@@ -526,21 +617,24 @@ $basePath = '';
             <?php if (!empty($topJobs)): ?>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
                     <?php foreach ($topJobs as $job): ?>
-                        <div class="bg-white rounded-xl overflow-hidden shadow-lg hover-lift border border-gray-200/50 group">
-                            <div class="relative h-44 bg-gradient-to-br from-gray-100 to-blue-50 flex items-center justify-center overflow-hidden">
-                                <div class="w-full h-full flex items-center justify-center">
-                                    <i class="fas fa-building text-6xl text-[#1a237e]/20"></i>
-                                </div>
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-                                <span class="absolute top-3 left-3 px-3 py-1 bg-gradient-to-r from-[#ff9800] to-[#ffb74d] text-white font-bold rounded-full text-xs shadow-md flex items-center gap-1">
+                        <?php
+                        $jobCategory = trim((string) ($job['category'] ?? ''));
+                        $jobCategoryLabel = $jobCategory !== '' ? $jobCategory : 'General';
+                        ?>
+                        <div class="bg-white rounded-xl overflow-hidden shadow-lg hover-lift border border-gray-200/50 group job-card-shell">
+                            <div class="job-card-visual">
+                                <span class="job-card-category-icon" role="img" aria-label="<?= htmlspecialchars($jobCategoryLabel) ?> category icon">
+                                    <?= htmlspecialchars(get_category_card_icon($jobCategory), ENT_QUOTES, 'UTF-8') ?>
+                                </span>
+                                <span class="absolute top-3 left-3 z-10 px-3 py-1 bg-gradient-to-r from-[#ff9800] to-[#ffb74d] text-white font-bold rounded-full text-xs shadow-md flex items-center gap-1">
                                     <i class="fas fa-bolt text-xs"></i>Trending
                                 </span>
-                                <div class="absolute top-3 right-3 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-medium text-gray-900 shadow">
-                                    <?= htmlspecialchars($job['category'] ?? 'General') ?>
+                                <div class="absolute top-3 right-3 z-10 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-medium text-gray-900 shadow">
+                                    <?= htmlspecialchars($jobCategoryLabel) ?>
                                 </div>
                             </div>
 
-                            <div class="p-4">
+                            <div class="p-4 job-card-body">
                                 <div class="flex justify-between items-start mb-3">
                                     <h3 class="text-lg font-bold text-gray-900 group-hover:text-[#1a237e] transition-colors duration-300">
                                         <?= htmlspecialchars($job['title']) ?>
@@ -572,7 +666,7 @@ $basePath = '';
                                     <?= nl2br(htmlspecialchars(substr($job['description'], 0, 120))) ?>...
                                 </p>
 
-                                <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                                <div class="flex justify-between items-center pt-4 border-t border-gray-100 job-card-footer">
                                     <div class="flex items-center gap-2">
                                         <div class="p-1 bg-[#388e3c]/10 rounded-md">
                                             <i class="fas fa-clock text-xs text-[#388e3c]"></i>
@@ -635,21 +729,24 @@ $basePath = '';
                 <?php if (!empty($recommendedJobs)): ?>
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
                         <?php foreach ($recommendedJobs as $job): ?>
-                            <div class="bg-white rounded-xl overflow-hidden shadow-lg hover-lift border border-gray-200/50 group">
-                                <div class="relative h-44 bg-gradient-to-br from-gray-100 to-orange-50 flex items-center justify-center overflow-hidden">
-                                    <div class="w-full h-full flex items-center justify-center">
-                                        <i class="fas fa-star text-6xl text-[#ff9800]/25"></i>
-                                    </div>
-                                    <div class="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"></div>
-                                    <span class="absolute top-3 left-3 px-3 py-1 bg-gradient-to-r from-[#ff9800] to-[#ffb74d] text-white font-bold rounded-full text-xs shadow-md flex items-center gap-1">
+                            <?php
+                            $jobCategory = trim((string) ($job['category'] ?? ''));
+                            $jobCategoryLabel = $jobCategory !== '' ? $jobCategory : 'General';
+                            ?>
+                            <div class="bg-white rounded-xl overflow-hidden shadow-lg hover-lift border border-gray-200/50 group job-card-shell">
+                                <div class="job-card-visual job-card-visual--warm">
+                                    <span class="job-card-category-icon" role="img" aria-label="<?= htmlspecialchars($jobCategoryLabel) ?> category icon">
+                                        <?= htmlspecialchars(get_category_card_icon($jobCategory), ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                    <span class="absolute top-3 left-3 z-10 px-3 py-1 bg-gradient-to-r from-[#ff9800] to-[#ffb74d] text-white font-bold rounded-full text-xs shadow-md flex items-center gap-1">
                                         <i class="fas fa-thumbs-up text-xs"></i>Recommended
                                     </span>
-                                    <div class="absolute top-3 right-3 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-medium text-gray-900 shadow">
-                                        <?= htmlspecialchars($job['category'] ?? 'General') ?>
+                                    <div class="absolute top-3 right-3 z-10 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-medium text-gray-900 shadow">
+                                        <?= htmlspecialchars($jobCategoryLabel) ?>
                                     </div>
                                 </div>
 
-                                <div class="p-4">
+                                <div class="p-4 job-card-body">
                                     <div class="flex justify-between items-start mb-3">
                                         <h3 class="text-lg font-bold text-gray-900 group-hover:text-[#ff9800] transition-colors duration-300">
                                             <?= htmlspecialchars($job['title']) ?>
@@ -696,7 +793,7 @@ $basePath = '';
                                         </div>
                                     <?php endif; ?>
 
-                                    <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                                    <div class="flex justify-between items-center pt-4 border-t border-gray-100 job-card-footer">
                                         <div class="flex items-center gap-2">
                                             <div class="p-1 bg-[#388e3c]/10 rounded-md">
                                                 <i class="fas fa-clock text-xs text-[#388e3c]"></i>
@@ -782,18 +879,21 @@ $basePath = '';
             <?php else: ?>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
                     <?php foreach ($jobs as $job): ?>
-                        <div class="bg-white rounded-xl overflow-hidden shadow-lg hover-lift border border-gray-200/50 group">
-                            <div class="relative h-44 bg-gradient-to-br from-gray-100 to-blue-50 flex items-center justify-center overflow-hidden">
-                                <div class="w-full h-full flex items-center justify-center">
-                                    <i class="fas fa-briefcase text-6xl text-[#1a237e]/20"></i>
-                                </div>
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"></div>
-                                <div class="absolute top-3 right-3 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-medium text-gray-900 shadow">
-                                    <?= htmlspecialchars($job['category'] ?? 'General') ?>
+                        <?php
+                        $jobCategory = trim((string) ($job['category'] ?? ''));
+                        $jobCategoryLabel = $jobCategory !== '' ? $jobCategory : 'General';
+                        ?>
+                        <div class="bg-white rounded-xl overflow-hidden shadow-lg hover-lift border border-gray-200/50 group job-card-shell">
+                            <div class="job-card-visual">
+                                <span class="job-card-category-icon" role="img" aria-label="<?= htmlspecialchars($jobCategoryLabel) ?> category icon">
+                                    <?= htmlspecialchars(get_category_card_icon($jobCategory), ENT_QUOTES, 'UTF-8') ?>
+                                </span>
+                                <div class="absolute top-3 right-3 z-10 px-2 py-1 bg-white/95 backdrop-blur-sm rounded-full text-xs font-medium text-gray-900 shadow">
+                                    <?= htmlspecialchars($jobCategoryLabel) ?>
                                 </div>
                             </div>
 
-                            <div class="p-4">
+                            <div class="p-4 job-card-body">
                                 <div class="flex justify-between items-start mb-3">
                                     <h3 class="text-lg font-bold text-gray-900 group-hover:text-[#1a237e] transition-colors duration-300">
                                         <?= htmlspecialchars($job['title']) ?>
@@ -834,7 +934,7 @@ $basePath = '';
                                     <?= nl2br(htmlspecialchars(substr($job['description'], 0, 120))) ?>...
                                 </p>
 
-                                <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                                <div class="flex justify-between items-center pt-4 border-t border-gray-100 job-card-footer">
                                     <div class="flex items-center gap-2">
                                         <div class="p-1 bg-[#388e3c]/10 rounded-md">
                                             <i class="fas fa-clock text-xs text-[#388e3c]"></i>

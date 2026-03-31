@@ -19,81 +19,78 @@ if (!$record) {
 $status = get_company_verification_status($record);
 $msg = '';
 $msg_type = 'danger';
+$remarksInput = $record['verification_admin_remarks'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $msg = "Invalid request. Please try again.";
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_POST['action'] ?? '';
-    $remarks = trim($_POST['remarks'] ?? '');
+    $action = trim((string)($_POST['action'] ?? ''));
+    $remarksInput = trim((string)($_POST['remarks'] ?? ''));
     $adminId = current_admin_id() ?? 0;
 
     if ($status === 'not_submitted') {
         $msg = "This company has not submitted a verification request.";
     } elseif (!in_array($action, ['approve', 'reject'], true)) {
         $msg = "Invalid action.";
-    } elseif ($action === 'reject' && $remarks === '') {
+    } elseif ($action === 'reject' && $remarksInput === '') {
         $msg = "Remarks are required when rejecting a request.";
     } else {
-        if ($action === 'approve') {
-            $stmt = $conn->prepare("
-                UPDATE companies
-                SET verification_status = 'approved',
-                    verification_admin_remarks = ?,
-                    verification_verified_at = NOW(),
-                    verification_verified_by_admin_id = ?,
-                    updated_at = NOW()
-                WHERE id = ?
-            ");
-            if ($stmt) {
-                $stmt->bind_param("sii", $remarks, $adminId, $companyId);
-            }
-        } else {
-            $stmt = $conn->prepare("
-                UPDATE companies
-                SET verification_status = 'rejected',
-                    verification_admin_remarks = ?,
-                    verification_verified_at = NULL,
-                    verification_verified_by_admin_id = ?,
-                    updated_at = NOW()
-                WHERE id = ?
-            ");
-            if ($stmt) {
-                $stmt->bind_param("sii", $remarks, $adminId, $companyId);
-            }
-        }
+        $nextStatus = $action === 'approve' ? 'approved' : 'rejected';
 
-        if (!isset($stmt) || !$stmt) {
+        $stmt = $conn->prepare("
+            UPDATE companies
+            SET verification_status = ?,
+                verification_admin_remarks = NULLIF(?, ''),
+                verification_verified_at = CASE WHEN ? = 'approved' THEN NOW() ELSE NULL END,
+                verification_verified_by_admin_id = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        ");
+
+        if (!$stmt) {
             $msg = "Could not prepare verification review.";
-        } elseif ($stmt->execute()) {
-            $msg = $action === 'approve' ? "Verification approved successfully." : "Verification rejected successfully.";
-            $msg_type = 'success';
-
-            log_activity(
-                $conn,
-                $adminId,
-                'admin',
-                $action === 'approve' ? 'company_verification_approved' : 'company_verification_rejected',
-                $action === 'approve'
-                    ? "Admin approved company verification for {$record['name']}"
-                    : "Admin rejected company verification for {$record['name']}",
-                'company',
-                $companyId
-            );
-
-            $title = $action === 'approve' ? 'Company Verification Approved' : 'Company Verification Rejected';
-            $message = $action === 'approve'
-                ? 'Your company verification request has been approved. You can now post new jobs.'
-                : 'Your company verification request was rejected. Remarks: ' . $remarks;
-            notify_create('company', $companyId, $title, $message, 'company-verification.php');
-
-            $record = get_company_verification_record($conn, $companyId);
-            $status = get_company_verification_status($record);
         } else {
-            $msg = "Could not save the verification decision.";
-        }
-
-        if (isset($stmt) && $stmt) {
+            $stmt->bind_param("sssii", $nextStatus, $remarksInput, $nextStatus, $adminId, $companyId);
+            $ok = $stmt->execute();
             $stmt->close();
+
+            if ($ok) {
+                $notificationTitle = $action === 'approve'
+                    ? 'Company Verification Approved'
+                    : 'Company Verification Rejected';
+                $notificationMessage = $action === 'approve'
+                    ? ($remarksInput !== '' ? $remarksInput : 'Your company verification has been approved.')
+                    : $remarksInput;
+
+                notify_create_company_verification_review(
+                    $companyId,
+                    $notificationTitle,
+                    $notificationMessage,
+                    'company-notifications.php'
+                );
+
+                log_activity(
+                    $conn,
+                    $adminId,
+                    'admin',
+                    $action === 'approve' ? 'company_verification_approved' : 'company_verification_rejected',
+                    $action === 'approve'
+                        ? "Admin approved company verification for {$record['name']}"
+                        : "Admin rejected company verification for {$record['name']}",
+                    'company',
+                    $companyId
+                );
+
+                $record = get_company_verification_record($conn, $companyId);
+                $status = get_company_verification_status($record);
+                $remarksInput = $record['verification_admin_remarks'] ?? '';
+                $msg = $action === 'approve'
+                    ? 'Verification approved successfully.'
+                    : 'Verification rejected successfully.';
+                $msg_type = 'success';
+            } else {
+                $msg = "Could not save the verification decision.";
+            }
         }
     }
 }
@@ -187,8 +184,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
 
                     <div class="mb-3">
                         <label class="form-label">Admin Remarks</label>
-                        <textarea name="remarks" class="form-control" rows="4"><?= htmlspecialchars($record['verification_admin_remarks'] ?? '') ?></textarea>
-                        <div class="form-text">Remarks are required when rejecting. Optional when approving.</div>
+                        <textarea name="remarks" class="form-control" rows="4"><?= htmlspecialchars($remarksInput) ?></textarea>
+                        <div class="form-text">Remarks are optional when approving. Remarks are required when rejecting.</div>
                     </div>
 
                     <div class="d-flex gap-2">

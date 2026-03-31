@@ -4,19 +4,56 @@ require '../db.php';
 require_role('company');
 $cid = current_company_id() ?? 0;
 
-// Optional filters (you can expand later)
-$statusFilter = $_GET['status'] ?? 'all';
-$where = $statusFilter === 'all' ? "1=1" : "status = ?";
+update_expired_jobs($conn, $cid);
 
-$params = $statusFilter === 'all' ? [] : [$statusFilter];
-$types  = $statusFilter === 'all' ? "" : "s";
+$deadlineColumn = job_deadline_column($conn);
+$jobSelect = "id, title, location, type, status, is_approved, admin_remarks, created_at, application_count, application_duration";
+if ($deadlineColumn !== null) {
+    $jobSelect .= ", {$deadlineColumn}";
+}
+if (job_has_post_date_column($conn)) {
+    $jobSelect .= ", post_date";
+}
+
+$statusFilter = strtolower(trim($_GET['status'] ?? 'all'));
+$allowedFilters = ['all', 'active', 'pending', 'rejected', 'closed', 'draft', 'expired'];
+if (!in_array($statusFilter, $allowedFilters, true)) {
+    $statusFilter = 'all';
+}
+
+$whereClauses = ['company_id = ?'];
+$params = [$cid];
+$types = 'i';
+
+switch ($statusFilter) {
+    case 'active':
+        $whereClauses[] = "status = 'active'";
+        $whereClauses[] = "is_approved = 1";
+        break;
+    case 'pending':
+        $whereClauses[] = 'is_approved = 0';
+        $whereClauses[] = "status <> 'draft'";
+        break;
+    case 'rejected':
+        $whereClauses[] = 'is_approved = -1';
+        break;
+    case 'closed':
+        $whereClauses[] = "status = 'closed'";
+        break;
+    case 'draft':
+        $whereClauses[] = "status = 'draft'";
+        break;
+    case 'expired':
+        $whereClauses[] = "status = 'expired'";
+        break;
+}
 
 $jobs = db_query_all("
-    SELECT id, title, location, type, status, is_approved, admin_remarks, created_at, application_count
-    FROM jobs 
-    WHERE company_id = ? AND $where
+    SELECT {$jobSelect}
+    FROM jobs
+    WHERE " . implode(' AND ', $whereClauses) . "
     ORDER BY created_at DESC
-", "i" . $types, array_merge([$cid], $params));
+", $types, $params);
 ?>
 
 <?php require 'company-header.php'; ?>
@@ -35,10 +72,12 @@ $jobs = db_query_all("
             <label class="form-label mb-0">Filter by status:</label>
             <select name="status" class="form-select w-auto" onchange="this.form.submit()">
                 <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>All</option>
-                <option value="active"   <?= $statusFilter === 'active'   ? 'selected' : '' ?>>Active</option>
-                <option value="closed"   <?= $statusFilter === 'closed'   ? 'selected' : '' ?>>Closed</option>
-                <option value="draft"    <?= $statusFilter === 'draft'    ? 'selected' : '' ?>>Draft</option>
-                <option value="expired"  <?= $statusFilter === 'expired'  ? 'selected' : '' ?>>Expired</option>
+                <option value="active" <?= $statusFilter === 'active' ? 'selected' : '' ?>>Active</option>
+                <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>Pending</option>
+                <option value="rejected" <?= $statusFilter === 'rejected' ? 'selected' : '' ?>>Rejected</option>
+                <option value="closed" <?= $statusFilter === 'closed' ? 'selected' : '' ?>>Closed</option>
+                <option value="draft" <?= $statusFilter === 'draft' ? 'selected' : '' ?>>Draft</option>
+                <option value="expired" <?= $statusFilter === 'expired' ? 'selected' : '' ?>>Expired</option>
             </select>
             <a href="company-my-jobs.php" class="btn btn-outline-secondary btn-sm">Reset</a>
         </form>
@@ -66,22 +105,21 @@ $jobs = db_query_all("
                     <tr><td colspan="8" class="text-center py-5 text-muted">No jobs found.</td></tr>
                 <?php else: ?>
                     <?php foreach ($jobs as $job): ?>
+                        <?php
+                        $effectiveStatus = job_effective_status($job);
+                        $canReopen = $effectiveStatus === 'closed' && !is_job_expired($job);
+                        ?>
                         <tr>
                             <td>
-                                <a href="company-edit-job.php?id=<?= $job['id'] ?>" class="text-decoration-none">
+                                <a href="company-edit-job.php?id=<?= (int)$job['id'] ?>" class="text-decoration-none">
                                     <?= htmlspecialchars($job['title']) ?>
                                 </a>
                             </td>
-                            <td><?= htmlspecialchars($job['location'] ?: '—') ?></td>
+                            <td><?= htmlspecialchars($job['location'] ?: '-') ?></td>
                             <td><?= htmlspecialchars($job['type'] ?: 'Full-time') ?></td>
                             <td>
-                                <span class="badge <?= match(strtolower($job['status'] ?? 'draft')) {
-                                    'active'  => 'bg-success',
-                                    'closed'  => 'bg-danger',
-                                    'expired' => 'bg-secondary',
-                                    default   => 'bg-warning'
-                                } ?>">
-                                    <?= ucfirst($job['status'] ?? 'Draft') ?>
+                                <span class="badge <?= job_status_badge_class($job) ?>">
+                                    <?= htmlspecialchars(job_status_label($job)) ?>
                                 </span>
                             </td>
                             <td>
@@ -95,26 +133,27 @@ $jobs = db_query_all("
                             <td><?= number_format($job['application_count'] ?? 0) ?></td>
                             <td><?= date('M d, Y', strtotime($job['created_at'])) ?></td>
                             <td class="text-nowrap">
-                                <a href="company-edit-job.php?id=<?= $job['id'] ?>" 
-                                   class="btn btn-sm btn-outline-primary">Edit</a>
+                                <a href="company-edit-job.php?id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
 
-                                <a href="company-applications.php?job_id=<?= $job['id'] ?>" 
-                                   class="btn btn-sm btn-outline-info">View Applications</a>
+                                <a href="company-applications.php?job_id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-info">View Applications</a>
 
-                                <?php if ($job['status'] === 'active'): ?>
+                                <?php if ($effectiveStatus === 'active'): ?>
                                     <form method="post" action="company-toggle-job.php" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                        <input type="hidden" name="id" value="<?= $job['id'] ?>">
+                                        <input type="hidden" name="id" value="<?= (int)$job['id'] ?>">
                                         <input type="hidden" name="status" value="closed">
-                                        <button type="submit" class="btn btn-sm btn-outline-warning" 
-                                                onclick="return confirm('Close this job? No more applications will be accepted.')">
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-outline-warning"
+                                            onclick="return confirm('Close this job? No more applications will be accepted.')"
+                                        >
                                             Close
                                         </button>
                                     </form>
-                                <?php elseif ($job['status'] === 'closed'): ?>
+                                <?php elseif ($canReopen): ?>
                                     <form method="post" action="company-toggle-job.php" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                        <input type="hidden" name="id" value="<?= $job['id'] ?>">
+                                        <input type="hidden" name="id" value="<?= (int)$job['id'] ?>">
                                         <input type="hidden" name="status" value="active">
                                         <button type="submit" class="btn btn-sm btn-outline-success">
                                             Reopen
@@ -124,9 +163,12 @@ $jobs = db_query_all("
 
                                 <form method="post" action="company-delete-job.php" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                    <input type="hidden" name="id" value="<?= $job['id'] ?>">
-                                    <button type="submit" class="btn btn-sm btn-danger" 
-                                            onclick="return confirm('Delete this job permanently? This cannot be undone.')">
+                                    <input type="hidden" name="id" value="<?= (int)$job['id'] ?>">
+                                    <button
+                                        type="submit"
+                                        class="btn btn-sm btn-danger"
+                                        onclick="return confirm('Delete this job permanently? This cannot be undone.')"
+                                    >
                                         Delete
                                     </button>
                                 </form>

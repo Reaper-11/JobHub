@@ -9,26 +9,31 @@ require_role('company');
 $cid = current_company_id() ?? 0;
 $jobId = (int)($_GET['id'] ?? 0);
 
-$stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND company_id = ? LIMIT 1");
-$stmt->bind_param("ii", $jobId, $cid);
-$stmt->execute();
-$job = $stmt->get_result()->fetch_assoc();
-$stmt->close();
+update_expired_jobs($conn, $cid, $jobId > 0 ? $jobId : null);
+
+$jobStmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND company_id = ? LIMIT 1");
+$jobStmt->bind_param("ii", $jobId, $cid);
+$jobStmt->execute();
+$job = $jobStmt->get_result()->fetch_assoc();
+$jobStmt->close();
 
 if (!$job) {
     header("Location: company-dashboard.php");
     exit;
 }
 
-$msg = $msg_type = '';
+$msg = '';
+$msg_type = '';
 $categories = require __DIR__ . '/../includes/categories.php';
 $jobTypes = require __DIR__ . '/../includes/job_types.php';
+$experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
 $categoryError = '';
 $experienceError = '';
 $jobTypeError = '';
-$experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
+$durationError = '';
 $hasSkillsRequiredColumn = false;
 $isVerified = true;
+$deadlineColumn = job_deadline_column($conn);
 
 $statusStmt = $conn->prepare("
     SELECT is_approved, operational_state, restriction_reason, verification_status
@@ -54,99 +59,156 @@ if ($checkSkillsRequired) {
     $checkSkillsRequired->close();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
-    $title = trim($_POST['title'] ?? '');
-    $location = trim($_POST['location'] ?? '');
-    $type = trim($_POST['type'] ?? '');
-    $category = trim($_POST['category'] ?? '');
-    $salary = trim($_POST['salary'] ?? '');
-    $duration = trim($_POST['application_duration'] ?? '');
-    $experienceLevel = trim($_POST['experience_level'] ?? '');
-    $description = trim($_POST['description'] ?? '');
-    $skillsRequired = recommend_normalize_skill_string($_POST['skills_required'] ?? '');
-
-    if (empty($title) || empty($location) || empty($category) || empty($experienceLevel) || empty($description)) {
-        $msg = "Required fields are missing.";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $msg = "Invalid request. Please refresh the page and try again.";
         $msg_type = 'danger';
-        if (empty($category)) {
-            $categoryError = "Please select a category.";
-        }
-        if (empty($experienceLevel)) {
-            $experienceError = "Please select an experience level.";
-        }
-    } elseif (!in_array($experienceLevel, $experienceLevels, true)) {
-        $msg = "Please select a valid experience level.";
-        $msg_type = 'danger';
-        $experienceError = "Invalid experience level selected.";
-    } elseif (!in_array($type, $jobTypes, true)) {
-        $msg = "Please select a valid job type.";
-        $msg_type = 'danger';
-        $jobTypeError = "Invalid job type selected.";
-    } elseif (!in_array($category, $categories, true)) {
-        $msg = "Please correct the errors below.";
-        $msg_type = 'danger';
-        $categoryError = "Invalid category selected.";
     } else {
-        if ($hasSkillsRequiredColumn) {
-            $stmt = $conn->prepare("
-                UPDATE jobs SET 
-                    title = ?, location = ?, type = ?, category = ?, 
-                    salary = ?, application_duration = ?, experience_level = ?, skills_required = ?, description = ?, is_approved = 0, approved_by = NULL, approved_at = NULL, admin_remarks = NULL, updated_at = NOW()
-                WHERE id = ? AND company_id = ?
-            ");
-            $stmt->bind_param("sssssssssii", $title, $location, $type, $category, $salary, $duration, $experienceLevel, $skillsRequired, $description, $jobId, $cid);
+        $title = trim((string)($_POST['title'] ?? ''));
+        $location = trim((string)($_POST['location'] ?? ''));
+        $type = trim((string)($_POST['type'] ?? ''));
+        $category = trim((string)($_POST['category'] ?? ''));
+        $salary = trim((string)($_POST['salary'] ?? ''));
+        $duration = trim((string)($_POST['application_duration'] ?? ''));
+        $experienceLevel = trim((string)($_POST['experience_level'] ?? ''));
+        $description = trim((string)($_POST['description'] ?? ''));
+        $skillsRequired = recommend_normalize_skill_string($_POST['skills_required'] ?? '');
+
+        if ($title === '' || $location === '' || $category === '' || $experienceLevel === '' || $description === '') {
+            $msg = "Required fields are missing.";
+            $msg_type = 'danger';
+            if ($category === '') {
+                $categoryError = "Please select a category.";
+            }
+            if ($experienceLevel === '') {
+                $experienceError = "Please select an experience level.";
+            }
+        } elseif (!in_array($experienceLevel, $experienceLevels, true)) {
+            $msg = "Please select a valid experience level.";
+            $msg_type = 'danger';
+            $experienceError = "Invalid experience level selected.";
+        } elseif (!in_array($type, $jobTypes, true)) {
+            $msg = "Please select a valid job type.";
+            $msg_type = 'danger';
+            $jobTypeError = "Invalid job type selected.";
+        } elseif (!in_array($category, $categories, true)) {
+            $msg = "Please correct the errors below.";
+            $msg_type = 'danger';
+            $categoryError = "Invalid category selected.";
         } else {
-            $stmt = $conn->prepare("
-                UPDATE jobs SET 
-                    title = ?, location = ?, type = ?, category = ?, 
-                    salary = ?, application_duration = ?, experience_level = ?, description = ?, is_approved = 0, approved_by = NULL, approved_at = NULL, admin_remarks = NULL, updated_at = NOW()
-                WHERE id = ? AND company_id = ?
-            ");
-            $stmt->bind_param("ssssssssii", $title, $location, $type, $category, $salary, $duration, $experienceLevel, $description, $jobId, $cid);
+            $normalizedDuration = strtolower($duration);
+            if ($duration !== '') {
+                $durationTimestamp = job_expiration_timestamp(job_reference_datetime($job), $duration);
+                if ($normalizedDuration !== 'ongoing' && $durationTimestamp === null) {
+                    $msg = "Please provide a valid application duration.";
+                    $msg_type = 'danger';
+                    $durationError = "Use a value like 30, 30 days, 2 weeks, or leave it blank.";
+                }
+            }
         }
 
-        if ($stmt->execute()) {
-            $msg = "Job updated successfully and resubmitted for admin approval.";
-            $msg_type = 'success';
-            $job = array_merge($job, [
-                'title' => $title,
-                'location' => $location,
-                'type' => $type,
-                'category' => $category,
-                'salary' => $salary,
-                'application_duration' => $duration,
-                'experience_level' => $experienceLevel,
-                'skills_required' => $skillsRequired,
-                'description' => $description,
-                'is_approved' => 0,
-                'admin_remarks' => null,
-            ]);
-            log_activity(
-                $conn,
-                $cid,
-                'company',
-                'job_updated',
-                "Company updated job: {$title}",
-                'job',
-                $jobId
-            );
-        } else {
-            $msg = "Update failed.";
-            $msg_type = 'danger';
+        if ($msg === '') {
+            $deadlineValue = null;
+            if ($deadlineColumn !== null && $duration !== '' && $normalizedDuration !== 'ongoing') {
+                $deadlineTimestamp = job_expiration_timestamp(job_reference_datetime($job), $duration);
+                if ($deadlineTimestamp !== null) {
+                    $deadlineValue = date('Y-m-d', $deadlineTimestamp);
+                }
+            }
+
+            $updateSql = "
+                UPDATE jobs
+                SET title = ?, location = ?, type = ?, category = ?, salary = ?, application_duration = ?,
+                    experience_level = ?, description = ?, is_approved = 0, approved_by = NULL, approved_at = NULL,
+                    admin_remarks = NULL, updated_at = NOW()
+            ";
+            $bindTypes = "ssssssss";
+            $bindParams = [
+                $title,
+                $location,
+                $type,
+                $category,
+                $salary,
+                $duration,
+                $experienceLevel,
+                $description,
+            ];
+
+            if ($hasSkillsRequiredColumn) {
+                $updateSql .= ", skills_required = ?";
+                $bindTypes .= "s";
+                $bindParams[] = $skillsRequired;
+            }
+
+            if ($deadlineColumn !== null) {
+                $updateSql .= ", {$deadlineColumn} = ?";
+                $bindTypes .= "s";
+                $bindParams[] = $deadlineValue;
+            }
+
+            $updateSql .= " WHERE id = ? AND company_id = ?";
+            $bindTypes .= "ii";
+            $bindParams[] = $jobId;
+            $bindParams[] = $cid;
+
+            $stmt = $conn->prepare($updateSql);
+            if ($stmt) {
+                $stmt->bind_param($bindTypes, ...$bindParams);
+
+                if ($stmt->execute()) {
+                    update_expired_jobs($conn, $cid, $jobId);
+
+                    $reloadStmt = $conn->prepare("SELECT * FROM jobs WHERE id = ? AND company_id = ? LIMIT 1");
+                    $reloadStmt->bind_param("ii", $jobId, $cid);
+                    $reloadStmt->execute();
+                    $job = $reloadStmt->get_result()->fetch_assoc() ?: $job;
+                    $reloadStmt->close();
+
+                    $msg = "Job updated successfully and resubmitted for admin approval.";
+                    $msg_type = 'success';
+
+                    log_activity(
+                        $conn,
+                        $cid,
+                        'company',
+                        'job_updated',
+                        "Company updated job: {$title}",
+                        'job',
+                        $jobId
+                    );
+                } else {
+                    $msg = "Update failed.";
+                    $msg_type = 'danger';
+                }
+                $stmt->close();
+            } else {
+                $msg = "Update failed.";
+                $msg_type = 'danger';
+            }
         }
-        $stmt->close();
     }
 }
+
+$effectiveStatus = job_effective_status($job);
 ?>
 
 <?php require 'company-header.php'; ?>
 
-<h1 class="mb-4">Edit Job: <?= htmlspecialchars($job['title']) ?></h1>
+<h1 class="mb-4">
+    Edit Job: <?= htmlspecialchars($job['title']) ?>
+    <span class="badge <?= job_status_badge_class($job) ?> ms-2"><?= htmlspecialchars(job_status_label($job)) ?></span>
+</h1>
 
 <?php if (!$isVerified): ?>
     <div class="alert alert-warning">
         Your company is not yet verification-approved. Editing existing jobs is still allowed, but you cannot post new jobs until admin approves your company verification.
         <a href="company-verification.php" class="alert-link">Open verification page</a>
+    </div>
+<?php endif; ?>
+
+<?php if ($effectiveStatus === 'expired'): ?>
+    <div class="alert alert-secondary">
+        This job is expired. Editing it will not make it active again automatically.
     </div>
 <?php endif; ?>
 
@@ -205,6 +267,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <div class="mb-3">
                 <label class="form-label">Application Duration (optional)</label>
                 <input type="text" name="application_duration" class="form-control" placeholder="e.g. 30 days" value="<?= htmlspecialchars($job['application_duration'] ?? '') ?>">
+                <?php if ($durationError): ?>
+                    <div class="text-danger small mt-1"><?= htmlspecialchars($durationError) ?></div>
+                <?php endif; ?>
             </div>
 
             <div class="mb-3">

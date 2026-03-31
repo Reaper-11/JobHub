@@ -32,6 +32,8 @@ if (!function_exists('recommendJobs')) {
             return [];
         }
 
+        update_expired_jobs($pdo);
+
         if (!recommend_is_job_seeker($pdo, $userId)) {
             return [];
         }
@@ -707,17 +709,8 @@ function recommend_recency_bonus($createdAt, $rangeDays, $maxBoost): int {
 }
 
 function recommend_is_expired($job): bool {
-    $deadline = $job['deadline'] ?? '';
-    if ($deadline !== '') {
-        $deadlineTs = strtotime((string) $deadline);
-        if ($deadlineTs !== false && $deadlineTs < time()) {
-            return true;
-        }
-    }
-
-    if (function_exists('job_expiration_timestamp')) {
-        $expires = job_expiration_timestamp($job['created_at'] ?? '', $job['application_duration'] ?? '');
-        return $expires !== null && time() > $expires;
+    if (function_exists('is_job_expired')) {
+        return is_job_expired($job);
     }
 
     return false;
@@ -778,6 +771,8 @@ if (!function_exists('recommend_matching_seekers_for_job')) {
         if ($jobId <= 0 || !$pdo) {
             return [];
         }
+
+        update_expired_jobs($pdo, null, $jobId);
 
         $jobColumns = recommend_table_columns($pdo, 'jobs');
         $skillsRequiredSelect = in_array('skills_required', $jobColumns, true) ? ", j.skills_required" : ", '' AS skills_required";

@@ -4,8 +4,23 @@ require '../db.php';
 require_role('company');
 $cid = current_company_id() ?? 0;
 
+update_expired_jobs($conn, $cid);
+
+$deadlineColumn = job_deadline_column($conn);
+$recentJobSelect = "id, title, location, status, is_approved, created_at, application_duration";
+if ($deadlineColumn !== null) {
+    $recentJobSelect .= ", {$deadlineColumn}";
+}
+if (job_has_post_date_column($conn)) {
+    $recentJobSelect .= ", post_date";
+}
+
 $jobsCount = db_query_value("SELECT COUNT(*) FROM jobs WHERE company_id = ?", "i", [$cid]);
-$activeJobs = db_query_value("SELECT COUNT(*) FROM jobs WHERE company_id = ? AND status = 'active'", "i", [$cid]);
+$activeJobs = db_query_value(
+    "SELECT COUNT(*) FROM jobs WHERE company_id = ? AND status = 'active' AND is_approved = 1",
+    "i",
+    [$cid]
+);
 $applicationsCount = db_query_value("
     SELECT COUNT(*)
     FROM applications a
@@ -14,7 +29,7 @@ $applicationsCount = db_query_value("
 ", "i", [$cid]);
 
 $recentJobs = db_query_all("
-    SELECT *
+    SELECT {$recentJobSelect}
     FROM jobs
     WHERE company_id = ?
     ORDER BY created_at DESC
@@ -110,12 +125,13 @@ $recentJobs = db_query_all("
                     <tr><td colspan="6" class="text-center py-4">No jobs posted yet.</td></tr>
                 <?php else: ?>
                     <?php foreach ($recentJobs as $job): ?>
+                        <?php $effectiveStatus = job_effective_status($job); ?>
                         <tr>
                             <td><?= htmlspecialchars($job['title']) ?></td>
                             <td><?= htmlspecialchars($job['location']) ?></td>
                             <td>
-                                <span class="badge <?= $job['status'] === 'active' ? 'bg-success' : 'bg-secondary' ?>">
-                                    <?= ucfirst($job['status'] ?? 'Draft') ?>
+                                <span class="badge <?= job_status_badge_class($job) ?>">
+                                    <?= htmlspecialchars(job_status_label($job)) ?>
                                 </span>
                             </td>
                             <td>

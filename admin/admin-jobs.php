@@ -4,6 +4,17 @@ require_once '../includes/recommendation.php';
 
 require_role('admin');
 
+update_expired_jobs($conn);
+
+$deadlineColumn = job_deadline_column($conn);
+$jobListSelect = "j.id, j.title, j.category, j.status, j.is_approved, j.admin_remarks, j.created_at, j.application_duration";
+if ($deadlineColumn !== null) {
+    $jobListSelect .= ", j.{$deadlineColumn}";
+}
+if (job_has_post_date_column($conn)) {
+    $jobListSelect .= ", j.post_date";
+}
+
 $statusFilter = $_GET['approval'] ?? 'all';
 if (!in_array($statusFilter, ['all', 'pending', 'approved', 'rejected'], true)) {
     $statusFilter = 'all';
@@ -13,13 +24,21 @@ $msg = $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $jobId = (int)($_POST['job_id'] ?? 0);
-    $action = trim($_POST['action'] ?? '');
-    $remarks = trim($_POST['remarks'] ?? '');
+    $action = trim((string)($_POST['action'] ?? ''));
+    $remarks = trim((string)($_POST['remarks'] ?? ''));
     $adminId = current_admin_id() ?? 0;
 
     if ($jobId > 0 && in_array($action, ['approve', 'reject'], true)) {
+        $reviewSelect = "j.id, j.title, j.status, j.is_approved, j.created_at, j.application_duration";
+        if ($deadlineColumn !== null) {
+            $reviewSelect .= ", j.{$deadlineColumn}";
+        }
+        if (job_has_post_date_column($conn)) {
+            $reviewSelect .= ", j.post_date";
+        }
+
         $stmt = $conn->prepare("
-            SELECT j.id, j.title, j.is_approved, c.name AS company_name
+            SELECT {$reviewSelect}, c.name AS company_name
             FROM jobs j
             LEFT JOIN companies c ON j.company_id = c.id
             WHERE j.id = ?
@@ -36,22 +55,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         } else {
             $previousApproval = (int)($job['is_approved'] ?? 0);
             $approvalValue = $action === 'approve' ? 1 : -1;
-            $stmt = $conn->prepare("
-                UPDATE jobs
-                SET is_approved = ?, approved_by = ?, approved_at = NOW(), admin_remarks = ?, updated_at = NOW()
-                WHERE id = ?
-            ");
+            $nextStatus = strtolower(trim((string)($job['status'] ?? 'active')));
+
+            if ($action === 'approve') {
+                if ($nextStatus === 'closed') {
+                    $nextStatus = 'closed';
+                } elseif ($nextStatus === 'expired' || is_job_expired($job)) {
+                    $nextStatus = 'expired';
+                } else {
+                    $nextStatus = 'active';
+                }
+            }
+
+            $stmt = $action === 'approve'
+                ? $conn->prepare("
+                    UPDATE jobs
+                    SET is_approved = ?, status = ?, approved_by = ?, approved_at = NOW(), admin_remarks = ?, updated_at = NOW()
+                    WHERE id = ?
+                ")
+                : $conn->prepare("
+                    UPDATE jobs
+                    SET is_approved = ?, approved_by = ?, approved_at = NOW(), admin_remarks = ?, updated_at = NOW()
+                    WHERE id = ?
+                ");
 
             if ($stmt) {
-                $stmt->bind_param("iisi", $approvalValue, $adminId, $remarks, $jobId);
+                if ($action === 'approve') {
+                    $stmt->bind_param("isisi", $approvalValue, $nextStatus, $adminId, $remarks, $jobId);
+                } else {
+                    $stmt->bind_param("iisi", $approvalValue, $adminId, $remarks, $jobId);
+                }
+
                 $ok = $stmt->execute();
                 $stmt->close();
 
                 if ($ok) {
-                    $msg = $action === 'approve' ? "Job approved successfully." : "Job rejected successfully.";
+                    if ($action === 'approve' && $nextStatus === 'expired') {
+                        $msg = "Job approved, but it is already expired and was not activated.";
+                    } else {
+                        $msg = $action === 'approve' ? "Job approved successfully." : "Job rejected successfully.";
+                    }
                     $msg_type = 'success';
 
-                    if ($action === 'approve' && $previousApproval !== 1) {
+                    if ($action === 'approve' && $previousApproval !== 1 && $nextStatus === 'active') {
                         $matchedSeekers = recommend_matching_seekers_for_job($conn, $jobId);
                         foreach ($matchedSeekers as $match) {
                             $userId = (int)($match['user_id'] ?? 0);
@@ -102,8 +148,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 }
 
 $conditions = [];
-$types = '';
-$params = [];
 
 if ($statusFilter === 'pending') {
     $conditions[] = "j.is_approved = 0";
@@ -116,8 +160,7 @@ if ($statusFilter === 'pending') {
 $where = empty($conditions) ? '1=1' : implode(' AND ', $conditions);
 
 $jobs = db_query_all("
-    SELECT j.id, j.title, j.category, j.status, j.is_approved, j.admin_remarks, j.created_at,
-           c.name AS company_name
+    SELECT {$jobListSelect}, c.name AS company_name
     FROM jobs j
     LEFT JOIN companies c ON j.company_id = c.id
     WHERE {$where}
@@ -199,16 +242,11 @@ $counts = [
                         <div class="fw-semibold"><?= htmlspecialchars($job['title']) ?></div>
                         <a href="job-details.php?id=<?= (int)$job['id'] ?>" class="small text-decoration-none">View details</a>
                     </td>
-                    <td><?= htmlspecialchars($job['company_name'] ?: 'â€”') ?></td>
-                    <td><?= htmlspecialchars($job['category'] ?: 'â€”') ?></td>
+                    <td><?= htmlspecialchars($job['company_name'] ?: '-') ?></td>
+                    <td><?= htmlspecialchars($job['category'] ?: '-') ?></td>
                     <td>
-                        <span class="badge <?= match(strtolower($job['status'] ?? 'draft')) {
-                            'active' => 'bg-success',
-                            'closed' => 'bg-danger',
-                            'expired' => 'bg-secondary',
-                            default => 'bg-warning text-dark'
-                        } ?>">
-                            <?= ucfirst($job['status'] ?? 'Draft') ?>
+                        <span class="badge <?= job_status_badge_class($job) ?>">
+                            <?= htmlspecialchars(job_status_label($job)) ?>
                         </span>
                     </td>
                     <td>
@@ -217,7 +255,7 @@ $counts = [
                         </span>
                     </td>
                     <td><?= date('Y-m-d', strtotime($job['created_at'])) ?></td>
-                    <td><?= htmlspecialchars($job['admin_remarks'] ?: 'â€”') ?></td>
+                    <td><?= htmlspecialchars($job['admin_remarks'] ?: '-') ?></td>
                     <td style="min-width: 260px;">
                         <form method="post" class="d-grid gap-2">
                             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">

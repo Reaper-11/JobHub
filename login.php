@@ -92,10 +92,12 @@ require 'header.php';
                     <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
                 </form>
 
-                <div class="text-center small d-flex flex-column gap-2">
-                    <a href="register.php" class="text-primary">Register as Job Seeker</a>
-                    <a href="company/company-register.php" class="text-primary">Register as Company</a>
-                </div>
+                <p style="text-align:center; margin-top:10px; font-size:14px;">
+                    Don't have an account?
+                    <a href="register.php" style="color:#2563eb; font-weight:600; text-decoration:none;">
+                        Register Now
+                    </a>
+                </p>
             </div>
         </div>
     </div>

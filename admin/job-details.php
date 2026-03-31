@@ -8,6 +8,8 @@ if ($jobId <= 0) {
     exit;
 }
 
+update_expired_jobs($conn, null, $jobId);
+
 $stmt = $conn->prepare("
     SELECT j.*, c.name AS company_name
     FROM jobs j
@@ -47,6 +49,9 @@ $stmt->close();
                     <?php if (!empty($job['type'])): ?>
                         <span class="badge text-bg-warning ms-2"><?php echo htmlspecialchars($job['type']); ?></span>
                     <?php endif; ?>
+                    <span class="badge <?= job_status_badge_class($job) ?> ms-2">
+                        <?= htmlspecialchars(job_status_label($job)) ?>
+                    </span>
                     <span class="badge <?= job_approval_badge_class((int)($job['is_approved'] ?? 0)) ?> ms-2">
                         <?= job_approval_label((int)($job['is_approved'] ?? 0)) ?>
                     </span>

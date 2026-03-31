@@ -176,7 +176,7 @@ CREATE TABLE notifications (
     recipient_id INT NOT NULL,
     title VARCHAR(200) NOT NULL,
     message TEXT NOT NULL,
-    type ENUM('info', 'success', 'warning', 'danger') NOT NULL DEFAULT 'info',
+    type ENUM('info', 'success', 'warning', 'danger', 'verification') NOT NULL DEFAULT 'info',
     related_type VARCHAR(50) NULL,
     related_id INT NULL,
     link VARCHAR(255) NULL,

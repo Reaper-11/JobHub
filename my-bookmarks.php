@@ -2,6 +2,9 @@
 // my-bookmarks.php
 require 'db.php';
 require_role('jobseeker');
+
+update_expired_jobs($conn);
+
 $user_id = current_user_id() ?? 0;
 $bodyClass = 'user-ui';
 require 'header.php';

@@ -49,12 +49,8 @@ if ($checkSkillsRequired) {
     $checkSkillsRequired->close();
 }
 
-$hasDeadlineColumn = false;
-$checkDeadline = $conn->query("SHOW COLUMNS FROM jobs LIKE 'deadline'");
-if ($checkDeadline) {
-    $hasDeadlineColumn = $checkDeadline->num_rows > 0;
-    $checkDeadline->close();
-}
+$deadlineColumn = job_deadline_column($conn);
+$hasDeadlineColumn = $deadlineColumn !== null;
 
 $statusStmt = $conn->prepare("
     SELECT name, is_approved, operational_state, restriction_reason, verification_status
@@ -259,7 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
         }
 
         if ($hasDeadlineColumn) {
-            $insertColumns[] = 'deadline';
+            $insertColumns[] = $deadlineColumn;
             $insertValues[] = '?';
             $insertTypes .= 's';
             $insertParams[] = $deadlineValue;

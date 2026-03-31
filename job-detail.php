@@ -2,6 +2,8 @@
 // job-detail.php
 require 'db.php';
 
+update_expired_jobs($conn, null, isset($_GET['id']) && is_numeric($_GET['id']) ? (int)$_GET['id'] : null);
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header("Location: index.php");
     exit;

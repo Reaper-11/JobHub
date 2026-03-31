@@ -33,6 +33,49 @@ if (!function_exists('notify_has_column')) {
     }
 }
 
+if (!function_exists('notify_allowed_types')) {
+    function notify_allowed_types(): array {
+        global $conn;
+
+        static $types = null;
+        if ($types !== null) {
+            return $types;
+        }
+
+        $types = ['info', 'success', 'warning', 'danger'];
+        if (!$conn || !notify_has_column('type')) {
+            return $types;
+        }
+
+        $result = $conn->query("SHOW COLUMNS FROM notifications LIKE 'type'");
+        if ($result) {
+            $row = $result->fetch_assoc() ?: null;
+            $result->close();
+
+            if ($row && preg_match_all("/'([^']+)'/", (string)($row['Type'] ?? ''), $matches)) {
+                $parsedTypes = array_values(array_filter(array_map('trim', $matches[1] ?? [])));
+                if (!empty($parsedTypes)) {
+                    $types = $parsedTypes;
+                }
+            }
+        }
+
+        return $types;
+    }
+}
+
+if (!function_exists('notify_normalize_recipient_type')) {
+    function notify_normalize_recipient_type($recipientType): string {
+        $recipientType = strtolower(trim((string)$recipientType));
+
+        return match ($recipientType) {
+            'company' => 'company',
+            'admin' => 'admin',
+            default => 'user',
+        };
+    }
+}
+
 if (!function_exists('notify_status_type')) {
     function notify_status_type($status): string {
         $status = strtolower(trim((string)$status));
@@ -54,7 +97,7 @@ if (!function_exists('notify_status_label')) {
 
 if (!function_exists('notify_normalize_link')) {
     function notify_normalize_link($recipientType, $link): string {
-        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $recipientType = notify_normalize_recipient_type($recipientType);
         $link = trim((string)$link);
 
         if ($link === '') {
@@ -81,13 +124,16 @@ if (!function_exists('notify_create')) {
     function notify_create($recipientType, $recipientId, $title, $message, $link = '', $type = 'info', $relatedType = null, $relatedId = null): bool {
         global $conn;
 
-        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $recipientType = notify_normalize_recipient_type($recipientType);
         $recipientId = (int)$recipientId;
         $title = trim((string)$title);
         $message = trim((string)$message);
         $link = notify_normalize_link($recipientType, $link);
-        $type = trim((string)$type);
-        $type = in_array($type, ['info', 'success', 'warning', 'danger'], true) ? $type : 'info';
+        $requestedType = strtolower(trim((string)$type));
+        $allowedTypes = notify_allowed_types();
+        $type = in_array($requestedType, $allowedTypes, true)
+            ? $requestedType
+            : (in_array('info', $allowedTypes, true) ? 'info' : ($allowedTypes[0] ?? 'info'));
         $relatedType = $relatedType !== null ? trim((string)$relatedType) : null;
         $relatedId = $relatedId !== null ? (int)$relatedId : null;
 
@@ -147,9 +193,34 @@ if (!function_exists('notify_create')) {
     }
 }
 
+if (!function_exists('notify_create_company_verification_review')) {
+    function notify_create_company_verification_review(int $companyId, string $title, string $message, string $link = 'company-notifications.php'): bool {
+        $companyId = (int)$companyId;
+        $title = trim($title);
+        $message = trim($message);
+
+        if ($companyId <= 0 || $title === '' || $message === '') {
+            return false;
+        }
+
+        $type = in_array('verification', notify_allowed_types(), true) ? 'verification' : 'info';
+
+        return notify_create(
+            'company',
+            $companyId,
+            $title,
+            $message,
+            $link,
+            $type,
+            'verification',
+            $companyId
+        );
+    }
+}
+
 if (!function_exists('notify_unread_count')) {
     function notify_unread_count($recipientType, $recipientId): int {
-        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $recipientType = notify_normalize_recipient_type($recipientType);
         $recipientId = (int)$recipientId;
         if ($recipientId <= 0) {
             return 0;
@@ -164,9 +235,23 @@ if (!function_exists('notify_unread_count')) {
     }
 }
 
+if (!function_exists('notify_is_verification_notification')) {
+    function notify_is_verification_notification(array $notification): bool {
+        $type = strtolower(trim((string)($notification['type'] ?? '')));
+        $relatedType = strtolower(trim((string)($notification['related_type'] ?? '')));
+        $title = strtolower(trim((string)($notification['title'] ?? '')));
+
+        if ($type === 'verification' || $relatedType === 'verification') {
+            return true;
+        }
+
+        return $title === 'company verification approved' || $title === 'company verification rejected';
+    }
+}
+
 if (!function_exists('notify_fetch')) {
     function notify_fetch($recipientType, $recipientId, $limit = 50): array {
-        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $recipientType = notify_normalize_recipient_type($recipientType);
         $recipientId = (int)$recipientId;
         $limit = max(1, min(200, (int)$limit));
         if ($recipientId <= 0) {
@@ -186,14 +271,77 @@ if (!function_exists('notify_fetch')) {
         }
         unset($row);
 
-        return $rows;
+        return array_values(array_filter($rows, static function (array $row): bool {
+            return trim((string)($row['title'] ?? '')) !== '' && trim((string)($row['message'] ?? '')) !== '';
+        }));
+    }
+}
+
+if (!function_exists('notify_fetch_related')) {
+    function notify_fetch_related($recipientType, $recipientId, string $relatedType, int $limit = 50, bool $onlyUnread = false): array {
+        $recipientType = notify_normalize_recipient_type($recipientType);
+        $recipientId = (int)$recipientId;
+        $relatedType = trim($relatedType);
+        $limit = max(1, min(200, $limit));
+
+        if ($recipientId <= 0 || $relatedType === '') {
+            return [];
+        }
+
+        if (notify_has_column('related_type')) {
+            $select = ['id', 'title', 'message', 'is_read', 'created_at'];
+            $select[] = notify_has_column('type') ? 'type' : "'info' AS type";
+            $select[] = 'related_type';
+            $select[] = notify_has_column('related_id') ? 'related_id' : "NULL AS related_id";
+            $select[] = notify_has_column('link') ? 'link' : "'' AS link";
+
+            $sql = "SELECT " . implode(', ', $select) . "
+                    FROM notifications
+                    WHERE recipient_type = ? AND recipient_id = ? AND related_type = ?";
+            $types = "sis";
+            $params = [$recipientType, $recipientId, $relatedType];
+
+            if ($onlyUnread) {
+                $sql .= " AND is_read = 0";
+            }
+
+            $sql .= " ORDER BY created_at DESC, id DESC LIMIT {$limit}";
+            $rows = db_query_all($sql, $types, $params);
+        } else {
+            $rows = array_values(array_filter(
+                notify_fetch($recipientType, $recipientId, $limit * 3),
+                static function (array $row) use ($onlyUnread): bool {
+                    if (!notify_is_verification_notification($row)) {
+                        return false;
+                    }
+
+                    return !$onlyUnread || (int)($row['is_read'] ?? 0) === 0;
+                }
+            ));
+        }
+
+        foreach ($rows as &$row) {
+            $row['link'] = notify_normalize_link($recipientType, $row['link'] ?? '');
+        }
+        unset($row);
+
+        return array_slice(array_values(array_filter($rows, static function (array $row): bool {
+            return trim((string)($row['title'] ?? '')) !== '' && trim((string)($row['message'] ?? '')) !== '';
+        })), 0, $limit);
+    }
+}
+
+if (!function_exists('notify_latest_unread_verification')) {
+    function notify_latest_unread_verification($recipientType, $recipientId): ?array {
+        $rows = notify_fetch_related($recipientType, $recipientId, 'verification', 1, true);
+        return $rows[0] ?? null;
     }
 }
 
 if (!function_exists('notify_mark_all_read')) {
     function notify_mark_all_read($recipientType, $recipientId): void {
         global $conn;
-        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $recipientType = notify_normalize_recipient_type($recipientType);
         $recipientId = (int)$recipientId;
         if ($recipientId <= 0 || !$conn) {
             return;
@@ -211,7 +359,7 @@ if (!function_exists('notify_mark_all_read')) {
 if (!function_exists('notify_mark_read')) {
     function notify_mark_read($recipientType, $recipientId, $notificationId): void {
         global $conn;
-        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $recipientType = notify_normalize_recipient_type($recipientType);
         $recipientId = (int)$recipientId;
         $notificationId = (int)$notificationId;
         if ($recipientId <= 0 || $notificationId <= 0 || !$conn) {
@@ -229,7 +377,7 @@ if (!function_exists('notify_mark_read')) {
 
 if (!function_exists('notify_exists')) {
     function notify_exists($recipientType, $recipientId, $title, $relatedType = null, $relatedId = null): bool {
-        $recipientType = $recipientType === 'company' ? 'company' : 'user';
+        $recipientType = notify_normalize_recipient_type($recipientType);
         $recipientId = (int)$recipientId;
         $title = trim((string)$title);
         $relatedType = $relatedType !== null ? trim((string)$relatedType) : null;
