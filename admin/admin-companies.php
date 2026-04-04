@@ -46,6 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             $adminId = current_admin_id() ?? 0;
             $reason = '';
             $accountStatus = 'active';
+            $stmt = null;
+            $mailAction = '';
 
             if ($action === 'reject') {
                 $reason = trim($_POST['reason'] ?? '');
@@ -55,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 } else {
                     $stmt = $conn->prepare("UPDATE companies SET is_approved = -1, rejection_reason = ? WHERE id = ?");
                     $accountStatus = 'inactive';
+                    $mailAction = 'rejected';
                     if ($stmt) {
                         $stmt->bind_param("si", $reason, $id);
                     }
@@ -62,12 +65,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             } elseif ($action === 'approve') {
                 $stmt = $conn->prepare("UPDATE companies SET is_approved = 1, rejection_reason = NULL, operational_state = 'active', restriction_reason = NULL, restricted_at = NULL, restricted_by_admin_id = NULL WHERE id = ?");
                 $accountStatus = 'active';
+                $mailAction = 'approved';
                 if ($stmt) {
                     $stmt->bind_param("i", $id);
                 }
             } elseif ($action === 'unapprove') {
                 $stmt = $conn->prepare("UPDATE companies SET is_approved = 0, rejection_reason = NULL WHERE id = ?");
                 $accountStatus = 'active';
+                $mailAction = 'unapproved';
                 if ($stmt) {
                     $stmt->bind_param("i", $id);
                 }
@@ -78,6 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 } elseif ($action === 'activate') {
                     $stmt = $conn->prepare("UPDATE companies SET operational_state = 'active', restriction_reason = NULL, restricted_at = NULL, restricted_by_admin_id = NULL WHERE id = ?");
                     $accountStatus = 'active';
+                    $mailAction = 'activated';
                     if ($stmt) {
                         $stmt->bind_param("i", $id);
                     }
@@ -90,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                         $newState = $action === 'hold' ? 'on_hold' : 'suspended';
                         $stmt = $conn->prepare("UPDATE companies SET operational_state = ?, restriction_reason = ?, restricted_at = NOW(), restricted_by_admin_id = ? WHERE id = ?");
                         $accountStatus = 'active';
+                        $mailAction = $action === 'hold' ? 'hold' : 'suspended';
                         if ($stmt) {
                             $stmt->bind_param("ssii", $newState, $reason, $adminId, $id);
                         }
@@ -100,7 +107,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             if (!isset($msg) || $msg === '') {
                 $conn->begin_transaction();
 
-                if (isset($stmt) && $stmt && $stmt->execute()) {
+                $updated = $stmt && $stmt->execute();
+                if ($stmt) {
+                    $stmt->close();
+                }
+
+                if ($updated) {
                     $ok = true;
                     if (!empty($companyInfo['account_id'])) {
                         $ok = jobhub_update_account_status($conn, (int) $companyInfo['account_id'], $accountStatus);
@@ -112,42 +124,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                         $msg_type = 'danger';
                     } else {
                         $conn->commit();
-                    $msg = "Company status updated successfully.";
-                    $msg_type = 'success';
+                        $msg = "Company status updated successfully.";
+                        $msg_type = 'success';
 
-                    if ($companyInfo) {
-                        $companyName = $companyInfo['name'] ?? 'your company';
-                        $title = 'Company Status Update';
-                        $message = "Your company status was updated.";
-                        if ($action === 'approve') {
-                            $title = 'Company Approved';
-                            $message = "{$companyName} has been approved. You can now post jobs publicly.";
-                        } elseif ($action === 'reject') {
-                            $title = 'Company Rejected';
-                            $message = "{$companyName} was rejected. Reason: {$reason}";
-                        } elseif ($action === 'unapprove') {
-                            $title = 'Approval Removed';
-                            $message = "{$companyName} approval has been removed. Job postings are not visible until re-approved.";
-                        } elseif ($action === 'hold') {
-                            $title = 'Account On Hold';
-                            $message = "{$companyName} has been put on hold. Reason: {$reason}";
-                        } elseif ($action === 'suspend') {
-                            $title = 'Account Suspended';
-                            $message = "{$companyName} has been suspended. Reason: {$reason}";
-                        } elseif ($action === 'activate') {
-                            $title = 'Account Activated';
-                            $message = "{$companyName} has been reactivated and is allowed to post jobs.";
+                        if ($companyInfo) {
+                            $companyName = $companyInfo['name'] ?? 'your company';
+                            $title = 'Company Status Update';
+                            $message = "Your company status was updated.";
+                            if ($action === 'approve') {
+                                $title = 'Company Approved';
+                                $message = "{$companyName} has been approved. You can now post jobs publicly.";
+                            } elseif ($action === 'reject') {
+                                $title = 'Company Rejected';
+                                $message = "{$companyName} was rejected. Reason: {$reason}";
+                            } elseif ($action === 'unapprove') {
+                                $title = 'Approval Removed';
+                                $message = "{$companyName} approval has been removed. Job postings are not visible until re-approved.";
+                            } elseif ($action === 'hold') {
+                                $title = 'Account On Hold';
+                                $message = "{$companyName} has been put on hold. Reason: {$reason}";
+                            } elseif ($action === 'suspend') {
+                                $title = 'Account Suspended';
+                                $message = "{$companyName} has been suspended. Reason: {$reason}";
+                            } elseif ($action === 'activate') {
+                                $title = 'Account Activated';
+                                $message = "{$companyName} has been reactivated and is allowed to post jobs.";
+                            }
+
+                            notify_create('company', $id, $title, $message, 'company-dashboard.php');
+
+                            $companyEmail = trim((string) ($companyInfo['email'] ?? ''));
+                            if ($companyEmail !== '' && $mailAction !== '') {
+                                try {
+                                    $mailResult = jobhub_send_company_approval_email(
+                                        $companyEmail,
+                                        (string) ($companyInfo['name'] ?? ''),
+                                        $companyName,
+                                        $mailAction,
+                                        $reason
+                                    );
+
+                                    if (empty($mailResult['success'])) {
+                                        $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                                        jobhub_log_mail_error(
+                                            'company-approval',
+                                            'Company #' . $id . ' review email (' . $mailAction . ') failed for ' . $companyEmail . ': '
+                                            . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                                        );
+                                    }
+                                } catch (Throwable $mailException) {
+                                    jobhub_log_mail_error(
+                                        'company-approval',
+                                        'Company #' . $id . ' review email (' . $mailAction . ') threw an exception for '
+                                        . $companyEmail . ': ' . $mailException->getMessage()
+                                    );
+                                }
+                            }
                         }
 
-                        notify_create('company', $id, $title, $message, 'company-dashboard.php');
-                    }
-
-                    $query = "status=$status";
-                    if ($status === 'approved' && $state !== 'all') {
-                        $query .= "&state=" . urlencode($state);
-                    }
-                    header("Location: admin-companies.php?$query");
-                    exit;
+                        $query = "status=$status";
+                        if ($status === 'approved' && $state !== 'all') {
+                            $query .= "&state=" . urlencode($state);
+                        }
+                        header("Location: admin-companies.php?$query");
+                        exit;
                     }
                 } elseif (!isset($msg) || $msg === '') {
                     $conn->rollback();

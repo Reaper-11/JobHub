@@ -59,6 +59,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     $msg = $successMessage;
                     $msg_type = 'success';
                     log_activity($conn, current_admin_id(), 'admin', $activityType, $description, 'user', $uid);
+
+                    if ($action === 'remove') {
+                        $userEmail = trim((string) ($user['email'] ?? ''));
+                        if ($userEmail !== '') {
+                            try {
+                                $mailResult = jobhub_send_account_removed_email(
+                                    $userEmail,
+                                    (string) ($user['name'] ?? ''),
+                                    'jobseeker'
+                                );
+
+                                if (empty($mailResult['success'])) {
+                                    $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                                    jobhub_log_mail_error(
+                                        'account-removed',
+                                        'Job seeker removal email failed for ' . $userEmail . ': '
+                                        . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                                    );
+                                }
+                            } catch (Throwable $mailException) {
+                                jobhub_log_mail_error(
+                                    'account-removed',
+                                    'Job seeker removal email threw an exception for ' . $userEmail . ': ' . $mailException->getMessage()
+                                );
+                            }
+                        }
+                    }
                 } else {
                     $conn->rollback();
                     $msg = $failureMessage;

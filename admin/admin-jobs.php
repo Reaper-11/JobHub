@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     $adminId = current_admin_id() ?? 0;
 
     if ($jobId > 0 && in_array($action, ['approve', 'reject'], true)) {
-        $reviewSelect = "j.id, j.title, j.status, j.is_approved, j.created_at, j.application_duration";
+        $reviewSelect = "j.id, j.company_id, j.title, j.status, j.is_approved, j.created_at, j.application_duration";
         if ($deadlineColumn !== null) {
             $reviewSelect .= ", j.{$deadlineColumn}";
         }
@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         }
 
         $stmt = $conn->prepare("
-            SELECT {$reviewSelect}, c.name AS company_name
+            SELECT {$reviewSelect}, c.name AS company_name, c.email AS company_email
             FROM jobs j
             LEFT JOIN companies c ON j.company_id = c.id
             WHERE j.id = ?
@@ -135,6 +135,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                         'job',
                         $jobId
                     );
+
+                    $companyEmail = trim((string) ($job['company_email'] ?? ''));
+                    if ($companyEmail !== '') {
+                        $jobMailAction = $action === 'approve' ? 'approved' : 'rejected';
+                        $jobMailRemarks = $remarks;
+
+                        if ($action === 'approve' && $nextStatus !== 'active') {
+                            $publishNote = $nextStatus === 'expired'
+                                ? 'This job has already passed its application window, so it is not active on JobHub.'
+                                : 'This job is approved, but its current status is ' . job_status_label($nextStatus) . '.';
+                            $jobMailRemarks = $jobMailRemarks !== ''
+                                ? $jobMailRemarks . "\n\n" . $publishNote
+                                : $publishNote;
+                        }
+
+                        try {
+                            $mailResult = jobhub_send_job_review_email(
+                                $companyEmail,
+                                (string) ($job['company_name'] ?? ''),
+                                (string) ($job['company_name'] ?? ''),
+                                (string) ($job['title'] ?? ''),
+                                $jobMailAction,
+                                $jobMailRemarks
+                            );
+
+                            if (empty($mailResult['success'])) {
+                                $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                                jobhub_log_mail_error(
+                                    'job-review',
+                                    'Job #' . $jobId . ' review email (' . $jobMailAction . ') failed for ' . $companyEmail . ': '
+                                    . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                                );
+                            }
+                        } catch (Throwable $mailException) {
+                            jobhub_log_mail_error(
+                                'job-review',
+                                'Job #' . $jobId . ' review email (' . $jobMailAction . ') threw an exception for '
+                                . $companyEmail . ': ' . $mailException->getMessage()
+                            );
+                        }
+                    }
                 } else {
                     $msg = "Could not update the job approval status.";
                     $msg_type = 'danger';

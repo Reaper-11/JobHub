@@ -84,6 +84,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
                 $record = get_company_verification_record($conn, $companyId);
                 $status = get_company_verification_status($record);
                 $remarksInput = $record['verification_admin_remarks'] ?? '';
+
+                $companyEmail = trim((string) ($record['email'] ?? ''));
+                if ($companyEmail !== '') {
+                    try {
+                        $mailResult = jobhub_send_company_verification_email(
+                            $companyEmail,
+                            (string) ($record['name'] ?? ''),
+                            (string) ($record['verification_company_name'] ?? $record['name'] ?? ''),
+                            $status,
+                            $remarksInput
+                        );
+
+                        if (empty($mailResult['success'])) {
+                            $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                            jobhub_log_mail_error(
+                                'company-verification',
+                                'Company #' . $companyId . ' verification email (' . $status . ') failed for ' . $companyEmail . ': '
+                                . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                            );
+                        }
+                    } catch (Throwable $mailException) {
+                        jobhub_log_mail_error(
+                            'company-verification',
+                            'Company #' . $companyId . ' verification email (' . $status . ') threw an exception for '
+                            . $companyEmail . ': ' . $mailException->getMessage()
+                        );
+                    }
+                }
+
                 $msg = $action === 'approve'
                     ? 'Verification approved successfully.'
                     : 'Verification rejected successfully.';

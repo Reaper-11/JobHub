@@ -59,7 +59,12 @@ require 'header.php';
                 <p class="text-muted text-center mb-4">Use your email and password. Your dashboard is chosen automatically from your account role.</p>
 
                 <?php if ($msg !== ''): ?>
-                    <div class="alert <?= htmlspecialchars($msgType) ?>"><?= htmlspecialchars($msg) ?></div>
+                    <div class="alert <?= htmlspecialchars($msgType) ?>">
+                        <?= htmlspecialchars($msg) ?>
+                        <?php if ($msg === "You don't have an account. Please register first."): ?>
+                            <a href="register.php" class="alert-link ms-1">Register Now</a>
+                        <?php endif; ?>
+                    </div>
                 <?php endif; ?>
 
                 <form method="post" action="<?= htmlspecialchars($_SERVER['REQUEST_URI']) ?>">

@@ -584,14 +584,14 @@ if (!function_exists('jobhub_attempt_login')) {
         if (!$account) {
             return [
                 'success' => false,
-                'message' => 'Invalid login credentials.',
+                'message' => "You don't have an account. Please register first.",
             ];
         }
 
         if (!jobhub_account_password_matches($conn, $account, $password)) {
             return [
                 'success' => false,
-                'message' => 'Invalid login credentials.',
+                'message' => 'Invalid password.',
             ];
         }
 
@@ -910,10 +910,248 @@ if (!function_exists('jobhub_update_account_status')) {
     }
 }
 
+if (!function_exists('jobhub_safe_identifier')) {
+    function jobhub_safe_identifier(string $value): ?string
+    {
+        $value = trim($value);
+        return preg_match('/^[a-zA-Z0-9_]+$/', $value) ? $value : null;
+    }
+}
+
+if (!function_exists('jobhub_delete_rows_by_column')) {
+    function jobhub_delete_rows_by_column(mysqli $conn, string $table, string $column, int $id): bool
+    {
+        if ($id <= 0) {
+            return true;
+        }
+
+        $safeTable = jobhub_safe_identifier($table);
+        $safeColumn = jobhub_safe_identifier($column);
+        if ($safeTable === null || $safeColumn === null) {
+            return false;
+        }
+
+        if (!jobhub_table_exists($conn, $safeTable) || !jobhub_column_exists($conn, $safeTable, $safeColumn)) {
+            return true;
+        }
+
+        $stmt = $conn->prepare("DELETE FROM `{$safeTable}` WHERE `{$safeColumn}` = ?");
+        if (!$stmt) {
+            return false;
+        }
+
+        $stmt->bind_param('i', $id);
+        $ok = $stmt->execute();
+        $stmt->close();
+
+        return $ok;
+    }
+}
+
+if (!function_exists('jobhub_find_profile_id_by_account')) {
+    function jobhub_find_profile_id_by_account(mysqli $conn, string $table, int $accountId): ?int
+    {
+        if ($accountId <= 0) {
+            return null;
+        }
+
+        $safeTable = jobhub_safe_identifier($table);
+        if ($safeTable === null) {
+            return null;
+        }
+
+        if (!jobhub_table_exists($conn, $safeTable) || !jobhub_column_exists($conn, $safeTable, 'account_id')) {
+            return null;
+        }
+
+        $stmt = $conn->prepare("SELECT id FROM `{$safeTable}` WHERE account_id = ? LIMIT 1");
+        if (!$stmt) {
+            return null;
+        }
+
+        $stmt->bind_param('i', $accountId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result ? $result->fetch_assoc() : null;
+        $stmt->close();
+
+        return $row ? (int) ($row['id'] ?? 0) : null;
+    }
+}
+
+if (!function_exists('jobhub_delete_notifications_for_recipient')) {
+    function jobhub_delete_notifications_for_recipient(mysqli $conn, string $recipientType, int $recipientId): bool
+    {
+        if ($recipientId <= 0 || !jobhub_table_exists($conn, 'notifications')) {
+            return true;
+        }
+
+        if (!jobhub_column_exists($conn, 'notifications', 'recipient_type') || !jobhub_column_exists($conn, 'notifications', 'recipient_id')) {
+            return true;
+        }
+
+        $recipientType = match (strtolower(trim($recipientType))) {
+            'company' => 'company',
+            'admin' => 'admin',
+            default => 'user',
+        };
+        $stmt = $conn->prepare("DELETE FROM notifications WHERE recipient_type = ? AND recipient_id = ?");
+        if (!$stmt) {
+            return false;
+        }
+
+        $stmt->bind_param('si', $recipientType, $recipientId);
+        $ok = $stmt->execute();
+        $stmt->close();
+
+        return $ok;
+    }
+}
+
+if (!function_exists('jobhub_delete_company_job_dependencies')) {
+    function jobhub_delete_company_job_dependencies(mysqli $conn, int $companyId): bool
+    {
+        if ($companyId <= 0 || !jobhub_table_exists($conn, 'jobs') || !jobhub_column_exists($conn, 'jobs', 'company_id')) {
+            return true;
+        }
+
+        $jobLinkedTables = [
+            'applications' => 'job_id',
+            'bookmarks' => 'job_id',
+            'saved_jobs' => 'job_id',
+            'job_view_logs' => 'job_id',
+            'job_skills' => 'job_id',
+        ];
+
+        foreach ($jobLinkedTables as $table => $column) {
+            if (!jobhub_table_exists($conn, $table) || !jobhub_column_exists($conn, $table, $column)) {
+                continue;
+            }
+
+            $stmt = $conn->prepare("
+                DELETE linked
+                FROM `{$table}` AS linked
+                INNER JOIN jobs ON jobs.id = linked.`{$column}`
+                WHERE jobs.company_id = ?
+            ");
+            if (!$stmt) {
+                return false;
+            }
+
+            $stmt->bind_param('i', $companyId);
+            $ok = $stmt->execute();
+            $stmt->close();
+
+            if (!$ok) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
+if (!function_exists('jobhub_delete_jobseeker_account_data')) {
+    function jobhub_delete_jobseeker_account_data(mysqli $conn, int $accountId): bool
+    {
+        $userId = jobhub_find_profile_id_by_account($conn, 'users', $accountId);
+        if ($userId === null || $userId <= 0) {
+            return true;
+        }
+
+        $userLinkedTables = [
+            'applications' => 'user_id',
+            'bookmarks' => 'user_id',
+            'saved_jobs' => 'user_id',
+            'job_search_logs' => 'user_id',
+            'job_view_logs' => 'user_id',
+            'user_skills' => 'user_id',
+        ];
+
+        foreach ($userLinkedTables as $table => $column) {
+            if (!jobhub_delete_rows_by_column($conn, $table, $column, $userId)) {
+                return false;
+            }
+        }
+
+        if (!jobhub_delete_notifications_for_recipient($conn, 'user', $userId)) {
+            return false;
+        }
+
+        return jobhub_delete_rows_by_column($conn, 'users', 'id', $userId);
+    }
+}
+
+if (!function_exists('jobhub_delete_company_account_data')) {
+    function jobhub_delete_company_account_data(mysqli $conn, int $accountId): bool
+    {
+        $companyId = jobhub_find_profile_id_by_account($conn, 'companies', $accountId);
+        if ($companyId === null || $companyId <= 0) {
+            return true;
+        }
+
+        if (!jobhub_delete_company_job_dependencies($conn, $companyId)) {
+            return false;
+        }
+
+        if (!jobhub_delete_notifications_for_recipient($conn, 'company', $companyId)) {
+            return false;
+        }
+
+        if (!jobhub_delete_rows_by_column($conn, 'jobs', 'company_id', $companyId)) {
+            return false;
+        }
+
+        return jobhub_delete_rows_by_column($conn, 'companies', 'id', $companyId);
+    }
+}
+
+if (!function_exists('jobhub_delete_admin_account_data')) {
+    function jobhub_delete_admin_account_data(mysqli $conn, int $accountId): bool
+    {
+        $adminId = jobhub_find_profile_id_by_account($conn, 'admins', $accountId);
+        if ($adminId !== null && $adminId > 0) {
+            if (!jobhub_delete_notifications_for_recipient($conn, 'admin', $adminId)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
 if (!function_exists('jobhub_delete_account')) {
     function jobhub_delete_account(mysqli $conn, int $accountId): bool
     {
         if ($accountId <= 0) {
+            return false;
+        }
+
+        $stmt = $conn->prepare("SELECT role FROM accounts WHERE id = ? LIMIT 1");
+        if (!$stmt) {
+            return false;
+        }
+
+        $stmt->bind_param('i', $accountId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $account = $result ? $result->fetch_assoc() : null;
+        $stmt->close();
+
+        if (!$account) {
+            return false;
+        }
+
+        $role = jobhub_role_alias((string) ($account['role'] ?? ''));
+        if ($role === 'jobseeker' && !jobhub_delete_jobseeker_account_data($conn, $accountId)) {
+            return false;
+        }
+
+        if ($role === 'company' && !jobhub_delete_company_account_data($conn, $accountId)) {
+            return false;
+        }
+
+        if ($role === 'admin' && !jobhub_delete_admin_account_data($conn, $accountId)) {
             return false;
         }
 

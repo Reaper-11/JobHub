@@ -41,8 +41,8 @@ $recentJobs = db_query_all("
 
 <?php if (!$isApproved): ?>
     <div class="alert alert-warning pending-banner">
-        <strong>Your account is pending approval.</strong><br>
-        The admin will review your company registration before you can fully use posting features.
+        <strong>Your company account is awaiting approval.</strong><br>
+        In the meantime, please submit your verification details in the <a href="company-verification.php">Company Verification</a> section to speed up the process and access all features.
         <?php if (!empty($rejectionReason)): ?>
             <br><strong>Previous rejection reason:</strong> <?= htmlspecialchars($rejectionReason) ?>
         <?php endif; ?>

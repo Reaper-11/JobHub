@@ -5,6 +5,7 @@ COLLATE utf8mb4_unicode_ci;
 USE JobHub;
 
 DROP TABLE IF EXISTS bookmarks;
+DROP TABLE IF EXISTS support_messages;
 DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS job_view_logs;
 DROP TABLE IF EXISTS job_search_logs;
@@ -164,6 +165,7 @@ CREATE TABLE applications (
     cv_path VARCHAR(255) NULL,
     status ENUM('pending', 'shortlisted', 'interview', 'rejected', 'approved') NOT NULL DEFAULT 'pending',
     response_message TEXT NULL,
+    status_updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME NULL,
     CONSTRAINT fk_applications_user FOREIGN KEY (user_id) REFERENCES users(id),
@@ -188,6 +190,39 @@ CREATE INDEX idx_notifications_recipient_read_created
     ON notifications (recipient_type, recipient_id, is_read, created_at);
 CREATE INDEX idx_notifications_related
     ON notifications (recipient_type, recipient_id, related_type, related_id);
+
+CREATE TABLE support_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_name VARCHAR(120) NOT NULL,
+    sender_email VARCHAR(150) NOT NULL,
+    sender_phone VARCHAR(30) NULL,
+    sender_role ENUM('user', 'company') NOT NULL,
+    user_id INT NULL,
+    company_id INT NULL,
+    subject VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    admin_reply TEXT NULL,
+    status ENUM('new', 'read', 'replied', 'resolved') NOT NULL DEFAULT 'new',
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    reply_email_sent TINYINT(1) NOT NULL DEFAULT 0,
+    reply_email_error VARCHAR(255) NULL,
+    replied_by_admin_id INT NULL,
+    replied_at DATETIME NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_support_messages_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    CONSTRAINT fk_support_messages_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL,
+    CONSTRAINT fk_support_messages_replied_admin FOREIGN KEY (replied_by_admin_id) REFERENCES admins(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_support_messages_status_created
+    ON support_messages (status, created_at);
+CREATE INDEX idx_support_messages_read_created
+    ON support_messages (is_read, created_at);
+CREATE INDEX idx_support_messages_user
+    ON support_messages (user_id);
+CREATE INDEX idx_support_messages_company
+    ON support_messages (company_id);
 
 CREATE TABLE bookmarks (
     id INT AUTO_INCREMENT PRIMARY KEY,

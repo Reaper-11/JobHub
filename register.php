@@ -124,6 +124,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 $conn->commit();
+
+                try {
+                    $mailResult = jobhub_send_account_created_email($email, $name, 'jobseeker');
+                    if (empty($mailResult['success'])) {
+                        $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                        jobhub_log_mail_error(
+                            'account-created',
+                            'Job seeker account email failed for ' . $email . ': '
+                            . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                        );
+                    }
+                } catch (Throwable $mailException) {
+                    jobhub_log_mail_error(
+                        'account-created',
+                        'Job seeker account email threw an exception for ' . $email . ': ' . $mailException->getMessage()
+                    );
+                }
+
                 jobhub_complete_login('jobseeker', $userId, $name);
                 header('Location: index.php?welcome=1');
                 exit;

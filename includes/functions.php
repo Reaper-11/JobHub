@@ -1,6 +1,7 @@
 <?php
 // includes/functions.php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/mailer.php';
 
 function is_job_seeker() {
     return current_role() === 'jobseeker';
@@ -61,7 +62,20 @@ function safe_file_upload($file, $allowed = ['pdf'], $max_size = 5*1024*1024, $d
 }
 
 function send_email($to, $subject, $body) {
-    // Use PHPMailer or mail() for now
-    // In production → use PHPMailer + SMTP (Gmail, SendGrid, etc)
-    return mail($to, $subject, $body, "From: no-reply@yourjobhub.com");
+    if (defined('JOBHUB_EMAIL_ENABLED') && !JOBHUB_EMAIL_ENABLED) {
+        return false;
+    }
+
+    $body = (string) $body;
+    $isHtml = $body !== strip_tags($body);
+    $result = jobhub_send_email_message([
+        'to_email' => $to,
+        'subject' => (string) $subject,
+        'from_email' => JOBHUB_SUPPORT_FROM_EMAIL,
+        'from_name' => JOBHUB_SUPPORT_FROM_NAME,
+        'html_body' => $isHtml ? $body : '',
+        'text_body' => $isHtml ? jobhub_mail_html_to_text($body) : $body,
+    ]);
+
+    return !empty($result['success']);
 }

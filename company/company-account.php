@@ -174,43 +174,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
     $stmt->close();
 
     if ($row && jobhub_verify_password_with_upgrade($conn, 'accounts', $accountId, $confirm_pass, (string)$row['password'])) {
+        $deleteRecipientEmail = strtolower(trim((string) ($companyProfile['email'] ?? '')));
+        $deleteRecipientName = trim((string) ($companyProfile['name'] ?? ''));
         $conn->begin_transaction();
 
         try {
-            $deleteJobsStmt = $conn->prepare("DELETE FROM jobs WHERE company_id = ?");
-            if ($deleteJobsStmt) {
-                $deleteJobsStmt->bind_param("i", $cid);
-                if (!$deleteJobsStmt->execute()) {
-                    $error = $deleteJobsStmt->error;
-                    $deleteJobsStmt->close();
-                    throw new RuntimeException($error !== '' ? $error : 'Could not delete company jobs.');
-                }
-                $deleteJobsStmt->close();
-            }
-
-            $stmt = $conn->prepare("DELETE FROM companies WHERE id = ?");
-            if (!$stmt) {
-                throw new RuntimeException('Could not prepare company deletion.');
-            }
-
-            $stmt->bind_param("i", $cid);
-            if (!$stmt->execute()) {
-                $error = $stmt->error;
-                $stmt->close();
-                throw new RuntimeException($error !== '' ? $error : 'Could not delete company profile.');
-            }
-            $stmt->close();
-
             if (!jobhub_delete_account($conn, $accountId)) {
                 throw new RuntimeException('Could not delete company account.');
             }
 
             $conn->commit();
+
+            if ($deleteRecipientEmail !== '') {
+                try {
+                    $mailResult = jobhub_send_account_removed_email(
+                        $deleteRecipientEmail,
+                        $deleteRecipientName,
+                        'company'
+                    );
+
+                    if (empty($mailResult['success'])) {
+                        $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                        jobhub_log_mail_error(
+                            'account-removed',
+                            'Self-delete email failed for ' . $deleteRecipientEmail . ': '
+                            . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                        );
+                    }
+                } catch (Throwable $mailException) {
+                    jobhub_log_mail_error(
+                        'account-removed',
+                        'Self-delete email threw an exception for ' . $deleteRecipientEmail . ': ' . $mailException->getMessage()
+                    );
+                }
+            } else {
+                jobhub_log_mail_error(
+                    'account-removed',
+                    'Self-delete email skipped for company account #' . $accountId . ' because no recipient email was available.'
+                );
+            }
+
             logout_user();
             header("Location: ../index.php?msg=company_deleted");
             exit;
         } catch (Throwable $e) {
             $conn->rollback();
+            error_log('[JobHub Delete Account] Company account deletion failed for account #' . $accountId . ': ' . $e->getMessage());
             $delete_msg = "Failed to delete account.";
             $delete_type = 'danger';
         }

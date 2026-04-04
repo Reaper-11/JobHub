@@ -19,6 +19,14 @@ if (empty($supportMessage['is_read'])) {
 }
 
 $flash = support_get_flash('admin');
+$mailStatus = jobhub_support_mail_status();
+$senderEmail = trim((string)($supportMessage['sender_email'] ?? ''));
+$canSendReplyEmail = !empty($mailStatus['can_send']) && filter_var($senderEmail, FILTER_VALIDATE_EMAIL);
+$replyEmailHelp = $canSendReplyEmail
+    ? 'The reply will be emailed after it is saved.'
+    : (!filter_var($senderEmail, FILTER_VALIDATE_EMAIL)
+        ? 'The sender email address is missing or invalid.'
+        : $mailStatus['message']);
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -135,6 +143,24 @@ $flash = support_get_flash('admin');
                         <textarea name="reply_message" class="form-control" rows="8" required><?= htmlspecialchars($supportMessage['admin_reply'] ?? '') ?></textarea>
                     </div>
 
+                    <div class="form-check mb-3">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            name="send_email"
+                            id="send_email"
+                            value="1"
+                            <?= $canSendReplyEmail ? 'checked' : 'disabled' ?>
+                        >
+                        <label class="form-check-label" for="send_email">
+                            Send reply email to <?= htmlspecialchars($senderEmail !== '' ? $senderEmail : 'the sender') ?>
+                        </label>
+                    </div>
+
+                    <div class="form-text mb-3">
+                        <?= htmlspecialchars($replyEmailHelp) ?>
+                    </div>
+
                     <button type="submit" class="btn btn-primary w-100">Save Reply</button>
                 </form>
             </div>
@@ -145,6 +171,10 @@ $flash = support_get_flash('admin');
                 <h2 class="h5 mb-0">Reply Email Status</h2>
             </div>
             <div class="card-body">
+                <p class="mb-2">
+                    <strong>SMTP Status:</strong>
+                    <?= htmlspecialchars($mailStatus['message']) ?>
+                </p>
                 <p class="mb-2">
                     <strong>Sent:</strong>
                     <?= !empty($supportMessage['reply_email_sent']) ? 'Yes' : 'No' ?>

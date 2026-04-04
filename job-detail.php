@@ -203,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
                     <dd class="col-sm-8"><?= htmlspecialchars($job['skills_required'] ?: 'Not specified') ?></dd>
 
                     <?php if (!empty($job['application_duration'])): ?>
-                    <dt class="col-sm-4 text-muted">Apply by</dt>
+                    <dt class="col-sm-4 text-muted">Last Date to Apply</dt>
                     <dd class="col-sm-8">
                         <?= htmlspecialchars($job['application_duration']) ?>
                         <?php if ($expires = job_expiration_timestamp($job['created_at'], $job['application_duration'])): ?>

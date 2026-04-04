@@ -92,6 +92,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
 
                 $conn->commit();
+
+                try {
+                    $mailResult = jobhub_send_account_created_email($email, $name, 'company');
+                    if (empty($mailResult['success'])) {
+                        $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                        jobhub_log_mail_error(
+                            'account-created',
+                            'Company account email failed for ' . $email . ': '
+                            . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                        );
+                    }
+                } catch (Throwable $mailException) {
+                    jobhub_log_mail_error(
+                        'account-created',
+                        'Company account email threw an exception for ' . $email . ': ' . $mailException->getMessage()
+                    );
+                }
+
                 jobhub_complete_login('company', $companyId, $name);
                 header('Location: company-dashboard.php');
                 exit;

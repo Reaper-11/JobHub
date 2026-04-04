@@ -1,6 +1,7 @@
 <?php
 // company/company-applications.php
 require '../db.php';
+require_once '../includes/application_status_helper.php';
 require_role('company');
 $cid = current_company_id() ?? 0;
 $job_id = isset($_GET['job_id']) ? (int)$_GET['job_id'] : 0;
@@ -12,85 +13,33 @@ $where = $job_id > 0
 $params = $job_id > 0 ? [$cid, $job_id] : [$cid];
 $types  = $job_id > 0 ? "ii" : "i";
 
+$schemaResult = jobhub_application_ensure_status_columns();
+$responseMessageSelect = jobhub_application_has_column('response_message')
+    ? 'a.response_message,'
+    : "'' AS response_message,";
 $msg = $msg_type = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
-    $app_id = (int)($_POST['app_id'] ?? 0);
-    $new_status = trim($_POST['status'] ?? '');
-    $allowed_statuses = ['pending', 'shortlisted', 'interview', 'approved', 'rejected'];
-    $response_statuses = ['shortlisted', 'interview', 'approved', 'rejected'];
-    $response_message = trim($_POST['response_message'] ?? '');
-    $response_message = in_array($new_status, $response_statuses, true) && $response_message !== '' ? $response_message : null;
-
-    if ($app_id > 0 && in_array($new_status, $allowed_statuses, true)) {
-        $currentApplication = db_query_all("
-            SELECT a.id, a.user_id, a.status, a.response_message, j.title AS job_title,
-                   COALESCE(c.name, j.company, 'Company') AS company_name
-            FROM applications a
-            JOIN jobs j ON j.id = a.job_id
-            LEFT JOIN companies c ON c.id = j.company_id
-            WHERE a.id = ? AND j.company_id = ?
-            LIMIT 1
-        ", "ii", [$app_id, $cid])[0] ?? null;
-
-        if (!$currentApplication) {
-            $msg = "Application not found.";
-            $msg_type = 'danger';
-        } else {
-            $currentResponse = trim((string)($currentApplication['response_message'] ?? ''));
-            $currentResponse = $currentResponse !== '' ? $currentResponse : null;
-
-            if (
-                strcasecmp((string)$currentApplication['status'], $new_status) === 0
-                && $currentResponse === $response_message
-            ) {
-                $msg = "Application already has that status.";
-                $msg_type = 'info';
-            } else {
-                $stmt = $conn->prepare("
-                    UPDATE applications
-                    SET status = ?, response_message = NULLIF(?, ''), updated_at = NOW()
-                    WHERE id = ? AND job_id IN (SELECT id FROM jobs WHERE company_id = ?)
-                ");
-                $response_value = $response_message ?? '';
-                $stmt->bind_param("ssii", $new_status, $response_value, $app_id, $cid);
-
-                if ($stmt->execute()) {
-                    $msg = "Application status updated.";
-                    $msg_type = 'success';
-
-                    $jobTitle = $currentApplication['job_title'] ?? 'your application';
-                    $companyName = $currentApplication['company_name'] ?? 'the company';
-                    $statusLabel = notify_status_label($new_status);
-                    $notificationMessage = 'Your application for "' . $jobTitle . '" at ' . $companyName . ' has been updated to "' . $statusLabel . '".';
-                    if ($response_message !== null) {
-                        $notificationMessage .= ' Message from company: ' . $response_message;
-                    }
-
-                    notify_create(
-                        'user',
-                        (int)$currentApplication['user_id'],
-                        'Application Status Updated',
-                        $notificationMessage,
-                        'my-applications.php',
-                        notify_status_type($new_status),
-                        'application',
-                        $app_id
-                    );
-                } else {
-                    $msg = "Update failed.";
-                    $msg_type = 'danger';
-                }
-                $stmt->close();
-            }
-        }
-    } else {
-        $msg = "Invalid status selection.";
+if (!empty($schemaResult['success']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
+        $msg = "Invalid request. Please try again.";
         $msg_type = 'danger';
+    } else {
+        $result = jobhub_company_update_application_status(
+            $cid,
+            (int)($_POST['application_id'] ?? ($_POST['app_id'] ?? 0)),
+            (string)($_POST['status'] ?? ''),
+            (string)($_POST['response_message'] ?? '')
+        );
+
+        $msg = (string)($result['message'] ?? 'Update failed.');
+        $msg_type = (string)($result['type'] ?? ($result['ok'] ? 'success' : 'danger'));
     }
+} elseif (empty($schemaResult['success'])) {
+    $msg = (string)($schemaResult['message'] ?? 'Application status fields could not be prepared.');
+    $msg_type = 'danger';
 }
 
 $applications = db_query_all("
-    SELECT a.id, a.status, a.response_message, a.cover_letter, a.cv_path, a.applied_at,
+    SELECT a.id, a.status, {$responseMessageSelect} a.cover_letter, a.cv_path, a.applied_at,
            u.name AS user_name, u.email AS user_email, u.cv_path AS user_cv_path,
            j.title AS job_title
     FROM applications a
@@ -181,7 +130,7 @@ $applications = db_query_all("
                     </div>
                     <div class="modal-body">
                         <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                        <input type="hidden" name="app_id" value="<?= $app['id'] ?>">
+                        <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
 
                         <div class="mb-3">
                             <label class="form-label">New Status</label>
@@ -194,20 +143,21 @@ $applications = db_query_all("
                             </select>
                         </div>
 
-                        <div class="js-response-box" style="display:none; margin-top:10px;">
+                        <div class="js-response-box" style="margin-top:10px;">
                             <label class="form-label" for="response_message_<?= (int)$app['id'] ?>">Response Message</label>
                             <textarea
                                 name="response_message"
                                 id="response_message_<?= (int)$app['id'] ?>"
                                 class="form-control"
                                 rows="4"
-                                placeholder="Write message for applicant..."
+                                placeholder="Write message to applicant (this will also be sent by email)"
                             ><?= htmlspecialchars($app['response_message'] ?? '') ?></textarea>
+                            <div class="form-text">This message will be visible to the applicant and sent by email.</div>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save</button>
+                        <button type="submit" class="btn btn-primary">Save Update</button>
                     </div>
                 </form>
             </div>
@@ -217,18 +167,32 @@ $applications = db_query_all("
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-    const statusesWithResponse = new Set(["shortlisted", "interview", "approved", "rejected"]);
+    const defaultMessages = {
+        pending: "Your application is under review.",
+        shortlisted: "You have been shortlisted for the next step.",
+        approved: "Your application has been approved.",
+        interview: "You are invited for an interview.",
+        rejected: "We regret to inform you that your application was not selected."
+    };
 
     document.querySelectorAll(".js-status-form").forEach(function (form) {
         const statusSelect = form.querySelector(".js-status-select");
         const responseBox = form.querySelector(".js-response-box");
+        const responseTextarea = form.querySelector("textarea[name='response_message']");
 
-        if (!statusSelect || !responseBox) {
+        if (!statusSelect || !responseBox || !responseTextarea) {
             return;
         }
 
         const toggleResponseBox = function () {
-            responseBox.style.display = statusesWithResponse.has(statusSelect.value) ? "block" : "none";
+            responseBox.style.display = "block";
+            responseTextarea.required = false;
+            const currentMessage = responseTextarea.value.trim();
+            const isExistingDefaultMessage = Object.values(defaultMessages).includes(currentMessage);
+
+            if (currentMessage === "" || isExistingDefaultMessage) {
+                responseTextarea.value = defaultMessages[statusSelect.value] || "";
+            }
         };
 
         statusSelect.addEventListener("change", toggleResponseBox);

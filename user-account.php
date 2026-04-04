@@ -404,39 +404,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $deleteType = "alert-danger";
             } else {
                 $cvPath = $user['cv_path'] ?? '';
-                if (jobhub_cv_is_stored_path($cvPath) && db_query_value("SELECT COUNT(*) FROM applications WHERE cv_path = ?", 's', [$cvPath], 0) == 0) {
-                    $fullPath = __DIR__ . '/' . $cvPath;
-                    if (is_file($fullPath)) {
-                        @unlink($fullPath);
-                    }
-                }
-
+                $deleteRecipientEmail = strtolower(trim((string) ($user['email'] ?? '')));
+                $deleteRecipientName = trim((string) ($user['name'] ?? ''));
                 $conn->begin_transaction();
 
                 try {
-                    $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
-                    if (!$stmt) {
-                        throw new RuntimeException('Could not prepare user deletion.');
-                    }
-
-                    $stmt->bind_param("i", $uid);
-                    if (!$stmt->execute()) {
-                        $error = $stmt->error;
-                        $stmt->close();
-                        throw new RuntimeException($error !== '' ? $error : 'Could not delete user profile.');
-                    }
-                    $stmt->close();
-
                     if (!jobhub_delete_account($conn, $accountId)) {
                         throw new RuntimeException('Could not delete account.');
                     }
 
                     $conn->commit();
+
+                    if ($deleteRecipientEmail !== '') {
+                        try {
+                            $mailResult = jobhub_send_account_removed_email(
+                                $deleteRecipientEmail,
+                                $deleteRecipientName,
+                                'jobseeker'
+                            );
+
+                            if (empty($mailResult['success'])) {
+                                $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                                jobhub_log_mail_error(
+                                    'account-removed',
+                                    'Self-delete email failed for ' . $deleteRecipientEmail . ': '
+                                    . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                                );
+                            }
+                        } catch (Throwable $mailException) {
+                            jobhub_log_mail_error(
+                                'account-removed',
+                                'Self-delete email threw an exception for ' . $deleteRecipientEmail . ': ' . $mailException->getMessage()
+                            );
+                        }
+                    } else {
+                        jobhub_log_mail_error(
+                            'account-removed',
+                            'Self-delete email skipped for user account #' . $accountId . ' because no recipient email was available.'
+                        );
+                    }
+
+                    $absoluteCvPath = jobhub_cv_absolute_path((string) $cvPath);
+                    if ($absoluteCvPath !== null && db_query_value("SELECT COUNT(*) FROM applications WHERE cv_path = ?", 's', [$cvPath], 0) == 0 && is_file($absoluteCvPath)) {
+                        @unlink($absoluteCvPath);
+                    }
+
                     logout_user();
                     header("Location: index.php");
                     exit;
                 } catch (Throwable $e) {
                     $conn->rollback();
+                    error_log('[JobHub Delete Account] User account deletion failed for account #' . $accountId . ': ' . $e->getMessage());
                     $deleteMsg = "Could not delete account. Please try again.";
                     $deleteType = "alert-danger";
                 }
