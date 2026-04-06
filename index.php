@@ -211,7 +211,7 @@ $basePath = '';
         }
 
         .dot-pattern {
-            background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231a237e' fill-opacity='0.04'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Ccircle cx='52' cy='28' r='3'/%3E%3Ccircle cx='32' cy='64' r='3'/%3E%3Ccircle cx='68' cy='60' r='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ff9800' fill-opacity='0.12'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Ccircle cx='52' cy='28' r='3'/%3E%3Ccircle cx='32' cy='64' r='3'/%3E%3Ccircle cx='68' cy='60' r='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
 
         @keyframes float {
@@ -491,8 +491,8 @@ $basePath = '';
 
     <section class="gradient-bg py-16 md:py-24 relative overflow-hidden dot-pattern">
         <div class="absolute inset-0 overflow-hidden">
-            <div class="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-black/10 to-black/10 rounded-full animate-float"></div>
-            <div class="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-black/10 to-black/10 rounded-full animate-float" style="animation-delay: 1s;"></div>
+            <div class="absolute top-20 left-10 w-72 h-72 bg-black rounded-full animate-float"></div>
+            <div class="absolute top-56 -right-24 w-96 h-96 bg-black rounded-full"></div>
             <div class="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#388e3c]/5 to-[#4caf50]/5 rounded-full animate-pulse-glow"></div>
         </div>
 
@@ -510,7 +510,7 @@ $basePath = '';
 
             <p class="text-xl md:text-2xl text-gray-700 mb-12 max-w-4xl mx-auto leading-relaxed font-light">
                 Discover verified openings from trusted employers across Nepal with a
-                <span class="font-bold text-[#1a237e]">transparent hiring process</span> and fast application workflow.
+                <span class="font-bold text-[#ff9800]">transparent hiring process</span> and fast application workflow.
             </p>
 
             <div class="max-w-4xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/60 p-4 md:p-6">

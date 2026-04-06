@@ -161,8 +161,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
     foreach (($salaryValidation['errors'] ?? []) as $field => $message) {
         $errors[$field] = $message;
     }
+    if ($formData['salary_min'] === '' && !isset($errors['salary_min'])) {
+        $errors['salary_min'] = "Minimum salary is required.";
+    }
 
-    if ($formData['application_duration'] !== '') {
+    if ($formData['application_duration'] === '') {
+        $errors['application_duration'] = "Application duration is required.";
+    } else {
         $durationValue = filter_var($formData['application_duration'], FILTER_VALIDATE_INT);
         if ($durationValue === false) {
             $errors['application_duration'] = "Application duration must be a whole number.";
@@ -411,7 +416,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Salary (optional)</label>
+                <label class="form-label">Salary *</label>
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label">Minimum Salary</label>
@@ -420,9 +425,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
                             name="salary_min"
                             class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_min', 'form-control')) ?>"
                             min="1"
-                            step="0.01"
-                            inputmode="decimal"
+                            step="1"
+                            inputmode="numeric"
                             placeholder="40000"
+                            onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                            required
                             value="<?= htmlspecialchars($formData['salary_min']) ?>"
                         >
                         <?php if (isset($errors['salary_min'])): ?>
@@ -436,9 +444,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
                             name="salary_max"
                             class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_max', 'form-control')) ?>"
                             min="1"
-                            step="0.01"
-                            inputmode="decimal"
+                            step="1"
+                            inputmode="numeric"
                             placeholder="70000"
+                            onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                             value="<?= htmlspecialchars($formData['salary_max']) ?>"
                         >
                         <?php if (isset($errors['salary_max'])): ?>
@@ -466,7 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Application Duration (optional)</label>
+                <label class="form-label">Application Duration *</label>
                 <input
                     type="number"
                     name="application_duration"
@@ -474,8 +484,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
                     min="1"
                     max="365"
                     step="1"
+                    inputmode="numeric"
+                    placeholder="e.g. 30"
+                    aria-describedby="application-duration-help"
+                    onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                    required
                     value="<?= htmlspecialchars($formData['application_duration']) ?>"
                 >
+                <div id="application-duration-help" class="form-text">Enter number only. Days will be applied automatically.</div>
                 <?php if (isset($errors['application_duration'])): ?>
                     <div class="invalid-feedback"><?= htmlspecialchars($errors['application_duration']) ?></div>
                 <?php endif; ?>

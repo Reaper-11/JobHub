@@ -291,7 +291,7 @@ $effectiveStatus = job_effective_status($job);
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Salary (optional)</label>
+                <label class="form-label">Salary</label>
                 <?php if (($salaryFormData['legacy_salary'] ?? '') !== ''): ?>
                     <div class="form-text mb-2">
                         Current saved salary text: <?= htmlspecialchars($salaryFormData['legacy_salary']) ?>.
@@ -307,9 +307,11 @@ $effectiveStatus = job_effective_status($job);
                             name="salary_min"
                             class="form-control<?= $salaryMinError !== '' ? ' is-invalid' : '' ?>"
                             min="1"
-                            step="0.01"
-                            inputmode="decimal"
+                            step="1"
+                            inputmode="numeric"
                             placeholder="40000"
+                            onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                             value="<?= htmlspecialchars($salaryFormData['salary_min'] ?? '') ?>"
                         >
                         <?php if ($salaryMinError !== ''): ?>
@@ -323,9 +325,11 @@ $effectiveStatus = job_effective_status($job);
                             name="salary_max"
                             class="form-control<?= $salaryMaxError !== '' ? ' is-invalid' : '' ?>"
                             min="1"
-                            step="0.01"
-                            inputmode="decimal"
+                            step="1"
+                            inputmode="numeric"
                             placeholder="70000"
+                            onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
                             value="<?= htmlspecialchars($salaryFormData['salary_max'] ?? '') ?>"
                         >
                         <?php if ($salaryMaxError !== ''): ?>
@@ -350,7 +354,7 @@ $effectiveStatus = job_effective_status($job);
             </div>
 
             <div class="mb-3">
-                <label class="form-label">Application Duration (optional)</label>
+                <label class="form-label">Application Duration</label>
                 <input type="text" name="application_duration" class="form-control" placeholder="e.g. 30 days" value="<?= htmlspecialchars($job['application_duration'] ?? '') ?>">
                 <?php if ($durationError): ?>
                     <div class="text-danger small mt-1"><?= htmlspecialchars($durationError) ?></div>

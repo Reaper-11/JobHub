@@ -105,7 +105,7 @@ if (!function_exists('jobhub_salary_parse_amount_input')) {
             ];
         }
 
-        if (!preg_match('/^\d+(?:\.\d+)?$/', $clean)) {
+        if (!preg_match('/^\d+$/', $clean)) {
             return [
                 'ok' => false,
                 'value' => null,
@@ -317,13 +317,13 @@ if (!function_exists('jobhub_salary_validate_submission')) {
         }
 
         if ($minInput === '') {
-            $errors['salary_min'] = 'Starting salary must be a positive number.';
+            $errors['salary_min'] = 'Starting salary must be a positive whole number.';
         }
 
         $parsedMin = jobhub_salary_parse_amount_input($minInput);
         if ($minInput !== '') {
             if (!$parsedMin['ok'] || $parsedMin['value'] === null || $parsedMin['value'] <= 0) {
-                $errors['salary_min'] = 'Starting salary must be a positive number.';
+                $errors['salary_min'] = 'Starting salary must be a positive whole number.';
             } else {
                 $result['salary_min_input'] = $parsedMin['input'];
                 $result['salary_min'] = jobhub_salary_storage_value($parsedMin['value']);
@@ -333,7 +333,7 @@ if (!function_exists('jobhub_salary_validate_submission')) {
         $parsedMax = jobhub_salary_parse_amount_input($maxInput);
         if ($maxInput !== '') {
             if (!$parsedMax['ok'] || $parsedMax['value'] === null || $parsedMax['value'] <= 0) {
-                $errors['salary_max'] = 'Maximum salary must be a positive number.';
+                $errors['salary_max'] = 'Maximum salary must be a positive whole number.';
             } else {
                 $result['salary_max_input'] = $parsedMax['input'];
                 $result['salary_max'] = jobhub_salary_storage_value($parsedMax['value']);
