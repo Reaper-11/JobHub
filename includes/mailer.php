@@ -775,6 +775,52 @@ function jobhub_send_account_removed_email(
     }
 }
 
+function jobhub_send_account_blocked_email(
+    string $toEmail,
+    string $toName,
+    string $remarks = ''
+): array {
+    $recipientName = jobhub_mail_recipient_name($toName, 'JobHub member');
+    $remarks = trim($remarks);
+    $safeName = jobhub_mail_safe_html($recipientName);
+    $subject = 'JobHub Account Blocked';
+    $summary = 'Your JobHub account has been blocked.';
+    $details = 'You can no longer sign in until an admin restores access to your account.';
+
+    $htmlBody = jobhub_mail_wrap_html(
+        '<p>Hello ' . $safeName . ',</p>
+        <p>' . jobhub_mail_safe_html($summary) . '</p>
+        <p>' . jobhub_mail_safe_html($details) . '</p>'
+        . jobhub_mail_optional_html_block('Reason', $remarks)
+    );
+
+    $textBody = "Hello {$recipientName},\n\n"
+        . $summary . "\n\n"
+        . $details
+        . jobhub_mail_optional_text_block('Reason', $remarks)
+        . "\n\nRegards,\n" . jobhub_mail_signature_text();
+
+    try {
+        return jobhub_send_email_message([
+            'to_email' => $toEmail,
+            'to_name' => $recipientName,
+            'subject' => $subject,
+            'html_body' => $htmlBody,
+            'text_body' => $textBody,
+        ]);
+    } catch (\Throwable $e) {
+        jobhub_log_mail_error(
+            'account-blocked',
+            'Account blocked email could not be prepared for ' . $toEmail . ': ' . $e->getMessage()
+        );
+
+        return [
+            'success' => false,
+            'message' => 'Account blocked email could not be prepared: ' . $e->getMessage(),
+        ];
+    }
+}
+
 function jobhub_send_job_review_email(
     string $toEmail,
     string $toName,

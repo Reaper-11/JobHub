@@ -491,8 +491,8 @@ $basePath = '';
 
     <section class="gradient-bg py-16 md:py-24 relative overflow-hidden dot-pattern">
         <div class="absolute inset-0 overflow-hidden">
-            <div class="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-[#1a237e]/10 to-[#283593]/10 rounded-full animate-float"></div>
-            <div class="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-[#ff9800]/10 to-[#ffb74d]/10 rounded-full animate-float" style="animation-delay: 1s;"></div>
+            <div class="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-black/10 to-black/10 rounded-full animate-float"></div>
+            <div class="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-black/10 to-black/10 rounded-full animate-float" style="animation-delay: 1s;"></div>
             <div class="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#388e3c]/5 to-[#4caf50]/5 rounded-full animate-pulse-glow"></div>
         </div>
 
@@ -658,7 +658,7 @@ $basePath = '';
                                         <i class="fas fa-money-bill-wave text-xs text-[#1a237e]"></i>
                                     </div>
                                     <span class="text-gray-700 text-sm">
-                                        <?= htmlspecialchars(($job['salary'] ?? '') !== '' ? $job['salary'] : 'Not specified') ?>
+                                        <?= htmlspecialchars(jobhub_salary_display_value($job, 'Not specified')) ?>
                                     </span>
                                 </div>
 
@@ -779,7 +779,7 @@ $basePath = '';
                                             <i class="fas fa-money-bill-wave text-xs text-[#ff9800]"></i>
                                         </div>
                                         <span class="text-gray-700 text-sm">
-                                            <?= htmlspecialchars(($job['salary'] ?? '') !== '' ? $job['salary'] : 'Not specified') ?>
+                                            <?= htmlspecialchars(jobhub_salary_display_value($job, 'Not specified')) ?>
                                         </span>
                                     </div>
 
@@ -926,7 +926,7 @@ $basePath = '';
                                         <i class="fas fa-money-bill-wave text-xs text-[#1a237e]"></i>
                                     </div>
                                     <span class="text-gray-700 text-sm">
-                                            <?= htmlspecialchars(($job['salary'] ?? '') !== '' ? $job['salary'] : 'Not specified') ?>
+                                            <?= htmlspecialchars(jobhub_salary_display_value($job, 'Not specified')) ?>
                                     </span>
                                 </div>
 

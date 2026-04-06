@@ -101,8 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     <?= htmlspecialchars($app['job_location']) ?>
                     <span class="badge bg-secondary ms-2"><?= htmlspecialchars($app['job_type'] ?? 'Full-time') ?></span>
                 </p>
-                <?php if ($app['job_salary']): ?>
-                    <p><strong>Salary:</strong> <?= htmlspecialchars($app['job_salary']) ?></p>
+                <?php $jobSalaryText = jobhub_salary_display_value($app['job_salary'] ?? '', ''); ?>
+                <?php if ($jobSalaryText !== ''): ?>
+                    <p><strong>Salary:</strong> <?= htmlspecialchars($jobSalaryText) ?></p>
                 <?php endif; ?>
             </div>
         </div>

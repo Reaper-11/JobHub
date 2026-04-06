@@ -1,6 +1,7 @@
 <?php
 // includes/functions.php
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/job_salary_helper.php';
 require_once __DIR__ . '/mailer.php';
 
 function is_job_seeker() {

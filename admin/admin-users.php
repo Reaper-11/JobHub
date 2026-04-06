@@ -7,10 +7,17 @@ $msg = $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
     $uid = (int)($_POST['user_id'] ?? 0);
-    $action = trim($_POST['action'] ?? '');
+    $action = trim((string)($_POST['action'] ?? ''));
+    $reason = trim((string)($_POST['reason'] ?? ''));
+    $reasonForLog = trim((string)preg_replace('/\s+/', ' ', $reason));
+    if (function_exists('mb_substr')) {
+        $reasonForLog = mb_substr($reasonForLog, 0, 160);
+    } else {
+        $reasonForLog = substr($reasonForLog, 0, 160);
+    }
 
     if ($uid > 0 && in_array($action, ['block', 'unblock', 'remove'], true)) {
-        $stmt = $conn->prepare("SELECT id, name, account_id FROM users WHERE id = ? LIMIT 1");
+        $stmt = $conn->prepare("SELECT id, name, email, account_id FROM users WHERE id = ? LIMIT 1");
         $stmt->bind_param("i", $uid);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -19,12 +26,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         if (!$user) {
             $msg = "User not found.";
             $msg_type = 'danger';
+        } elseif (in_array($action, ['block', 'remove'], true) && $reason === '') {
+            $msg = $action === 'block'
+                ? "A reason is required to block a user."
+                : "A reason is required to remove a user.";
+            $msg_type = 'danger';
         } else {
             if ($action === 'block') {
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'blocked', is_active = 0, updated_at = NOW() WHERE id = ?");
                 $accountStatus = 'blocked';
                 $activityType = 'user_blocked';
-                $description = "Admin blocked user {$user['name']}";
+                $description = "Admin blocked user {$user['name']}. Reason: {$reasonForLog}";
                 $successMessage = "User blocked successfully.";
                 $failureMessage = "Failed to block user.";
             } elseif ($action === 'unblock') {
@@ -38,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'removed', is_active = 0, updated_at = NOW() WHERE id = ?");
                 $accountStatus = 'inactive';
                 $activityType = 'user_removed';
-                $description = "Admin removed user {$user['name']}";
+                $description = "Admin removed user {$user['name']}. Reason: {$reasonForLog}";
                 $successMessage = "User removed safely.";
                 $failureMessage = "Failed to remove user.";
             }
@@ -60,30 +72,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     $msg_type = 'success';
                     log_activity($conn, current_admin_id(), 'admin', $activityType, $description, 'user', $uid);
 
-                    if ($action === 'remove') {
-                        $userEmail = trim((string) ($user['email'] ?? ''));
-                        if ($userEmail !== '') {
-                            try {
-                                $mailResult = jobhub_send_account_removed_email(
-                                    $userEmail,
-                                    (string) ($user['name'] ?? ''),
-                                    'jobseeker'
-                                );
+                    if ($action === 'block') {
+                        notify_create(
+                            'user',
+                            $uid,
+                            'Account Blocked',
+                            'Your JobHub account has been blocked by admin. Reason: ' . $reason,
+                            'notifications.php',
+                            'warning',
+                            'user',
+                            $uid
+                        );
+                    } elseif ($action === 'remove') {
+                        notify_create(
+                            'user',
+                            $uid,
+                            'Account Removed',
+                            'Your JobHub account has been removed by admin. Reason: ' . $reason,
+                            'notifications.php',
+                            'danger',
+                            'user',
+                            $uid
+                        );
+                    }
 
-                                if (empty($mailResult['success'])) {
-                                    $mailMessage = trim((string) ($mailResult['message'] ?? ''));
-                                    jobhub_log_mail_error(
-                                        'account-removed',
-                                        'Job seeker removal email failed for ' . $userEmail . ': '
-                                        . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
-                                    );
-                                }
-                            } catch (Throwable $mailException) {
+                    $userEmail = trim((string) ($user['email'] ?? ''));
+                    if ($action === 'block' && $userEmail !== '') {
+                        try {
+                            $mailResult = jobhub_send_account_blocked_email(
+                                $userEmail,
+                                (string) ($user['name'] ?? ''),
+                                $reason
+                            );
+
+                            if (empty($mailResult['success'])) {
+                                $mailMessage = trim((string) ($mailResult['message'] ?? ''));
                                 jobhub_log_mail_error(
-                                    'account-removed',
-                                    'Job seeker removal email threw an exception for ' . $userEmail . ': ' . $mailException->getMessage()
+                                    'account-blocked',
+                                    'Job seeker block email failed for ' . $userEmail . ': '
+                                    . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
                                 );
                             }
+                        } catch (Throwable $mailException) {
+                            jobhub_log_mail_error(
+                                'account-blocked',
+                                'Job seeker block email threw an exception for ' . $userEmail . ': ' . $mailException->getMessage()
+                            );
+                        }
+                    }
+
+                    if ($action === 'remove' && $userEmail !== '') {
+                        try {
+                            $mailResult = jobhub_send_account_removed_email(
+                                $userEmail,
+                                (string) ($user['name'] ?? ''),
+                                'jobseeker',
+                                $reason
+                            );
+
+                            if (empty($mailResult['success'])) {
+                                $mailMessage = trim((string) ($mailResult['message'] ?? ''));
+                                jobhub_log_mail_error(
+                                    'account-removed',
+                                    'Job seeker removal email failed for ' . $userEmail . ': '
+                                    . ($mailMessage !== '' ? $mailMessage : 'Unknown mail error.')
+                                );
+                            }
+                        } catch (Throwable $mailException) {
+                            jobhub_log_mail_error(
+                                'account-removed',
+                                'Job seeker removal email threw an exception for ' . $userEmail . ': ' . $mailException->getMessage()
+                            );
                         }
                     }
                 } else {
@@ -115,7 +174,7 @@ $users = db_query_all("
 <?php endif; ?>
 
 <div class="alert alert-secondary">
-    Removed users are soft-deactivated to keep applications, bookmarks, and history safe.
+    Removed users are soft-deactivated to keep applications, bookmarks, and history safe. Reasons are required for block and remove actions.
 </div>
 
 <div class="table-responsive">
@@ -148,7 +207,7 @@ $users = db_query_all("
                     <td><?= htmlspecialchars($u['name']) ?></td>
                     <td><?= htmlspecialchars($u['email']) ?></td>
                     <td><?= htmlspecialchars(ucfirst($u['role'] ?? 'seeker')) ?></td>
-                    <td><?= htmlspecialchars($u['phone'] ?: 'â€”') ?></td>
+                    <td><?= htmlspecialchars($u['phone'] ?: '-') ?></td>
                     <td><?= date('Y-m-d', strtotime($u['created_at'])) ?></td>
                     <td>
                         <span class="badge <?= user_status_badge_class($status) ?>">
@@ -158,12 +217,9 @@ $users = db_query_all("
                     <td>
                         <div class="d-flex gap-2 flex-wrap">
                             <?php if ($status === 'active'): ?>
-                                <form method="post" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-                                    <input type="hidden" name="action" value="block">
-                                    <button type="submit" class="btn btn-sm btn-outline-warning" onclick="return confirm('Block this user?')">Block</button>
-                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#blockUserModal<?= (int)$u['id'] ?>">
+                                    Block
+                                </button>
                             <?php elseif ($status === 'blocked'): ?>
                                 <form method="post" class="d-inline">
                                     <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
@@ -174,14 +230,65 @@ $users = db_query_all("
                             <?php endif; ?>
 
                             <?php if ($status !== 'removed'): ?>
-                                <form method="post" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-                                    <input type="hidden" name="action" value="remove">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Remove this user account? Related records will be kept safely.')">Remove</button>
-                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeUserModal<?= (int)$u['id'] ?>">
+                                    Remove
+                                </button>
                             <?php endif; ?>
                         </div>
+
+                        <?php if ($status === 'active'): ?>
+                            <div class="modal fade" id="blockUserModal<?= (int)$u['id'] ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Block User</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                            <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                            <input type="hidden" name="action" value="block">
+                                            <p class="mb-3">Explain why <?= htmlspecialchars($u['name']) ?> is being blocked.</p>
+                                            <div class="mb-0">
+                                                <label class="form-label">Reason <span class="text-danger">*</span></label>
+                                                <textarea name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-warning">Confirm Block</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endif; ?>
+
+                        <?php if ($status !== 'removed'): ?>
+                            <div class="modal fade" id="removeUserModal<?= (int)$u['id'] ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Remove User</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                            <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                            <input type="hidden" name="action" value="remove">
+                                            <p class="mb-3">Explain why <?= htmlspecialchars($u['name']) ?> is being removed. Related records will stay preserved.</p>
+                                            <div class="mb-0">
+                                                <label class="form-label">Reason <span class="text-danger">*</span></label>
+                                                <textarea name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-danger">Confirm Remove</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>

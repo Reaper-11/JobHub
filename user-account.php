@@ -403,6 +403,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $deleteMsg = "Password is incorrect.";
                 $deleteType = "alert-danger";
             } else {
+                $deleteUserId = (int) $uid;
                 $cvPath = $user['cv_path'] ?? '';
                 $deleteRecipientEmail = strtolower(trim((string) ($user['email'] ?? '')));
                 $deleteRecipientName = trim((string) ($user['name'] ?? ''));
@@ -414,6 +415,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     $conn->commit();
+                    jobhub_log_self_delete_activity(
+                        $conn,
+                        'jobseeker',
+                        $deleteUserId,
+                        $deleteRecipientName,
+                        $deleteRecipientEmail
+                    );
 
                     if ($deleteRecipientEmail !== '') {
                         try {

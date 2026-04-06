@@ -115,8 +115,9 @@ if ($statusUpdatedAt === '') {
                     <?= htmlspecialchars($app['job_location'] ?: 'N/A') ?>
                     <span class="badge bg-secondary ms-2"><?= htmlspecialchars($app['job_type'] ?? 'Full-time') ?></span>
                 </p>
-                <?php if (!empty($app['job_salary'])): ?>
-                    <p><strong>Salary:</strong> <?= htmlspecialchars($app['job_salary']) ?></p>
+                <?php $jobSalaryText = jobhub_salary_display_value($app['job_salary'] ?? '', ''); ?>
+                <?php if ($jobSalaryText !== ''): ?>
+                    <p><strong>Salary:</strong> <?= htmlspecialchars($jobSalaryText) ?></p>
                 <?php endif; ?>
             </div>
         </div>

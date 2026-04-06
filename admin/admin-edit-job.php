@@ -15,34 +15,68 @@ if ($jobId <= 0) {
 }
 
 $msg = "";
+$salaryPeriods = jobhub_salary_period_options();
+$salaryStorageColumns = jobhub_salary_storage_columns($conn);
+$salaryMinError = '';
+$salaryMaxError = '';
+$salaryPeriodError = '';
 $jobRes = $conn->query("SELECT * FROM jobs WHERE id = $jobId");
 $job = $jobRes ? $jobRes->fetch_assoc() : null;
 if (!$job) {
     header("Location: admin-jobs.php");
     exit;
 }
+$salaryFormData = jobhub_salary_form_values_from_job($job);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_job'])) {
     $title = trim($_POST['title'] ?? '');
     $company = trim($_POST['company'] ?? '');
     $location = trim($_POST['location'] ?? '');
     $type = trim($_POST['type'] ?? '');
-    $salary = trim($_POST['salary'] ?? '');
     $desc = trim($_POST['description'] ?? '');
     $isApproved = isset($_POST['is_approved']) ? 1 : 0;
+    $legacySalary = trim((string) ($_POST['salary_legacy_original'] ?? ($salaryFormData['legacy_salary'] ?? '')));
+    $salaryValidation = jobhub_salary_validate_submission($_POST, $legacySalary);
+    $salaryFormData = [
+        'salary_min' => (string) ($salaryValidation['salary_min_input'] ?? ''),
+        'salary_max' => (string) ($salaryValidation['salary_max_input'] ?? ''),
+        'salary_period' => (string) ($salaryValidation['salary_period_input'] ?? jobhub_salary_default_period()),
+        'salary_currency' => (string) ($salaryValidation['salary_currency'] ?? jobhub_salary_default_currency()),
+        'legacy_salary' => $legacySalary,
+    ];
+    $salaryMinError = (string) ($salaryValidation['errors']['salary_min'] ?? '');
+    $salaryMaxError = (string) ($salaryValidation['errors']['salary_max'] ?? '');
+    $salaryPeriodError = (string) ($salaryValidation['errors']['salary_period'] ?? '');
 
     if ($title === '' || $company === '' || $location === '' || $type === '' || $desc === '') {
         $msg = "All required fields must be filled.";
+    } elseif (!empty($salaryValidation['errors'])) {
+        $msg = "Please correct the salary fields below.";
     } else {
-        $salaryVal = $salary === '' ? null : $salary;
-        $stmt = $conn->prepare(
-            "UPDATE jobs SET title = ?, company = ?, location = ?, type = ?, salary = ?, description = ?, is_approved = ? WHERE id = ?"
-        );
-        $stmt->bind_param("ssssssii", $title, $company, $location, $type, $salaryVal, $desc, $isApproved, $jobId);
+        $salaryVal = $salaryValidation['salary_text'] ?? null;
+        $sql = "UPDATE jobs SET title = ?, company = ?, location = ?, type = ?, salary = ?, description = ?, is_approved = ?";
+        $types = "ssssssi";
+        $params = [$title, $company, $location, $type, $salaryVal, $desc, $isApproved];
+
+        foreach (['salary_min', 'salary_max', 'salary_period', 'salary_currency'] as $salaryColumn) {
+            if (!empty($salaryStorageColumns[$salaryColumn])) {
+                $sql .= ", {$salaryColumn} = ?";
+                $types .= 's';
+                $params[] = $salaryValidation[$salaryColumn] ?? null;
+            }
+        }
+
+        $sql .= " WHERE id = ?";
+        $types .= 'i';
+        $params[] = $jobId;
+
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param($types, ...$params);
         if ($stmt->execute()) {
             $msg = "Job updated successfully.";
             $jobRes = $conn->query("SELECT * FROM jobs WHERE id = $jobId");
             $job = $jobRes ? $jobRes->fetch_assoc() : $job;
+            $salaryFormData = jobhub_salary_form_values_from_job($job);
         } else {
             $msg = "Error updating job.";
         }
@@ -97,7 +131,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_job'])) {
             </div>
             <div class="mb-3">
                 <label class="form-label">Salary (optional)</label>
-                <input type="text" class="form-control" name="salary" value="<?php echo htmlspecialchars($job['salary']); ?>">
+                <?php if (($salaryFormData['legacy_salary'] ?? '') !== ''): ?>
+                    <div class="form-text mb-2">
+                        Current saved salary text: <?php echo htmlspecialchars($salaryFormData['legacy_salary']); ?>.
+                        Leave the fields below blank to keep it, or enter a new salary range to replace it.
+                    </div>
+                <?php endif; ?>
+                <input type="hidden" name="salary_legacy_original" value="<?php echo htmlspecialchars($salaryFormData['legacy_salary'] ?? ''); ?>">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Minimum Salary</label>
+                        <input type="number" class="form-control<?php echo $salaryMinError !== '' ? ' is-invalid' : ''; ?>" name="salary_min" min="1" step="0.01" inputmode="decimal" value="<?php echo htmlspecialchars($salaryFormData['salary_min'] ?? ''); ?>">
+                        <?php if ($salaryMinError !== ''): ?><div class="invalid-feedback"><?php echo htmlspecialchars($salaryMinError); ?></div><?php endif; ?>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Maximum Salary</label>
+                        <input type="number" class="form-control<?php echo $salaryMaxError !== '' ? ' is-invalid' : ''; ?>" name="salary_max" min="1" step="0.01" inputmode="decimal" value="<?php echo htmlspecialchars($salaryFormData['salary_max'] ?? ''); ?>">
+                        <?php if ($salaryMaxError !== ''): ?><div class="invalid-feedback"><?php echo htmlspecialchars($salaryMaxError); ?></div><?php endif; ?>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Salary Period</label>
+                        <select name="salary_period" class="form-select<?php echo $salaryPeriodError !== '' ? ' is-invalid' : ''; ?>">
+                            <?php foreach ($salaryPeriods as $periodValue => $periodLabel): ?>
+                                <option value="<?php echo htmlspecialchars($periodValue); ?>" <?php echo (($salaryFormData['salary_period'] ?? jobhub_salary_default_period()) === $periodValue) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($periodLabel); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ($salaryPeriodError !== ''): ?><div class="invalid-feedback"><?php echo htmlspecialchars($salaryPeriodError); ?></div><?php endif; ?>
+                    </div>
+                </div>
+                <div class="form-text">Example display: <?php echo htmlspecialchars(jobhub_salary_format_text('40000', '70000', 'month', 'NPR')); ?></div>
             </div>
             <div class="mb-3">
                 <label class="form-label">Description</label>

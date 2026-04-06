@@ -27,13 +27,19 @@ $msg_type = '';
 $categories = require __DIR__ . '/../includes/categories.php';
 $jobTypes = require __DIR__ . '/../includes/job_types.php';
 $experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
+$salaryPeriods = jobhub_salary_period_options();
+$salaryStorageColumns = jobhub_salary_storage_columns($conn);
 $categoryError = '';
 $experienceError = '';
 $jobTypeError = '';
 $durationError = '';
+$salaryMinError = '';
+$salaryMaxError = '';
+$salaryPeriodError = '';
 $hasSkillsRequiredColumn = false;
 $isVerified = true;
 $deadlineColumn = job_deadline_column($conn);
+$salaryFormData = jobhub_salary_form_values_from_job($job);
 
 $statusStmt = $conn->prepare("
     SELECT is_approved, operational_state, restriction_reason, verification_status
@@ -68,11 +74,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $location = trim((string)($_POST['location'] ?? ''));
         $type = trim((string)($_POST['type'] ?? ''));
         $category = trim((string)($_POST['category'] ?? ''));
-        $salary = trim((string)($_POST['salary'] ?? ''));
         $duration = trim((string)($_POST['application_duration'] ?? ''));
         $experienceLevel = trim((string)($_POST['experience_level'] ?? ''));
         $description = trim((string)($_POST['description'] ?? ''));
         $skillsRequired = recommend_normalize_skill_string($_POST['skills_required'] ?? '');
+        $legacySalary = trim((string) ($_POST['salary_legacy_original'] ?? ($salaryFormData['legacy_salary'] ?? '')));
+        $salaryValidation = jobhub_salary_validate_submission($_POST, $legacySalary);
+        $salaryFormData = [
+            'salary_min' => (string) ($salaryValidation['salary_min_input'] ?? ''),
+            'salary_max' => (string) ($salaryValidation['salary_max_input'] ?? ''),
+            'salary_period' => (string) ($salaryValidation['salary_period_input'] ?? jobhub_salary_default_period()),
+            'salary_currency' => (string) ($salaryValidation['salary_currency'] ?? jobhub_salary_default_currency()),
+            'legacy_salary' => $legacySalary,
+        ];
+        $salaryMinError = (string) (($salaryValidation['errors']['salary_min'] ?? ''));
+        $salaryMaxError = (string) (($salaryValidation['errors']['salary_max'] ?? ''));
+        $salaryPeriodError = (string) (($salaryValidation['errors']['salary_period'] ?? ''));
 
         if ($title === '' || $location === '' || $category === '' || $experienceLevel === '' || $description === '') {
             $msg = "Required fields are missing.";
@@ -107,6 +124,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        if ($msg === '' && !empty($salaryValidation['errors'])) {
+            $msg = "Please correct the salary fields below.";
+            $msg_type = 'danger';
+        }
+
         if ($msg === '') {
             $deadlineValue = null;
             if ($deadlineColumn !== null && $duration !== '' && $normalizedDuration !== 'ongoing') {
@@ -122,13 +144,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     experience_level = ?, description = ?, is_approved = 0, approved_by = NULL, approved_at = NULL,
                     admin_remarks = NULL, updated_at = NOW()
             ";
+            $salaryValue = $salaryValidation['salary_text'] ?? null;
             $bindTypes = "ssssssss";
             $bindParams = [
                 $title,
                 $location,
                 $type,
                 $category,
-                $salary,
+                $salaryValue,
                 $duration,
                 $experienceLevel,
                 $description,
@@ -138,6 +161,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $updateSql .= ", skills_required = ?";
                 $bindTypes .= "s";
                 $bindParams[] = $skillsRequired;
+            }
+
+            foreach (['salary_min', 'salary_max', 'salary_period', 'salary_currency'] as $salaryColumn) {
+                if (!empty($salaryStorageColumns[$salaryColumn])) {
+                    $updateSql .= ", {$salaryColumn} = ?";
+                    $bindTypes .= "s";
+                    $bindParams[] = $salaryValidation[$salaryColumn] ?? null;
+                }
             }
 
             if ($deadlineColumn !== null) {
@@ -261,7 +292,61 @@ $effectiveStatus = job_effective_status($job);
 
             <div class="mb-3">
                 <label class="form-label">Salary (optional)</label>
-                <input type="text" name="salary" class="form-control" placeholder="e.g. 30,000 - 50,000 NPR" value="<?= htmlspecialchars($job['salary'] ?? '') ?>">
+                <?php if (($salaryFormData['legacy_salary'] ?? '') !== ''): ?>
+                    <div class="form-text mb-2">
+                        Current saved salary text: <?= htmlspecialchars($salaryFormData['legacy_salary']) ?>.
+                        Leave the fields below blank to keep it, or enter a new salary range to replace it.
+                    </div>
+                <?php endif; ?>
+                <input type="hidden" name="salary_legacy_original" value="<?= htmlspecialchars($salaryFormData['legacy_salary'] ?? '') ?>">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Minimum Salary</label>
+                        <input
+                            type="number"
+                            name="salary_min"
+                            class="form-control<?= $salaryMinError !== '' ? ' is-invalid' : '' ?>"
+                            min="1"
+                            step="0.01"
+                            inputmode="decimal"
+                            placeholder="40000"
+                            value="<?= htmlspecialchars($salaryFormData['salary_min'] ?? '') ?>"
+                        >
+                        <?php if ($salaryMinError !== ''): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($salaryMinError) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Maximum Salary</label>
+                        <input
+                            type="number"
+                            name="salary_max"
+                            class="form-control<?= $salaryMaxError !== '' ? ' is-invalid' : '' ?>"
+                            min="1"
+                            step="0.01"
+                            inputmode="decimal"
+                            placeholder="70000"
+                            value="<?= htmlspecialchars($salaryFormData['salary_max'] ?? '') ?>"
+                        >
+                        <?php if ($salaryMaxError !== ''): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($salaryMaxError) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Salary Period</label>
+                        <select name="salary_period" class="form-select<?= $salaryPeriodError !== '' ? ' is-invalid' : '' ?>">
+                            <?php foreach ($salaryPeriods as $periodValue => $periodLabel): ?>
+                                <option value="<?= htmlspecialchars($periodValue) ?>" <?= ($salaryFormData['salary_period'] ?? jobhub_salary_default_period()) === $periodValue ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($periodLabel) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ($salaryPeriodError !== ''): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($salaryPeriodError) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="form-text">Example display: <?= htmlspecialchars(jobhub_salary_format_text('40000', '70000', 'month', 'NPR')) ?></div>
             </div>
 
             <div class="mb-3">

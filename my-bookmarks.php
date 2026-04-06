@@ -83,9 +83,10 @@ $stmt->close();
                             </span>
                         </p>
 
-                        <?php if (!empty($job['salary'])): ?>
+                        <?php $salaryText = jobhub_salary_display_value($job['salary'] ?? '', ''); ?>
+                        <?php if ($salaryText !== ''): ?>
                             <p class="small mb-2">
-                                <strong>Salary:</strong> <?= htmlspecialchars($job['salary']) ?>
+                                <strong>Salary:</strong> <?= htmlspecialchars($salaryText) ?>
                             </p>
                         <?php endif; ?>
 

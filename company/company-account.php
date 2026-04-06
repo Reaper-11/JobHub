@@ -174,6 +174,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
     $stmt->close();
 
     if ($row && jobhub_verify_password_with_upgrade($conn, 'accounts', $accountId, $confirm_pass, (string)$row['password'])) {
+        $deleteCompanyId = (int) $cid;
         $deleteRecipientEmail = strtolower(trim((string) ($companyProfile['email'] ?? '')));
         $deleteRecipientName = trim((string) ($companyProfile['name'] ?? ''));
         $conn->begin_transaction();
@@ -184,6 +185,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
             }
 
             $conn->commit();
+            jobhub_log_self_delete_activity(
+                $conn,
+                'company',
+                $deleteCompanyId,
+                $deleteRecipientName,
+                $deleteRecipientEmail
+            );
 
             if ($deleteRecipientEmail !== '') {
                 try {

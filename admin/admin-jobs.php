@@ -298,13 +298,16 @@ $counts = [
                     <td><?= date('Y-m-d', strtotime($job['created_at'])) ?></td>
                     <td><?= htmlspecialchars($job['admin_remarks'] ?: '-') ?></td>
                     <td style="min-width: 260px;">
+                        <?php $isRejected = (int)$job['is_approved'] === -1; ?>
                         <form method="post" class="d-grid gap-2">
                             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                             <input type="hidden" name="job_id" value="<?= (int)$job['id'] ?>">
                             <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="Admin remarks (optional)"><?= htmlspecialchars($job['admin_remarks'] ?? '') ?></textarea>
                             <div class="d-flex gap-2">
                                 <button type="submit" name="action" value="approve" class="btn btn-sm btn-success">Approve</button>
-                                <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger">Reject</button>
+                                <?php if (!$isRejected): ?>
+                                    <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger">Reject</button>
+                                <?php endif; ?>
                             </div>
                         </form>
                     </td>

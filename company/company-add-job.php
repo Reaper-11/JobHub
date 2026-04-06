@@ -28,13 +28,17 @@ $errors = [];
 $categories = require __DIR__ . '/../includes/categories.php';
 $jobTypes = require __DIR__ . '/../includes/job_types.php';
 $experienceLevels = require __DIR__ . '/../includes/experience_levels.php';
+$salaryPeriods = jobhub_salary_period_options();
+$salaryStorageColumns = jobhub_salary_storage_columns($conn);
 
 $defaultFormData = [
     'job_title' => '',
     'location' => '',
     'job_type' => 'Full-time',
     'category' => '',
-    'salary' => '',
+    'salary_min' => '',
+    'salary_max' => '',
+    'salary_period' => jobhub_salary_default_period(),
     'application_duration' => '',
     'experience_required' => '',
     'description' => '',
@@ -104,12 +108,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
         'location' => trim((string) ($_POST['location'] ?? '')),
         'job_type' => trim((string) ($_POST['job_type'] ?? '')),
         'category' => trim((string) ($_POST['category'] ?? '')),
-        'salary' => trim((string) ($_POST['salary'] ?? '')),
+        'salary_min' => trim((string) ($_POST['salary_min'] ?? '')),
+        'salary_max' => trim((string) ($_POST['salary_max'] ?? '')),
+        'salary_period' => trim((string) ($_POST['salary_period'] ?? jobhub_salary_default_period())),
         'application_duration' => trim((string) ($_POST['application_duration'] ?? '')),
         'experience_required' => trim((string) ($_POST['experience_required'] ?? '')),
         'description' => trim((string) ($_POST['description'] ?? '')),
         'skills_required' => recommend_normalize_skill_string($_POST['skills_required'] ?? ''),
     ];
+    $salaryValidation = jobhub_salary_validate_submission($formData);
+    $formData['salary_min'] = (string) ($salaryValidation['salary_min_input'] ?? '');
+    $formData['salary_max'] = (string) ($salaryValidation['salary_max_input'] ?? '');
+    $formData['salary_period'] = (string) ($salaryValidation['salary_period_input'] ?? jobhub_salary_default_period());
 
     if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
         $errors['form'] = "Invalid request. Please refresh the page and try again.";
@@ -148,13 +158,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
     } elseif (!in_array($formData['category'], $categories, true)) {
         $errors['category'] = "Please select a valid category.";
     }
-
-    if ($formData['salary'] !== '') {
-        if (!is_numeric($formData['salary'])) {
-            $errors['salary'] = "Salary must be a numeric value.";
-        } elseif ((float) $formData['salary'] < 0) {
-            $errors['salary'] = "Salary cannot be negative.";
-        }
+    foreach (($salaryValidation['errors'] ?? []) as $field => $message) {
+        $errors[$field] = $message;
     }
 
     if ($formData['application_duration'] !== '') {
@@ -184,13 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
         $msg_type = 'danger';
         $submitState = 'validation_failed';
     } else {
-        $salaryValue = null;
-        if ($formData['salary'] !== '') {
-            $salaryValue = rtrim(rtrim(number_format((float) $formData['salary'], 2, '.', ''), '0'), '.');
-            if ($salaryValue === '') {
-                $salaryValue = '0';
-            }
-        }
+        $salaryValue = $salaryValidation['salary_text'] ?? null;
 
         $applicationDurationValue = null;
         $deadlineValue = null;
@@ -259,6 +258,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
             $insertValues[] = '?';
             $insertTypes .= 's';
             $insertParams[] = $deadlineValue;
+        }
+
+        foreach (['salary_min', 'salary_max', 'salary_period', 'salary_currency'] as $salaryColumn) {
+            if (!empty($salaryStorageColumns[$salaryColumn])) {
+                $insertColumns[] = $salaryColumn;
+                $insertValues[] = '?';
+                $insertTypes .= 's';
+                $insertParams[] = $salaryValidation[$salaryColumn] ?? null;
+            }
         }
 
         $insertSql = "
@@ -404,17 +412,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
 
             <div class="mb-3">
                 <label class="form-label">Salary (optional)</label>
-                <input
-                    type="number"
-                    name="salary"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary', 'form-control')) ?>"
-                    min="0"
-                    step="0.01"
-                    value="<?= htmlspecialchars($formData['salary']) ?>"
-                >
-                <?php if (isset($errors['salary'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['salary']) ?></div>
-                <?php endif; ?>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Minimum Salary</label>
+                        <input
+                            type="number"
+                            name="salary_min"
+                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_min', 'form-control')) ?>"
+                            min="1"
+                            step="0.01"
+                            inputmode="decimal"
+                            placeholder="40000"
+                            value="<?= htmlspecialchars($formData['salary_min']) ?>"
+                        >
+                        <?php if (isset($errors['salary_min'])): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_min']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Maximum Salary</label>
+                        <input
+                            type="number"
+                            name="salary_max"
+                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_max', 'form-control')) ?>"
+                            min="1"
+                            step="0.01"
+                            inputmode="decimal"
+                            placeholder="70000"
+                            value="<?= htmlspecialchars($formData['salary_max']) ?>"
+                        >
+                        <?php if (isset($errors['salary_max'])): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_max']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Salary Period</label>
+                        <select
+                            name="salary_period"
+                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_period', 'form-select')) ?>"
+                        >
+                            <?php foreach ($salaryPeriods as $periodValue => $periodLabel): ?>
+                                <option value="<?= htmlspecialchars($periodValue) ?>" <?= $formData['salary_period'] === $periodValue ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($periodLabel) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (isset($errors['salary_period'])): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_period']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="form-text">Example display: <?= htmlspecialchars(jobhub_salary_format_text('40000', '70000', 'month', 'NPR')) ?></div>
             </div>
 
             <div class="mb-3">

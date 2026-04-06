@@ -9,7 +9,7 @@ $activities = db_query_all("
            c.name AS company_name,
            ad.username AS admin_name
     FROM activity_logs a
-    LEFT JOIN users u ON a.actor_role = 'seeker' AND a.user_id = u.id
+    LEFT JOIN users u ON a.actor_role IN ('seeker', 'jobseeker') AND a.user_id = u.id
     LEFT JOIN companies c ON a.actor_role = 'company' AND a.user_id = c.id
     LEFT JOIN admins ad ON a.actor_role = 'admin' AND a.user_id = ad.id
     ORDER BY a.created_at DESC
@@ -39,7 +39,14 @@ $activities = db_query_all("
         <?php else: ?>
             <?php foreach ($activities as $activity): ?>
                 <?php
-                $actorName = $activity['user_name'] ?: ($activity['company_name'] ?: ($activity['admin_name'] ?: 'System'));
+                $actorName = trim((string) ($activity['user_name'] ?: ($activity['company_name'] ?: ($activity['admin_name'] ?: ''))));
+                if ($actorName === '' && in_array((string) ($activity['activity_type'] ?? ''), ['jobseeker_self_deleted', 'company_self_deleted'], true)) {
+                    $parts = explode(':', (string) ($activity['description'] ?? ''), 2);
+                    $actorName = trim((string) ($parts[1] ?? ''));
+                }
+                if ($actorName === '') {
+                    $actorName = 'System';
+                }
                 $targetText = trim((string)($activity['target_type'] ?? '')) !== '' ? ucfirst((string)$activity['target_type']) . ' #' . (int)$activity['target_id'] : 'â€”';
                 ?>
                 <tr>

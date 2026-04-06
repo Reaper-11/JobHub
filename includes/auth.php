@@ -1019,6 +1019,7 @@ if (!function_exists('jobhub_delete_company_job_dependencies')) {
             'applications' => 'job_id',
             'bookmarks' => 'job_id',
             'saved_jobs' => 'job_id',
+            'job_views' => 'job_id',
             'job_view_logs' => 'job_id',
             'job_skills' => 'job_id',
         ];
@@ -1064,6 +1065,7 @@ if (!function_exists('jobhub_delete_jobseeker_account_data')) {
             'bookmarks' => 'user_id',
             'saved_jobs' => 'user_id',
             'job_search_logs' => 'user_id',
+            'job_views' => 'user_id',
             'job_view_logs' => 'user_id',
             'user_skills' => 'user_id',
         ];

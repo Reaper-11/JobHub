@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
                     <dd class="col-sm-8"><?= htmlspecialchars($job['type'] ?: 'Not specified') ?></dd>
 
                     <dt class="col-sm-4 text-muted">Salary</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars($job['salary'] ?: 'Not specified') ?></dd>
+                    <dd class="col-sm-8"><?= htmlspecialchars(jobhub_salary_display_value($job, 'Not specified')) ?></dd>
 
                     <dt class="col-sm-4 text-muted">Category</dt>
                     <dd class="col-sm-8"><?= htmlspecialchars($job['category'] ?: '-') ?></dd>

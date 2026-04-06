@@ -56,6 +56,83 @@ function log_activity(
     return $ok;
 }
 
+if (!function_exists('jobhub_log_activity_error')) {
+    function jobhub_log_activity_error(string $detail): void
+    {
+        error_log('[JobHub Activity] ' . $detail);
+    }
+}
+
+if (!function_exists('jobhub_activity_identity_text')) {
+    function jobhub_activity_identity_text(string $name, string $email, string $fallback): string
+    {
+        $name = trim($name);
+        $email = strtolower(trim($email));
+
+        if ($name !== '' && $email !== '') {
+            return $name . ' (' . $email . ')';
+        }
+
+        if ($name !== '') {
+            return $name;
+        }
+
+        if ($email !== '') {
+            return $email;
+        }
+
+        return $fallback;
+    }
+}
+
+if (!function_exists('jobhub_log_self_delete_activity')) {
+    function jobhub_log_self_delete_activity(
+        mysqli $conn,
+        string $actorRole,
+        int $actorId,
+        string $name = '',
+        string $email = ''
+    ): bool {
+        $normalizedRole = jobhub_role_alias($actorRole);
+        if ($actorId <= 0 || !in_array($normalizedRole, ['jobseeker', 'company'], true)) {
+            jobhub_log_activity_error(
+                'Skipped invalid self-delete activity payload for role "' . $actorRole . '" and actor #' . $actorId . '.'
+            );
+            return false;
+        }
+
+        $targetType = $normalizedRole === 'company' ? 'company' : 'user';
+        $activityType = $normalizedRole === 'company' ? 'company_self_deleted' : 'jobseeker_self_deleted';
+        $descriptionPrefix = $normalizedRole === 'company'
+            ? 'Company deleted its own account: '
+            : 'Job seeker deleted their own account: ';
+        $identity = jobhub_activity_identity_text($name, $email, ucfirst($targetType) . ' #' . $actorId);
+
+        try {
+            $ok = log_activity(
+                $conn,
+                $actorId,
+                $normalizedRole,
+                $activityType,
+                $descriptionPrefix . $identity,
+                $targetType,
+                $actorId
+            );
+        } catch (Throwable $e) {
+            jobhub_log_activity_error(
+                'Self-delete activity insert threw for ' . $targetType . ' #' . $actorId . ': ' . $e->getMessage()
+            );
+            return false;
+        }
+
+        if (!$ok) {
+            jobhub_log_activity_error('Failed to record self-delete activity for ' . $targetType . ' #' . $actorId . '.');
+        }
+
+        return $ok;
+    }
+}
+
 function get_user_account_status(mysqli $conn, int $userId): string
 {
     if ($userId <= 0 || !activity_column_exists($conn, 'users', 'account_status')) {
