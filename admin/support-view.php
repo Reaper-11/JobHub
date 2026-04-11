@@ -88,12 +88,12 @@ $replyEmailHelp = $canSendReplyEmail
                     </div>
                     <div class="col-12">
                         <div class="text-muted small">Message</div>
-                        <div class="border rounded p-3 bg-light"><?= nl2br(htmlspecialchars($supportMessage['message'])) ?></div>
+                        <div class="content-surface rounded p-3"><?= nl2br(htmlspecialchars($supportMessage['message'])) ?></div>
                     </div>
                     <?php if (!empty($supportMessage['admin_reply'])): ?>
                         <div class="col-12">
                             <div class="text-muted small">Latest Admin Reply</div>
-                            <div class="border rounded p-3 bg-white"><?= nl2br(htmlspecialchars($supportMessage['admin_reply'])) ?></div>
+                            <div class="content-surface rounded p-3"><?= nl2br(htmlspecialchars($supportMessage['admin_reply'])) ?></div>
                         </div>
                     <?php endif; ?>
                 </div>

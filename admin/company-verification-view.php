@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
                     $companyId,
                     $notificationTitle,
                     $notificationMessage,
-                    'company-notifications.php'
+                    'company-verification.php'
                 );
 
                 log_activity(

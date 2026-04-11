@@ -32,7 +32,7 @@ $bodyClass = isset($bodyClass) ? trim($bodyClass) : '';
 $authFlash = jobhub_take_auth_flash();
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -42,71 +42,116 @@ $authFlash = jobhub_take_auth_flash();
     <link rel="stylesheet" href="<?= htmlspecialchars($basePath) ?>custom.css?v=<?= time() ?>">
     <style>
         .simple-navbar {
-            background: #000000;
+            background: linear-gradient(180deg, #020617 0%, #0b1120 100%);
+            border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+            box-shadow: 0 12px 32px rgba(2, 6, 23, 0.45);
         }
-
         .simple-navbar-inner {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 16px;
-            padding: 15px 0;
+            padding: 14px 0;
         }
-
         .simple-navbar-links {
             display: flex;
             flex-wrap: wrap;
             justify-content: flex-end;
-            gap: 12px 25px;
+            align-items: center;
+            gap: 4px 6px;
         }
-
         .simple-navbar-brand {
             display: inline-block;
-            background: #ffffff;
-            color: #000000;
-            padding: 8px 16px;
-            border-radius: 6px;
+            background: rgba(15, 23, 42, 0.96);
+            color: #f8fafc;
+            padding: 7px 16px;
+            border-radius: 8px;
             font-weight: 700;
-            font-size: 18px;
+            font-size: 17px;
             text-decoration: none;
             white-space: nowrap;
+            letter-spacing: -0.3px;
             transition: opacity 0.2s ease;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
-
         .simple-navbar-link {
-            color: #ffffff;
+            color: #cbd5e1;
             text-decoration: none;
             white-space: nowrap;
-            transition: opacity 0.2s ease;
+            font-size: 13.5px;
+            padding: 6px 12px;
+            border-radius: 7px;
+            transition: background 0.15s, color 0.15s;
         }
-
+        .simple-navbar-link:hover,
+        .simple-navbar-link:focus {
+            color: #fff;
+            background: rgba(148, 163, 184, 0.12);
+        }
         .simple-navbar-logout {
             display: inline-block;
             background: #e53935;
             color: #ffffff;
-            padding: 8px 16px;
-            border-radius: 6px;
+            padding: 6px 14px;
+            border-radius: 7px;
             text-decoration: none;
-            font-weight: 700;
+            font-weight: 600;
+            font-size: 13px;
             white-space: nowrap;
             transition: opacity 0.2s ease;
         }
-
-        .simple-navbar-brand:hover,
-        .simple-navbar-brand:focus,
-        .simple-navbar-link:hover,
-        .simple-navbar-link:focus,
-        .simple-navbar-logout:hover,
-        .simple-navbar-logout:focus {
-            opacity: 0.8;
+        .simple-navbar-login {
+            display: inline-block;
+            background: #0369a1;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: opacity 0.2s ease;
         }
-
+        .simple-navbar-register {
+            display: inline-block;
+            background: #166534;
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 7px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            white-space: nowrap;
+            transition: opacity 0.2s ease;
+        }
+        .simple-navbar-notif-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 99px;
+            margin-left: 5px;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        .simple-navbar-brand:hover,
+        .simple-navbar-logout:hover,
+        .simple-navbar-login:hover,
+        .simple-navbar-register:hover {
+            opacity: 0.85;
+        }
         @media (max-width: 768px) {
             .simple-navbar-inner {
                 flex-direction: column;
                 align-items: flex-start;
             }
-
             .simple-navbar-links {
                 justify-content: flex-start;
             }
@@ -157,8 +202,26 @@ if ($isLoggedIn && $isJobSeeker) {
         <a class="simple-navbar-brand" href="<?= htmlspecialchars($basePath) ?>index.php">JobHub</a>
         <div class="simple-navbar-links">
             <?php foreach ($navLinks as $link): ?>
-                <?php $isLogoutLink = $link['href'] === $basePath . 'logout.php'; ?>
-                <a class="<?= $isLogoutLink ? 'simple-navbar-logout' : 'simple-navbar-link' ?>" href="<?= htmlspecialchars($link['href']) ?>"><?= htmlspecialchars($link['label']) ?></a>
+                <?php
+                $isLogoutLink = $link['href'] === $basePath . 'logout.php';
+                $isLoginLink  = $link['href'] === $basePath . 'login.php';
+                $isRegLink    = $link['href'] === $basePath . 'register-choice.php';
+                $isNotifLink  = str_contains($link['label'], 'Notification');
+                $linkClass = 'simple-navbar-link';
+                if ($isLogoutLink) $linkClass = 'simple-navbar-logout';
+                elseif ($isLoginLink) $linkClass = 'simple-navbar-login';
+                elseif ($isRegLink)   $linkClass = 'simple-navbar-register';
+                ?>
+                <a class="<?= $linkClass ?>" href="<?= htmlspecialchars($link['href']) ?>">
+                    <?php if ($isNotifLink): ?>
+                        Notifications
+                        <?php if ($notificationCount > 0): ?>
+                            <span class="simple-navbar-notif-badge"><?= (int)$notificationCount ?></span>
+                        <?php endif; ?>
+                    <?php else: ?>
+                        <?= htmlspecialchars($link['label']) ?>
+                    <?php endif; ?>
+                </a>
             <?php endforeach; ?>
         </div>
     </nav>

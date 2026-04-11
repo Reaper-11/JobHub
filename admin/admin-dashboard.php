@@ -27,51 +27,64 @@ $stats = [
 
 <?php require 'admin-header.php'; ?>
 
-<h1 class="mb-4">Dashboard</h1>
-
-<div class="row g-4">
+<div class="row g-3 mb-4">
     <div class="col-md-3 col-sm-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Total Jobs</h6>
-                <h3 class="mb-0"><?= number_format($stats['jobs']) ?></h3>
-                <div class="small text-muted mt-1">Pending: <?= (int)$stats['pending_jobs'] ?> | Approved: <?= (int)$stats['approved_jobs'] ?> | Rejected: <?= (int)$stats['rejected_jobs'] ?></div>
+        <div class="stat-card">
+            <div class="stat-card-icon blue"><i class="fas fa-briefcase"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Total Jobs</div>
+                <div class="stat-value"><?= number_format($stats['jobs']) ?></div>
+                <div class="stat-sub">Pending: <?= (int)$stats['pending_jobs'] ?> &nbsp;·&nbsp; Approved: <?= (int)$stats['approved_jobs'] ?></div>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Registered Users</h6>
-                <h3 class="mb-0"><?= number_format($stats['users']) ?></h3>
-                <div class="small text-muted mt-1">Blocked: <?= (int)$stats['blocked_users'] ?></div>
+        <div class="stat-card">
+            <div class="stat-card-icon green"><i class="fas fa-users"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Registered Users</div>
+                <div class="stat-value"><?= number_format($stats['users']) ?></div>
+                <div class="stat-sub">Blocked: <?= (int)$stats['blocked_users'] ?></div>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Applications</h6>
-                <h3 class="mb-0"><?= number_format($stats['applications']) ?></h3>
+        <div class="stat-card">
+            <div class="stat-card-icon purple"><i class="fas fa-file-alt"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Applications</div>
+                <div class="stat-value"><?= number_format($stats['applications']) ?></div>
+                <div class="stat-sub">All time</div>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Companies</h6>
-                <h3 class="mb-0"><?= number_format($stats['companies']) ?></h3>
-                <div class="small text-muted mt-1">Pending: <?= (int)$stats['pending'] ?> | Approved: <?= (int)$stats['approved'] ?></div>
-                <div class="small text-muted mt-1">Verification Pending: <?= (int)$stats['verification_pending'] ?></div>
+        <div class="stat-card">
+            <div class="stat-card-icon amber"><i class="fas fa-building"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Companies</div>
+                <div class="stat-value"><?= number_format($stats['companies']) ?></div>
+                <div class="stat-sub">Pending: <?= (int)$stats['pending'] ?> &nbsp;·&nbsp; Approved: <?= (int)$stats['approved'] ?></div>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Support Messages</h6>
-                <h3 class="mb-0"><?= number_format($stats['support_messages']) ?></h3>
-                <div class="small text-muted mt-1">Unread: <?= (int)$stats['support_unread'] ?></div>
+        <div class="stat-card">
+            <div class="stat-card-icon teal"><i class="fas fa-headset"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Support Messages</div>
+                <div class="stat-value"><?= number_format($stats['support_messages']) ?></div>
+                <div class="stat-sub">Unread: <?= (int)$stats['support_unread'] ?></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stat-card">
+            <div class="stat-card-icon red"><i class="fas fa-circle-exclamation"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Verification Pending</div>
+                <div class="stat-value"><?= number_format($stats['verification_pending']) ?></div>
+                <div class="stat-sub">Awaiting review</div>
             </div>
         </div>
     </div>

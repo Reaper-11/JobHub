@@ -74,38 +74,42 @@ $recentJobs = db_query_all("
     </div>
 <?php endif; ?>
 
-<h1 class="mb-4">Company Dashboard</h1>
-
-<div class="row g-4">
+<div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Total Jobs Posted</h6>
-                <h2 class="display-6"><?= number_format($jobsCount) ?></h2>
+        <div class="stat-card">
+            <div class="stat-card-icon blue"><i class="fas fa-briefcase"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Total Jobs Posted</div>
+                <div class="stat-value"><?= number_format($jobsCount) ?></div>
+                <div class="stat-sub">All time</div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Active Jobs</h6>
-                <h2 class="display-6 text-success"><?= number_format($activeJobs) ?></h2>
+        <div class="stat-card">
+            <div class="stat-card-icon green"><i class="fas fa-circle-check"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Active Jobs</div>
+                <div class="stat-value"><?= number_format($activeJobs) ?></div>
+                <div class="stat-sub">Currently live</div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card shadow-sm border-0 h-100">
-            <div class="card-body text-center">
-                <h6 class="text-muted mb-1">Received Applications</h6>
-                <h2 class="display-6"><?= number_format($applicationsCount) ?></h2>
+        <div class="stat-card">
+            <div class="stat-card-icon purple"><i class="fas fa-file-alt"></i></div>
+            <div class="stat-card-body">
+                <div class="stat-label">Received Applications</div>
+                <div class="stat-value"><?= number_format($applicationsCount) ?></div>
+                <div class="stat-sub">All jobs</div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="card shadow-sm mt-5">
-    <div class="card-header bg-light">
-        <h5 class="mb-0">Recent Jobs</h5>
+<div class="card mt-2">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-clock me-2 text-muted"></i>Recent Jobs</h5>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">

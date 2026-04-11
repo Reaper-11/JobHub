@@ -194,7 +194,7 @@ if (!function_exists('notify_create')) {
 }
 
 if (!function_exists('notify_create_company_verification_review')) {
-    function notify_create_company_verification_review(int $companyId, string $title, string $message, string $link = 'company-notifications.php'): bool {
+    function notify_create_company_verification_review(int $companyId, string $title, string $message, string $link = 'company-verification.php'): bool {
         $companyId = (int)$companyId;
         $title = trim($title);
         $message = trim($message);

@@ -2,52 +2,52 @@
 
 /* ===== Global Reset ===== */
 :root {
-  --bg: #eef2f7;
+  --bg: #020617;
   --white: #ffffff;
-  --surface: var(--white);
-  --surface-alt: #f8fafc;
-  --text: #111827;
-  --text-muted: #6b7280;
-  --text-soft: #4b5563;
+  --surface: #0f172a;
+  --surface-alt: #111827;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-soft: #cbd5e1;
 
-  --primary: #1e3a8a;
-  --primary-2: #2563eb;
-  --primary-contrast: var(--white);
-  --primary-dark: #1e2a5a;
-  --danger: #ff6b6b;
-  --warning: #f59e0b;
-  --success: #16a34a;
-  --placeholder: #9ca3af;
+  --primary: #60a5fa;
+  --primary-2: #38bdf8;
+  --primary-contrast: #eff6ff;
+  --primary-dark: #1d4ed8;
+  --danger: #f87171;
+  --warning: #fbbf24;
+  --success: #22c55e;
+  --placeholder: #64748b;
   --muted: var(--text-muted);
 
-  --topbar-grad-1: #1e3799;
-  --topbar-grad-2: #273c75;
+  --topbar-grad-1: #020617;
+  --topbar-grad-2: #0f172a;
 
-  --badge-bg: #f2c964;
-  --badge-text: #4b3b00;
-  --table-bg: #fafafa;
-  --table-text: #374151;
-  --table-hover: #f1f5f9;
-  --heading-text: #374151;
+  --badge-bg: #172554;
+  --badge-text: #dbeafe;
+  --table-bg: #0f172a;
+  --table-text: #cbd5e1;
+  --table-hover: #111827;
+  --heading-text: #f8fafc;
 
-  --success-bg: #dcfce7;
-  --success-text: #166534;
-  --success-border: #bbf7d0;
-  --danger-bg: #fee2e2;
-  --danger-text: #991b1b;
-  --danger-border: #fecaca;
+  --success-bg: rgba(34, 197, 94, 0.14);
+  --success-text: #86efac;
+  --success-border: rgba(34, 197, 94, 0.3);
+  --danger-bg: rgba(248, 113, 113, 0.14);
+  --danger-text: #fca5a5;
+  --danger-border: rgba(248, 113, 113, 0.3);
 
-  --admin-bg: #111827;
-  --admin-bg-2: #1f2937;
-  --admin-accent: #f59e0b;
-  --admin-accent-text: #111827;
+  --admin-bg: #020617;
+  --admin-bg-2: #0f172a;
+  --admin-accent: #38bdf8;
+  --admin-accent-text: #e0f2fe;
 
-  --card: var(--surface);
-  --border: #e5e7eb;
+  --card: rgba(15, 23, 42, 0.92);
+  --border: #243041;
 
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
+  --gray-100: #0f172a;
+  --gray-200: #1e293b;
+  --gray-300: #334155;
 
   --icon-font: "Font Awesome 6 Free", "Font Awesome 5 Free", "FontAwesome", "Material Icons", sans-serif;
 
@@ -95,6 +95,7 @@ body {
   font-family: "Inter", "Segoe UI", Roboto, Arial, sans-serif;
   font-size: 0.875rem;
   -webkit-font-smoothing: antialiased;
+  color-scheme: dark;
 }
 
 .navbar.bg-black {
@@ -118,13 +119,13 @@ main {
 
 /* ===== Account Page: Match Home (Index) Look ===== */
 .account-page {
-  background: #f8fafc;
+  background: radial-gradient(circle at top, rgba(37, 99, 235, 0.12), transparent 35%), linear-gradient(180deg, #020617 0%, #081120 100%);
 }
 
 .account-page .navbar {
   background: #000000 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.45);
 }
 
 .account-page .navbar .navbar-brand {
@@ -161,14 +162,14 @@ main {
 .account-page h1 {
   font-size: 2.1rem;
   font-weight: 800;
-  color: #111827;
+  color: #f8fafc;
   margin-bottom: 18px;
 }
 
 .account-page h2.h5 {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #1f2937;
+  color: #e2e8f0;
 }
 
 .account-page .card {
@@ -176,9 +177,9 @@ main {
   margin-left: auto;
   margin-right: auto;
   border-radius: 16px;
-  border: 1px solid rgba(26, 35, 126, 0.08);
-  box-shadow: 0 18px 40px rgba(26, 35, 126, 0.12);
-  background: #ffffff;
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.38);
+  background: rgba(15, 23, 42, 0.92);
 }
 
 .account-page .card-body {
@@ -188,7 +189,9 @@ main {
 .account-page .form-control,
 .account-page .form-select {
   border-radius: 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e2e8f0;
   padding: 12px 14px;
   box-shadow: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -196,12 +199,12 @@ main {
 
 .account-page .form-control:focus,
 .account-page .form-select:focus {
-  border-color: #1a237e;
-  box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.18);
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
 }
 
 .account-page .form-text {
-  color: #6b7280;
+  color: #94a3b8;
 }
 
 .account-page .btn-primary {
@@ -229,13 +232,13 @@ main {
 
 /* ===== User Pages: Match Home (Index) Look ===== */
 .user-ui {
-  background: #f8fafc;
+  background: radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 30%), linear-gradient(180deg, #020617 0%, #081120 100%);
 }
 
 .user-ui .navbar {
   background: #000000 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.45);
 }
 
 .user-ui .navbar .navbar-brand {
@@ -272,20 +275,22 @@ main {
 .user-ui h1,
 .user-ui h2,
 .user-ui h3 {
-  color: #111827;
+  color: #f8fafc;
 }
 
 .user-ui .card {
   border-radius: 16px;
-  border: 1px solid rgba(26, 35, 126, 0.08);
-  box-shadow: 0 16px 36px rgba(26, 35, 126, 0.12);
-  background: #ffffff;
+  border: 1px solid rgba(96, 165, 250, 0.14);
+  box-shadow: 0 16px 36px rgba(2, 6, 23, 0.38);
+  background: rgba(15, 23, 42, 0.92);
 }
 
 .user-ui .form-control,
 .user-ui .form-select {
   border-radius: 14px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #334155;
+  background: #020617;
+  color: #e2e8f0;
   padding: 12px 14px;
   box-shadow: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -293,12 +298,12 @@ main {
 
 .user-ui .form-control:focus,
 .user-ui .form-select:focus {
-  border-color: #1a237e;
-  box-shadow: 0 0 0 3px rgba(26, 35, 126, 0.18);
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
 }
 
 .user-ui .form-text {
-  color: #6b7280;
+  color: #94a3b8;
 }
 
 .user-ui .btn-primary {
@@ -453,7 +458,7 @@ small {
   border-radius: var(--radius-lg);
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.32);
   border: 1px solid var(--border);
 }
 
@@ -503,7 +508,7 @@ label {
   display: block;
   margin: 6px 0 4px;
   font-weight: 700;
-  color: var(--text-soft);
+  color: var(--text);
   font-size: 0.875rem;
 }
 
@@ -762,6 +767,79 @@ th {
 
 tr:hover td {
   background: var(--table-hover);
+}
+
+.form-control,
+.form-select,
+.form-check-input,
+.btn,
+.card,
+.table,
+.dropdown-menu,
+.modal-content,
+.list-group-item {
+  border-color: var(--border);
+}
+
+.form-control,
+.form-select,
+.dropdown-menu,
+.modal-content,
+.list-group-item {
+  background-color: var(--surface);
+  color: var(--text);
+}
+
+.form-control::placeholder,
+.form-select::placeholder {
+  color: var(--placeholder);
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18);
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text);
+  --bs-table-border-color: var(--border);
+  --bs-table-hover-bg: rgba(148, 163, 184, 0.08);
+  --bs-table-hover-color: var(--text);
+  --bs-table-striped-bg: rgba(148, 163, 184, 0.04);
+  --bs-table-striped-color: var(--text);
+}
+
+.table-light,
+.table-light > th,
+.table-light > td {
+  --bs-table-bg: #111827;
+  --bs-table-color: var(--text);
+  color: var(--text) !important;
+}
+
+.alert {
+  border-color: var(--border);
+}
+
+.text-muted,
+.text-body-secondary {
+  color: var(--text-muted) !important;
+}
+
+.bg-light,
+.bg-white {
+  background-color: var(--surface) !important;
+}
+
+.border,
+.border-top,
+.border-bottom,
+.border-start,
+.border-end {
+  border-color: var(--border) !important;
 }
 
 /* ===== Utilities ===== */
@@ -1107,7 +1185,7 @@ img {
 }
 
 a {
-  color: var(--primary);
+  color: var(--primary-2);
   text-decoration: none;
 }
 

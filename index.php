@@ -404,10 +404,118 @@ $basePath = '';
                 font-size: 52px;
             }
         }
+
+        body {
+            background: linear-gradient(180deg, #020617 0%, #081120 100%);
+            color: #e2e8f0;
+        }
+
+        .gradient-bg {
+            background: radial-gradient(circle at top, rgba(59, 130, 246, 0.18), transparent 28%), linear-gradient(180deg, #020617 0%, #0f172a 100%);
+        }
+
+        .dot-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2338bdf8' fill-opacity='0.08'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Ccircle cx='52' cy='28' r='3'/%3E%3Ccircle cx='32' cy='64' r='3'/%3E%3Ccircle cx='68' cy='60' r='3'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .glass-card {
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.42);
+        }
+
+        .hover-lift:hover {
+            box-shadow: 0 20px 40px rgba(2, 6, 23, 0.55);
+        }
+
+        .job-card-visual {
+            background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+        }
+
+        .job-card-visual::before {
+            background: rgba(59, 130, 246, 0.12);
+        }
+
+        .job-card-visual::after {
+            background: rgba(15, 23, 42, 0.82);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        .job-card-visual--warm {
+            background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+        }
+
+        .job-card-visual--warm::before {
+            background: rgba(245, 158, 11, 0.12);
+        }
+
+        .job-card-category-icon {
+            background: rgba(15, 23, 42, 0.84);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            box-shadow: 0 18px 40px rgba(2, 6, 23, 0.38);
+        }
+
+        section[class*="bg-gradient-to-b"] {
+            background: linear-gradient(180deg, #020617 0%, #0f172a 100%) !important;
+        }
+
+        section[class*="bg-gradient-to-r"] {
+            background: linear-gradient(135deg, #0f172a 0%, #172554 100%) !important;
+        }
+
+        .text-gray-900 {
+            color: #f8fafc !important;
+        }
+
+        .text-gray-700 {
+            color: #cbd5e1 !important;
+        }
+
+        .text-gray-600 {
+            color: #94a3b8 !important;
+        }
+
+        .text-gray-500,
+        .text-gray-400 {
+            color: #64748b !important;
+        }
+
+        .bg-white {
+            background-color: #0f172a !important;
+        }
+
+        .bg-white\/90 {
+            background-color: rgba(15, 23, 42, 0.92) !important;
+        }
+
+        .bg-white\/95 {
+            background-color: rgba(15, 23, 42, 0.95) !important;
+        }
+
+        .border-gray-200,
+        .border-gray-200\/50,
+        .border-gray-200\/60 {
+            border-color: rgba(71, 85, 105, 0.5) !important;
+        }
+
+        .border-gray-100 {
+            border-color: #1e293b !important;
+        }
+
+        input,
+        select {
+            background: rgba(2, 6, 23, 0.82) !important;
+            color: #e2e8f0 !important;
+            border-color: #334155 !important;
+        }
+
+        input::placeholder {
+            color: #64748b !important;
+        }
     </style>
 </head>
 
-<body class="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen antialiased text-gray-900">
+<body class="bg-[#020617] min-h-screen antialiased text-slate-100">
     <header class="bg-black sticky top-0 z-50 border-b border-black/80 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <?php
@@ -467,11 +575,22 @@ $basePath = '';
                         </a>
                     </div>
                 <?php else: ?>
-                    <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                    <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
                         <?php foreach ($navLinks as $link): ?>
-                            <?php $isLogoutLink = $link['href'] === $basePath . 'logout.php'; ?>
-                            <a href="<?= htmlspecialchars($link['href']) ?>" class="<?= $isLogoutLink ? $logoutLinkClass : $navLinkClass ?>">
-                                <?= htmlspecialchars($link['label']) ?>
+                            <?php
+                            $isLogoutLink = $link['href'] === $basePath . 'logout.php';
+                            $isNotifLink  = str_contains($link['href'], 'notifications');
+                            $cls = $isLogoutLink ? $logoutLinkClass : $navLinkClass;
+                            ?>
+                            <a href="<?= htmlspecialchars($link['href']) ?>" class="<?= $cls ?>" style="display:inline-flex;align-items:center;gap:6px;">
+                                <?php if ($isNotifLink): ?>
+                                    Notifications
+                                    <?php if (!empty($notificationCount) && $notificationCount > 0): ?>
+                                        <span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;border-radius:99px;line-height:1;"><?= (int)$notificationCount ?></span>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <?= htmlspecialchars($link['label']) ?>
+                                <?php endif; ?>
                             </a>
                         <?php endforeach; ?>
                     </div>
@@ -490,10 +609,10 @@ $basePath = '';
     </div>
 
     <section class="gradient-bg py-16 md:py-24 relative overflow-hidden dot-pattern">
-        <div class="absolute inset-0 overflow-hidden">
-            <div class="absolute top-20 left-10 w-72 h-72 bg-black rounded-full animate-float"></div>
-            <div class="absolute top-56 -right-24 w-96 h-96 bg-black rounded-full"></div>
-            <div class="absolute top-1/2 left-1/3 w-64 h-64 bg-gradient-to-r from-[#388e3c]/5 to-[#4caf50]/5 rounded-full animate-pulse-glow"></div>
+        <div class="absolute inset-0 overflow-hidden pointer-events-none">
+            <div class="absolute top-0 right-0 w-96 h-96 rounded-full opacity-20" style="background: radial-gradient(circle, #c7d2fe 0%, transparent 70%);"></div>
+            <div class="absolute bottom-0 left-0 w-72 h-72 rounded-full opacity-15" style="background: radial-gradient(circle, #fde68a 0%, transparent 70%);"></div>
+            <div class="absolute top-1/3 left-1/2 w-64 h-64 rounded-full opacity-10" style="background: radial-gradient(circle, #a5f3fc 0%, transparent 70%);"></div>
         </div>
 
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
@@ -877,7 +996,7 @@ $basePath = '';
                     </div>
                 </div>
             <?php else: ?>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
                     <?php foreach ($jobs as $job): ?>
                         <?php
                         $jobCategory = trim((string) ($job['category'] ?? ''));

@@ -56,6 +56,9 @@ $notifications = notify_fetch('company', $cid, 100);
                 $relatedType = strtolower(trim((string)($n['related_type'] ?? '')));
                 $isVerification = notify_is_verification_notification($n);
                 $isSupportReply = $relatedType === 'support_reply';
+                if ($isVerification && ($link === '' || basename($link) === 'company-notifications.php')) {
+                    $link = 'company-verification.php';
+                }
                 $typeBadge = match ($type) {
                     'success' => 'bg-success',
                     'warning' => 'bg-warning text-dark',

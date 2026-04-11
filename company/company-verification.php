@@ -207,7 +207,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
 <?php endif; ?>
 
 <div class="card shadow-sm">
-    <div class="card-header bg-light">
+    <div class="card-header">
         <h5 class="mb-0">Submit Verification Details</h5>
     </div>
     <div class="card-body">
