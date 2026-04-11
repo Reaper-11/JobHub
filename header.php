@@ -61,19 +61,17 @@ $authFlash = jobhub_take_auth_flash();
             gap: 4px 6px;
         }
         .simple-navbar-brand {
-            display: inline-block;
-            background: rgba(15, 23, 42, 0.96);
+            display: inline-flex;
+            align-items: center;
             color: #f8fafc;
-            padding: 7px 16px;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 17px;
+            padding: 2px 0;
+            font-weight: 800;
+            font-size: 1.55rem;
             text-decoration: none;
             white-space: nowrap;
-            letter-spacing: -0.3px;
-            transition: opacity 0.2s ease;
-            border: 1px solid rgba(148, 163, 184, 0.16);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+            line-height: 1;
+            letter-spacing: -0.04em;
+            transition: color 0.2s ease, opacity 0.2s ease;
         }
         .simple-navbar-link {
             color: #cbd5e1;
@@ -199,7 +197,11 @@ if ($isLoggedIn && $isJobSeeker) {
 ?>
 <header class="simple-navbar">
     <nav class="container simple-navbar-inner" aria-label="Main navigation">
-        <a class="simple-navbar-brand" href="<?= htmlspecialchars($basePath) ?>index.php">JobHub</a>
+        <a class="simple-navbar-brand" href="<?= htmlspecialchars($basePath) ?>index.php" aria-label="JobHub">
+            <span class="brand-wordmark brand-wordmark--nav">
+                <span class="brand-wordmark__job">Job</span><span class="brand-wordmark__hub">Hub</span>
+            </span>
+        </a>
         <div class="simple-navbar-links">
             <?php foreach ($navLinks as $link): ?>
                 <?php

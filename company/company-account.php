@@ -344,18 +344,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
 
                     <div class="mb-3">
                         <label class="form-label">Current Password *</label>
-                        <input type="password" name="current_password" class="form-control" required>
+                        <div class="password-toggle-group">
+                            <input type="password" name="current_password" class="form-control" required>
+                            <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                        </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">New Password *</label>
-                        <input type="password" name="new_password" class="form-control" required minlength="8">
+                        <div class="password-toggle-group">
+                            <input type="password" name="new_password" class="form-control" required minlength="8">
+                            <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                        </div>
                         <div class="form-text">Use at least 8 characters with one letter and one number.</div>
                     </div>
 
                     <div class="mb-4">
                         <label class="form-label">Confirm New Password *</label>
-                        <input type="password" name="confirm_password" class="form-control" required>
+                        <div class="password-toggle-group">
+                            <input type="password" name="confirm_password" class="form-control" required>
+                            <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary">Change Password</button>
@@ -384,7 +393,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
 
                     <div class="mb-3">
                         <label class="form-label">Confirm your password to proceed *</label>
-                        <input type="password" name="confirm_password" class="form-control" required>
+                        <div class="password-toggle-group">
+                            <input type="password" name="confirm_password" class="form-control" required>
+                            <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-danger">Delete My Company Account</button>

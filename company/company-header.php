@@ -243,7 +243,11 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
             <a class="brand-logo" href="company-dashboard.php">
                 <div class="brand-icon"><i class="fas fa-building"></i></div>
                 <div>
-                    <span class="brand-name">JobHub</span>
+                    <span class="brand-name" aria-label="JobHub">
+                        <span class="brand-wordmark brand-wordmark--sidebar">
+                            <span class="brand-wordmark__job">Job</span><span class="brand-wordmark__hub">Hub</span>
+                        </span>
+                    </span>
                     <span class="brand-sub">Company Portal</span>
                 </div>
             </a>

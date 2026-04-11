@@ -189,6 +189,29 @@ $basePath = '';
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
+        .brand-wordmark {
+            display: inline-flex;
+            align-items: baseline;
+            position: relative;
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            font-weight: 900;
+            font-size: 2.15rem;
+            line-height: 1;
+            letter-spacing: -0.065em;
+            color: #ffffff;
+            white-space: nowrap;
+            text-rendering: optimizeLegibility;
+        }
+
+        .brand-wordmark__job {
+            color: #ffffff;
+        }
+
+        .brand-wordmark__hub {
+            color: #ff9f1a;
+            margin-left: -0.06em;
+        }
+
         .glass-card {
             background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(12px);
@@ -299,6 +322,11 @@ $basePath = '';
             height: 100%;
             display: flex;
             flex-direction: column;
+            background: rgba(15, 23, 42, 0.72) !important;
+            border-color: rgba(148, 163, 184, 0.22) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 18px 38px rgba(2, 6, 23, 0.34);
         }
 
         .job-card-visual {
@@ -394,6 +422,10 @@ $basePath = '';
         }
 
         @media (max-width: 640px) {
+            .brand-wordmark {
+                font-size: 1.95rem;
+            }
+
             .job-card-visual {
                 height: 144px;
             }
@@ -429,7 +461,7 @@ $basePath = '';
         }
 
         .job-card-visual {
-            background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.82) 0%, rgba(17, 24, 39, 0.68) 100%);
         }
 
         .job-card-visual::before {
@@ -437,12 +469,12 @@ $basePath = '';
         }
 
         .job-card-visual::after {
-            background: rgba(15, 23, 42, 0.82);
+            background: rgba(15, 23, 42, 0.56);
             border: 1px solid rgba(148, 163, 184, 0.14);
         }
 
         .job-card-visual--warm {
-            background: linear-gradient(180deg, #1f2937 0%, #111827 100%);
+            background: linear-gradient(180deg, rgba(31, 41, 55, 0.8) 0%, rgba(17, 24, 39, 0.66) 100%);
         }
 
         .job-card-visual--warm::before {
@@ -512,6 +544,215 @@ $basePath = '';
         input::placeholder {
             color: #64748b !important;
         }
+
+        .process-section {
+            background:
+                radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 24%),
+                linear-gradient(180deg, #040b18 0%, #0b1324 100%) !important;
+        }
+
+        .process-section .staircase-line {
+            height: 3px;
+            background: linear-gradient(90deg, rgba(99, 102, 241, 0.4) 0%, rgba(251, 191, 36, 0.46) 50%, rgba(34, 197, 94, 0.4) 100%);
+            box-shadow: 0 0 18px rgba(56, 189, 248, 0.08);
+        }
+
+        .process-section .timeline-connector::after {
+            display: none;
+        }
+
+        .process-step-card {
+            --step-bg-start: #111827;
+            --step-bg-end: #0f172a;
+            --step-accent: #93c5fd;
+            --step-accent-strong: #60a5fa;
+            --step-border: rgba(148, 163, 184, 0.28);
+            --step-glow: rgba(96, 165, 250, 0.22);
+            --step-shadow: rgba(96, 165, 250, 0.24);
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, var(--step-bg-start) 0%, var(--step-bg-end) 100%);
+            border: 2px solid var(--step-border);
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .process-step-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--step-accent-strong), var(--step-accent));
+        }
+
+        .process-step-card::after {
+            content: '';
+            position: absolute;
+            top: -90px;
+            right: -55px;
+            width: 180px;
+            height: 180px;
+            border-radius: 9999px;
+            background: radial-gradient(circle, var(--step-glow) 0%, transparent 72%);
+            pointer-events: none;
+        }
+
+        .process-step-card:hover {
+            border-color: var(--step-accent);
+            box-shadow: 0 28px 56px rgba(2, 6, 23, 0.52), 0 0 0 1px rgba(255, 255, 255, 0.04);
+        }
+
+        .process-step-card--indigo {
+            --step-bg-start: #101a38;
+            --step-bg-end: #0f172a;
+            --step-accent: #7c8cff;
+            --step-accent-strong: #4356df;
+            --step-border: rgba(99, 102, 241, 0.34);
+            --step-glow: rgba(67, 86, 223, 0.24);
+            --step-shadow: rgba(67, 86, 223, 0.32);
+        }
+
+        .process-step-card--amber {
+            --step-bg-start: #23170b;
+            --step-bg-end: #111827;
+            --step-accent: #ffc85c;
+            --step-accent-strong: #ff9500;
+            --step-border: rgba(251, 191, 36, 0.34);
+            --step-glow: rgba(245, 158, 11, 0.24);
+            --step-shadow: rgba(245, 158, 11, 0.32);
+        }
+
+        .process-step-card--green {
+            --step-bg-start: #0d1f15;
+            --step-bg-end: #0f172a;
+            --step-accent: #7ade87;
+            --step-accent-strong: #2fa84a;
+            --step-border: rgba(74, 222, 128, 0.32);
+            --step-glow: rgba(34, 197, 94, 0.22);
+            --step-shadow: rgba(34, 197, 94, 0.3);
+        }
+
+        .process-step-number {
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(135deg, var(--step-accent-strong), var(--step-accent));
+            box-shadow: 0 16px 32px var(--step-shadow);
+        }
+
+        .process-step-icon-shell {
+            position: relative;
+            z-index: 1;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.22), var(--step-glow) 42%, rgba(15, 23, 42, 0.82) 100%);
+            border: 1px solid var(--step-border);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 18px 35px rgba(2, 6, 23, 0.38);
+        }
+
+        .process-step-icon {
+            color: var(--step-accent);
+        }
+
+        .process-step-title {
+            color: #f8fafc;
+        }
+
+        .process-step-copy {
+            color: #cbd5e1;
+        }
+
+        .feature-section {
+            background:
+                radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 24%),
+                linear-gradient(180deg, #09111f 0%, #0f172a 100%) !important;
+        }
+
+        .feature-card {
+            --feature-bg-start: #101827;
+            --feature-bg-end: #0f172a;
+            --feature-border: rgba(148, 163, 184, 0.24);
+            --feature-accent: #93c5fd;
+            --feature-accent-strong: #60a5fa;
+            --feature-glow: rgba(96, 165, 250, 0.2);
+            width: 100%;
+            max-width: 32rem;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(180deg, var(--feature-bg-start) 0%, var(--feature-bg-end) 100%);
+            border: 1px solid var(--feature-border);
+            box-shadow: 0 20px 42px rgba(2, 6, 23, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--feature-glow) 0%, transparent 42%);
+            pointer-events: none;
+        }
+
+        .feature-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--feature-accent-strong), var(--feature-accent));
+        }
+
+        .feature-card:hover {
+            border-color: var(--feature-accent);
+        }
+
+        .feature-card--indigo {
+            --feature-bg-start: #101a38;
+            --feature-bg-end: #0f172a;
+            --feature-border: rgba(99, 102, 241, 0.28);
+            --feature-accent: #7c8cff;
+            --feature-accent-strong: #4356df;
+            --feature-glow: rgba(67, 86, 223, 0.18);
+        }
+
+        .feature-card--amber {
+            --feature-bg-start: #23170b;
+            --feature-bg-end: #111827;
+            --feature-border: rgba(251, 191, 36, 0.28);
+            --feature-accent: #ffc85c;
+            --feature-accent-strong: #ff9500;
+            --feature-glow: rgba(245, 158, 11, 0.18);
+        }
+
+        .feature-card--green {
+            --feature-bg-start: #0d1f15;
+            --feature-bg-end: #0f172a;
+            --feature-border: rgba(74, 222, 128, 0.26);
+            --feature-accent: #7ade87;
+            --feature-accent-strong: #2fa84a;
+            --feature-glow: rgba(34, 197, 94, 0.18);
+        }
+
+        .feature-card-icon {
+            position: relative;
+            z-index: 1;
+            width: 4.5rem;
+            height: 4.5rem;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.16), var(--feature-glow) 48%, rgba(15, 23, 42, 0.88) 100%);
+            border: 1px solid var(--feature-border);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 32px rgba(2, 6, 23, 0.32);
+        }
+
+        .feature-card-icon i {
+            color: var(--feature-accent);
+        }
+
+        .feature-card-title {
+            color: #f8fafc;
+        }
+
+        .feature-card-copy {
+            color: #cbd5e1;
+        }
+
     </style>
 </head>
 
@@ -522,7 +763,7 @@ $basePath = '';
             $navLinks = [];
             $navLinkClass = 'text-white no-underline hover:opacity-80 transition';
             $logoutLinkClass = 'bg-red-600 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
-            $brandLinkClass = 'inline-block bg-white text-black no-underline px-4 py-2 rounded-md text-lg font-bold hover:opacity-80 transition';
+            $brandLinkClass = 'inline-flex items-center no-underline transition hover:opacity-90';
             $guestLoginLinkClass = 'bg-sky-400 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
             $guestRegisterLinkClass = 'bg-green-500 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
             $isGuestNavbar = false;
@@ -563,7 +804,9 @@ $basePath = '';
             ?>
             <nav class="flex flex-wrap items-center justify-between gap-4" aria-label="Main navigation">
                 <a href="<?= $basePath ?>index.php" class="<?= $brandLinkClass ?>">
-                    JobHub
+                    <span class="brand-wordmark brand-wordmark--hero" aria-label="JobHub">
+                        <span class="brand-wordmark__job">Job</span><span class="brand-wordmark__hub">Hub</span>
+                    </span>
                 </a>
                 <?php if ($isGuestNavbar): ?>
                     <div class="flex items-center gap-2.5">
@@ -1076,11 +1319,11 @@ $basePath = '';
             <?php endif; ?>
         </div>
     </section>
-    <section class="py-16 md:py-24 bg-gradient-to-b from-white to-gray-50">
+    <section class="process-section py-16 md:py-24">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-12 md:mb-20">
                 <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4">
-                    Our <span class="text-[#1a237e]">Hiring</span> Process
+                    Our <span class="text-[#7c8cff]">Hiring</span> Process
                 </h2>
                 <p class="text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
                     Simple and transparent steps from discovery to application
@@ -1090,53 +1333,53 @@ $basePath = '';
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 relative">
                 <div class="hidden md:block staircase-line absolute top-24 left-1/4 right-1/4"></div>
 
-                <div class="timeline-connector text-center p-6 md:p-8 rounded-2xl bg-white hover-lift border-2 border-transparent hover:border-[#1a237e]/20 shadow-lg hover:shadow-xl group">
+                <div class="timeline-connector process-step-card process-step-card--indigo text-center p-6 md:p-8 rounded-2xl hover-lift group">
                     <div class="relative inline-block mb-6">
-                        <div class="w-16 h-16 bg-gradient-to-r from-[#1a237e] to-[#283593] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        <div class="process-step-number w-16 h-16 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto group-hover:scale-110 transition-transform duration-300">
                             1
                         </div>
                     </div>
-                    <div class="w-20 h-20 bg-gradient-to-br from-[#1a237e]/10 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                        <i class="fas fa-user-plus text-3xl md:text-4xl text-[#1a237e]"></i>
+                    <div class="process-step-icon-shell w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                        <i class="process-step-icon fas fa-user-plus text-3xl md:text-4xl"></i>
                     </div>
-                    <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-4">Create Profile</h3>
-                    <p class="text-gray-700 leading-relaxed">Register and build a strong profile to match with top employers</p>
+                    <h3 class="process-step-title text-xl md:text-2xl font-bold mb-4">Create Profile</h3>
+                    <p class="process-step-copy leading-relaxed">Register and build a strong profile to match with top employers</p>
                 </div>
 
-                <div class="timeline-connector text-center p-6 md:p-8 rounded-2xl bg-white hover-lift border-2 border-transparent hover:border-[#ff9800]/20 shadow-lg hover:shadow-xl group">
+                <div class="timeline-connector process-step-card process-step-card--amber text-center p-6 md:p-8 rounded-2xl hover-lift group">
                     <div class="relative inline-block mb-6">
-                        <div class="w-16 h-16 bg-gradient-to-r from-[#ff9800] to-[#ffb74d] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        <div class="process-step-number w-16 h-16 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto group-hover:scale-110 transition-transform duration-300">
                             2
                         </div>
                     </div>
-                    <div class="w-20 h-20 bg-gradient-to-br from-[#ff9800]/10 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                        <i class="fas fa-search text-3xl md:text-4xl text-[#ff9800]"></i>
+                    <div class="process-step-icon-shell w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                        <i class="process-step-icon fas fa-search text-3xl md:text-4xl"></i>
                     </div>
-                    <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-4">Find Your Role</h3>
-                    <p class="text-gray-700 leading-relaxed">Filter by category, location, and company to discover the right fit</p>
+                    <h3 class="process-step-title text-xl md:text-2xl font-bold mb-4">Find Your Role</h3>
+                    <p class="process-step-copy leading-relaxed">Filter by category, location, and company to discover the right fit</p>
                 </div>
 
-                <div class="text-center p-6 md:p-8 rounded-2xl bg-white hover-lift border-2 border-transparent hover:border-[#388e3c]/20 shadow-lg hover:shadow-xl group">
+                <div class="process-step-card process-step-card--green text-center p-6 md:p-8 rounded-2xl hover-lift group">
                     <div class="relative inline-block mb-6">
-                        <div class="w-16 h-16 bg-gradient-to-r from-[#388e3c] to-[#4caf50] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto shadow-lg group-hover:scale-110 transition-transform duration-300">
+                        <div class="process-step-number w-16 h-16 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto group-hover:scale-110 transition-transform duration-300">
                             3
                         </div>
                     </div>
-                    <div class="w-20 h-20 bg-gradient-to-br from-[#388e3c]/10 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
-                        <i class="fas fa-paper-plane text-3xl md:text-4xl text-[#388e3c]"></i>
+                    <div class="process-step-icon-shell w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300">
+                        <i class="process-step-icon fas fa-paper-plane text-3xl md:text-4xl"></i>
                     </div>
-                    <h3 class="text-xl md:text-2xl font-bold text-gray-900 mb-4">Apply Fast</h3>
-                    <p class="text-gray-700 leading-relaxed">Send your application and track progress in your dashboard</p>
+                    <h3 class="process-step-title text-xl md:text-2xl font-bold mb-4">Apply Fast</h3>
+                    <p class="process-step-copy leading-relaxed">Send your application and track progress in your dashboard</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <section class="py-16 md:py-24 bg-gradient-to-b from-gray-50 to-white">
+    <section class="feature-section py-16 md:py-24">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
                 <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-                    Why Choose <span class="text-[#1a237e]">JobHub</span>
+                    Why Choose <span class="text-[#7c8cff]">JobHub</span>
                 </h2>
                 <p class="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
                     Trusted by job seekers and employers across Nepal
@@ -1144,28 +1387,28 @@ $basePath = '';
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 justify-items-center">
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover-lift border border-gray-200/50 group text-center">
-                    <div class="w-16 h-16 bg-gradient-to-r from-[#1a237e]/10 to-[#283593]/10 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
-                        <i class="fas fa-shield-alt text-2xl text-[#1a237e]"></i>
+                <div class="feature-card feature-card--indigo p-8 rounded-2xl hover-lift group text-center">
+                    <div class="feature-card-icon rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-shield-alt text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-900 mb-4">Verified Employers</h3>
-                    <p class="text-gray-700 leading-relaxed">Companies are approved to ensure authentic job postings</p>
+                    <h3 class="feature-card-title text-xl font-bold mb-4">Verified Employers</h3>
+                    <p class="feature-card-copy leading-relaxed">Companies are approved to ensure authentic job postings</p>
                 </div>
 
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover-lift border border-gray-200/50 group text-center">
-                    <div class="w-16 h-16 bg-gradient-to-r from-[#ff9800]/10 to-[#ffb74d]/10 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
-                        <i class="fas fa-bolt text-2xl text-[#ff9800]"></i>
+                <div class="feature-card feature-card--amber p-8 rounded-2xl hover-lift group text-center">
+                    <div class="feature-card-icon rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-bolt text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-900 mb-4">Fast Applications</h3>
-                    <p class="text-gray-700 leading-relaxed">Apply in minutes with a streamlined workflow</p>
+                    <h3 class="feature-card-title text-xl font-bold mb-4">Fast Applications</h3>
+                    <p class="feature-card-copy leading-relaxed">Apply in minutes with a streamlined workflow</p>
                 </div>
 
-                <div class="bg-white p-8 rounded-2xl shadow-lg hover-lift border border-gray-200/50 group text-center">
-                    <div class="w-16 h-16 bg-gradient-to-r from-[#388e3c]/10 to-[#4caf50]/10 rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
-                        <i class="fas fa-headset text-2xl text-[#388e3c]"></i>
+                <div class="feature-card feature-card--green p-8 rounded-2xl hover-lift group text-center">
+                    <div class="feature-card-icon rounded-2xl flex items-center justify-center mb-6 mx-auto group-hover:scale-110 transition-transform duration-300">
+                        <i class="fas fa-headset text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold text-gray-900 mb-4">Local Support</h3>
-                    <p class="text-gray-700 leading-relaxed">Get help from a Nepal-based team that understands your goals</p>
+                    <h3 class="feature-card-title text-xl font-bold mb-4">Local Support</h3>
+                    <p class="feature-card-copy leading-relaxed">Get help from a Nepal-based team that understands your goals</p>
                 </div>
             </div>
         </div>

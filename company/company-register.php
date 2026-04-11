@@ -150,13 +150,19 @@ require '../header.php';
 
                     <div class="mb-3">
                         <label class="form-label">Password <span class="text-danger">*</span></label>
-                        <input type="password" name="password" class="form-control" required minlength="8">
+                        <div class="password-toggle-group">
+                            <input type="password" name="password" class="form-control" required minlength="8">
+                            <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                        </div>
                         <div class="form-text">Minimum 8 characters with at least one letter and one number.</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Confirm Password <span class="text-danger">*</span></label>
-                        <input type="password" name="confirm_password" class="form-control" required minlength="8">
+                        <div class="password-toggle-group">
+                            <input type="password" name="confirm_password" class="form-control" required minlength="8">
+                            <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                        </div>
                     </div>
 
                     <div class="mb-3">

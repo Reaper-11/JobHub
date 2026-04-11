@@ -23,3 +23,94 @@ main {
 footer {
   margin-top: auto;
 }
+
+.brand-wordmark {
+  display: inline-flex;
+  align-items: baseline;
+  position: relative;
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.065em;
+  white-space: nowrap;
+  text-rendering: optimizeLegibility;
+  color: #ffffff;
+}
+
+.brand-wordmark--hero {
+  font-size: 2.15rem;
+}
+
+.brand-wordmark--nav {
+  font-size: 1.9rem;
+}
+
+.brand-wordmark--sidebar {
+  font-size: 1.55rem;
+}
+
+.brand-wordmark__job {
+  color: #ffffff;
+}
+
+.brand-wordmark__hub {
+  color: #ff9f1a;
+  margin-left: -0.06em;
+}
+
+.password-toggle-group {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-toggle-group .form-control {
+  padding-right: 3rem;
+}
+
+.password-toggle-group .password-toggle-button {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+}
+
+.password-toggle-group .password-toggle-button:hover {
+  color: #e2e8f0;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.password-toggle-group .password-toggle-button:focus {
+  box-shadow: none;
+}
+
+.password-toggle-group .password-toggle-button:focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.22);
+}
+
+.password-toggle-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .brand-wordmark--hero {
+    font-size: 1.95rem;
+  }
+
+  .brand-wordmark--nav {
+    font-size: 1.72rem;
+  }
+}

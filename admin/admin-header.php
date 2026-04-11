@@ -185,7 +185,11 @@ $authFlash = jobhub_take_auth_flash();
             <a class="brand-logo" href="admin-dashboard.php">
                 <div class="brand-icon"><i class="fas fa-shield-halved"></i></div>
                 <div>
-                    <span class="brand-name">JobHub</span>
+                    <span class="brand-name" aria-label="JobHub">
+                        <span class="brand-wordmark brand-wordmark--sidebar">
+                            <span class="brand-wordmark__job">Job</span><span class="brand-wordmark__hub">Hub</span>
+                        </span>
+                    </span>
                     <span class="brand-sub">Admin Panel</span>
                 </div>
             </a>

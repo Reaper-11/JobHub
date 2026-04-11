@@ -629,18 +629,27 @@ require 'header.php';
             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
             <div class="mb-3">
                 <label class="form-label">Old Password*</label>
-                <input type="password" class="form-control" name="old_password" placeholder="Old Password" required>
+                <div class="password-toggle-group">
+                    <input type="password" class="form-control" name="old_password" placeholder="Old Password" required>
+                    <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                </div>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">New Password*</label>
-                <input type="password" class="form-control" name="new_password" placeholder="New Password" required minlength="8">
+                <div class="password-toggle-group">
+                    <input type="password" class="form-control" name="new_password" placeholder="New Password" required minlength="8">
+                    <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                </div>
                 <div class="form-text">Use at least 8 characters with one letter and one number.</div>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Confirm Password*</label>
-                <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required>
+                <div class="password-toggle-group">
+                    <input type="password" class="form-control" name="confirm_password" placeholder="Confirm Password" required>
+                    <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                </div>
             </div>
 
             <button type="submit" class="btn btn-primary">Update Password</button>
@@ -659,7 +668,10 @@ require 'header.php';
             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
             <div class="mb-3">
                 <label class="form-label">Confirm Password*</label>
-                <input type="password" class="form-control" name="confirm_password" required>
+                <div class="password-toggle-group">
+                    <input type="password" class="form-control" name="confirm_password" required>
+                    <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                </div>
             </div>
             <button type="submit" class="btn btn-danger">Delete Account</button>
         </form>

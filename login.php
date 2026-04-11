@@ -85,13 +85,16 @@ require 'header.php';
 
                     <div class="mb-4">
                         <label class="form-label">Password</label>
-                        <input
-                            type="password"
-                            name="password"
-                            class="form-control"
-                            placeholder="Enter your password"
-                            required
-                        >
+                        <div class="password-toggle-group">
+                            <input
+                                type="password"
+                                name="password"
+                                class="form-control"
+                                placeholder="Enter your password"
+                                required
+                            >
+                            <button type="button" class="btn password-toggle-button" data-password-toggle aria-label="Show password" aria-pressed="false"></button>
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
