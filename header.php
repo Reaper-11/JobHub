@@ -58,7 +58,12 @@ $authFlash = jobhub_take_auth_flash();
             flex-wrap: wrap;
             justify-content: flex-end;
             align-items: center;
-            gap: 4px 6px;
+            gap: 12px;
+            padding: 9px 12px;
+            border: 1px solid rgba(148, 163, 184, 0.34);
+            border-radius: 16px;
+            background: rgba(7, 12, 24, 0.82);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 22px rgba(2, 6, 23, 0.24);
         }
         .simple-navbar-brand {
             display: inline-flex;
@@ -74,54 +79,77 @@ $authFlash = jobhub_take_auth_flash();
             transition: color 0.2s ease, opacity 0.2s ease;
         }
         .simple-navbar-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             color: #cbd5e1;
             text-decoration: none;
             white-space: nowrap;
             font-size: 13.5px;
-            padding: 6px 12px;
-            border-radius: 7px;
-            transition: background 0.15s, color 0.15s;
+            font-weight: 600;
+            min-height: 42px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid transparent;
+            background: transparent;
+            box-shadow: none;
+            transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
         }
         .simple-navbar-link:hover,
         .simple-navbar-link:focus {
             color: #fff;
-            background: rgba(148, 163, 184, 0.12);
+            background: rgba(15, 23, 42, 0.94);
+            border-color: rgba(96, 165, 250, 0.28);
+            transform: translateY(-1px);
         }
         .simple-navbar-logout {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             background: #e53935;
             color: #ffffff;
-            padding: 6px 14px;
-            border-radius: 7px;
+            min-height: 42px;
+            padding: 9px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 13px;
             white-space: nowrap;
-            transition: opacity 0.2s ease;
+            box-shadow: 0 10px 24px rgba(229, 57, 53, 0.18);
+            transition: opacity 0.2s ease, transform 0.15s ease;
         }
         .simple-navbar-login {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             background: #0369a1;
             color: #fff;
-            padding: 6px 14px;
-            border-radius: 7px;
+            min-height: 42px;
+            padding: 9px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 13px;
             white-space: nowrap;
-            transition: opacity 0.2s ease;
+            transition: opacity 0.2s ease, transform 0.15s ease;
         }
         .simple-navbar-register {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             background: #166534;
             color: #fff;
-            padding: 6px 14px;
-            border-radius: 7px;
+            min-height: 42px;
+            padding: 9px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
             font-size: 13px;
             white-space: nowrap;
-            transition: opacity 0.2s ease;
+            transition: opacity 0.2s ease, transform 0.15s ease;
         }
         .simple-navbar-notif-badge {
             display: inline-flex;
@@ -144,6 +172,7 @@ $authFlash = jobhub_take_auth_flash();
         .simple-navbar-login:hover,
         .simple-navbar-register:hover {
             opacity: 0.85;
+            transform: translateY(-1px);
         }
         @media (max-width: 768px) {
             .simple-navbar-inner {

@@ -534,14 +534,14 @@ $basePath = '';
             border-color: #1e293b !important;
         }
 
-        input,
+        input:not(.hero-filter-input),
         select {
             background: rgba(2, 6, 23, 0.82) !important;
             color: #e2e8f0 !important;
             border-color: #334155 !important;
         }
 
-        input::placeholder {
+        input:not(.hero-filter-input)::placeholder {
             color: #64748b !important;
         }
 
@@ -753,6 +753,159 @@ $basePath = '';
             color: #cbd5e1;
         }
 
+        .hero-filter-shell {
+            padding: 1rem;
+            border-radius: 1.9rem;
+            background: linear-gradient(180deg, rgba(11, 19, 36, 0.96) 0%, rgba(15, 23, 42, 0.98) 100%);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            box-shadow: 0 24px 60px rgba(2, 6, 23, 0.24);
+        }
+
+        .hero-filter-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .hero-filter-primary-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .hero-filter-actions {
+            width: 100%;
+            max-width: 34rem;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .hero-filter-field {
+            position: relative;
+            display: flex;
+            align-items: center;
+            min-height: 3.9rem;
+            padding: 0 1.2rem 0 3.3rem;
+            border-radius: 1.45rem;
+            background: transparent;
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            box-shadow: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        .hero-filter-field:focus-within {
+            border-color: rgba(138, 132, 242, 0.8);
+            box-shadow: 0 0 0 4px rgba(138, 132, 242, 0.16);
+            transform: translateY(-1px);
+        }
+
+        .hero-filter-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .hero-filter-icon {
+            left: 1.15rem;
+            color: rgba(255, 255, 255, 0.88);
+            font-size: 1rem;
+        }
+
+        .hero-filter-input {
+            width: 100%;
+            border: 0;
+            outline: 0;
+            background: transparent !important;
+            box-shadow: none;
+            padding: 0;
+            color: #ffffff !important;
+            -webkit-text-fill-color: #ffffff;
+            font-size: 1.12rem;
+            line-height: 1.4;
+        }
+
+        .hero-filter-input::placeholder {
+            color: rgba(255, 255, 255, 0.92) !important;
+        }
+
+        .hero-filter-input:-webkit-autofill,
+        .hero-filter-input:-webkit-autofill:hover,
+        .hero-filter-input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #ffffff;
+            -webkit-box-shadow: 0 0 0 1000px transparent inset;
+            transition: background-color 9999s ease-out 0s;
+        }
+
+        .hero-filter-action {
+            min-height: 3.45rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 1rem;
+            border: 1px solid rgba(96, 116, 156, 0.34);
+            font-size: 0.96rem;
+            font-weight: 700;
+            text-align: center;
+            text-decoration: none;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+        }
+
+        .hero-filter-action--primary {
+            background: linear-gradient(135deg, #2d3596 0%, #3743ab 100%);
+            color: #ffffff;
+            box-shadow: 0 14px 30px rgba(55, 67, 171, 0.28);
+        }
+
+        .hero-filter-action--secondary {
+            background: rgba(16, 24, 45, 0.82);
+            color: #e2e8f0;
+        }
+
+        .hero-filter-action:hover {
+            transform: translateY(-1px);
+        }
+
+        .hero-filter-action--primary:hover {
+            box-shadow: 0 18px 34px rgba(55, 67, 171, 0.34);
+        }
+
+        .hero-filter-action--secondary:hover {
+            background: rgba(19, 29, 52, 0.96);
+            border-color: rgba(148, 163, 184, 0.28);
+        }
+
+        .hero-filter-action:focus-visible {
+            outline: 0;
+            box-shadow: 0 0 0 4px rgba(138, 132, 242, 0.22);
+        }
+
+        @media (max-width: 1024px) {
+            .hero-filter-primary-row,
+            .hero-filter-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero-filter-shell {
+                padding: 0.85rem;
+                border-radius: 1.55rem;
+            }
+
+            .hero-filter-field,
+            .hero-filter-action {
+                min-height: 3.5rem;
+            }
+
+            .hero-filter-input {
+                font-size: 1rem;
+            }
+        }
+
     </style>
 </head>
 
@@ -761,8 +914,8 @@ $basePath = '';
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <?php
             $navLinks = [];
-            $navLinkClass = 'text-white no-underline hover:opacity-80 transition';
-            $logoutLinkClass = 'bg-red-600 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
+            $navLinkClass = 'inline-flex items-center justify-center gap-1.5 text-slate-100 no-underline transition duration-150 hover:-translate-y-0.5 hover:text-white px-4 py-2 rounded-lg border border-slate-500/60 bg-slate-950/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
+            $logoutLinkClass = 'inline-flex items-center justify-center bg-red-600 text-white no-underline hover:opacity-90 transition duration-150 hover:-translate-y-0.5 px-5 py-2 rounded-lg font-bold border border-red-400/20 shadow-[0_10px_24px_rgba(220,38,38,0.2)]';
             $brandLinkClass = 'inline-flex items-center no-underline transition hover:opacity-90';
             $guestLoginLinkClass = 'bg-sky-400 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
             $guestRegisterLinkClass = 'bg-green-500 text-white no-underline hover:opacity-80 transition px-4 py-2 rounded-md font-bold';
@@ -818,14 +971,14 @@ $basePath = '';
                         </a>
                     </div>
                 <?php else: ?>
-                    <div class="flex flex-wrap items-center gap-x-2 gap-y-2">
+                    <div class="flex flex-wrap items-center gap-3 px-1 py-1">
                         <?php foreach ($navLinks as $link): ?>
                             <?php
                             $isLogoutLink = $link['href'] === $basePath . 'logout.php';
                             $isNotifLink  = str_contains($link['href'], 'notifications');
                             $cls = $isLogoutLink ? $logoutLinkClass : $navLinkClass;
                             ?>
-                            <a href="<?= htmlspecialchars($link['href']) ?>" class="<?= $cls ?>" style="display:inline-flex;align-items:center;gap:6px;">
+                            <a href="<?= htmlspecialchars($link['href']) ?>" class="<?= $cls ?>">
                                 <?php if ($isNotifLink): ?>
                                     Notifications
                                     <?php if (!empty($notificationCount) && $notificationCount > 0): ?>
@@ -875,87 +1028,43 @@ $basePath = '';
                 <span class="font-bold text-[#ff9800]">transparent hiring process</span> and fast application workflow.
             </p>
 
-            <div class="max-w-4xl mx-auto bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/60 p-4 md:p-6">
-                <form method="get" class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
-                    <div class="md:col-span-4">
-                        <div class="relative">
-                            <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" name="q" value="<?= htmlspecialchars($keyword) ?>"
-                                placeholder="Job title, company, keywords..."
-                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
+            <div class="max-w-6xl mx-auto">
+                <div class="hero-filter-shell">
+                    <form method="get" class="hero-filter-form">
+                        <div class="hero-filter-primary-row">
+                            <label class="hero-filter-field" for="hero-filter-keyword">
+                                <i class="fas fa-search hero-filter-icon"></i>
+                                <input
+                                    id="hero-filter-keyword"
+                                    type="text"
+                                    name="q"
+                                    value="<?= htmlspecialchars($keyword) ?>"
+                                    placeholder="Search by job title or keyword"
+                                    class="hero-filter-input">
+                            </label>
+
+                            <label class="hero-filter-field" for="hero-filter-location">
+                                <i class="fas fa-location-dot hero-filter-icon"></i>
+                                <input
+                                    id="hero-filter-location"
+                                    type="text"
+                                    name="location"
+                                    value="<?= htmlspecialchars($activeLocation) ?>"
+                                    placeholder="City or remote"
+                                    class="hero-filter-input">
+                            </label>
                         </div>
-                    </div>
-                    <div class="md:col-span-4">
-                        <div class="relative">
-                            <i class="fas fa-layer-group absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <select name="filter"
-                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
-                                <option value="" <?= $selectedCategory === '' ? 'selected' : '' ?>>All categories</option>
-                                <?php foreach ($categories as $cat): ?>
-                                    <option value="<?= htmlspecialchars($cat) ?>" <?= $selectedCategory === $cat ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($cat) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
+
+                        <div class="hero-filter-actions">
+                            <button type="submit" class="hero-filter-action hero-filter-action--primary">
+                                Search
+                            </button>
+                            <a href="<?= $basePath ?>index.php" class="hero-filter-action hero-filter-action--secondary">
+                                Clear Filters
+                            </a>
                         </div>
-                    </div>
-                    <div class="md:col-span-4">
-                        <div class="relative">
-                            <i class="fas fa-user-clock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <select name="experience"
-                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
-                                <option value="" <?= $selectedExperience === '' ? 'selected' : '' ?>>Any experience</option>
-                                <?php foreach ($experienceLevels as $level): ?>
-                                    <option value="<?= htmlspecialchars($level) ?>" <?= $selectedExperience === $level ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($level) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="md:col-span-4">
-                        <div class="relative">
-                            <i class="fas fa-map-marker-alt absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" name="location" value="<?= htmlspecialchars($activeLocation) ?>"
-                                placeholder="Location"
-                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
-                        </div>
-                    </div>
-                    <div class="md:col-span-4">
-                        <div class="relative">
-                            <i class="fas fa-money-bill-wave absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <input type="text" name="salary" value="<?= htmlspecialchars($activeSalary) ?>"
-                                placeholder="Salary or range"
-                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
-                        </div>
-                    </div>
-                    <div class="md:col-span-4">
-                        <div class="relative">
-                            <i class="fas fa-briefcase absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                            <select name="job_type"
-                                class="w-full rounded-xl border border-gray-200 py-3.5 pl-11 pr-4 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1a237e]/30">
-                                <option value="" <?= $selectedJobType === '' ? 'selected' : '' ?>>Any job type</option>
-                                <?php foreach ($jobTypes as $typeOption): ?>
-                                    <option value="<?= htmlspecialchars($typeOption) ?>" <?= $selectedJobType === $typeOption ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($typeOption) ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="md:col-span-4">
-                        <button type="submit"
-                            class="w-full px-6 py-3.5 bg-gradient-to-r from-[#1a237e] to-[#283593] text-white rounded-xl font-bold hover:opacity-90 transition shadow-md hover:shadow-lg">
-                            Search
-                        </button>
-                    </div>
-                    <div class="md:col-span-4">
-                        <a href="<?= $basePath ?>index.php"
-                            class="flex w-full items-center justify-center rounded-xl border border-gray-200 px-6 py-3.5 font-semibold text-gray-700 transition hover:bg-gray-50">
-                            Clear Filters
-                        </a>
-                    </div>
-                </form>
+                    </form>
+                </div>
             </div>
         </div>
     </section>

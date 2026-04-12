@@ -2,12 +2,15 @@
 // my-applications.php
 require 'db.php';
 require_role('jobseeker');
+
+update_expired_jobs($conn);
+
 $user_id = current_user_id() ?? 0;
 $bodyClass = 'user-ui';
 require 'header.php';
 
 $sql = "SELECT a.id, a.job_id, a.status, a.response_message, a.cover_letter, a.applied_at,
-               j.title, j.company, j.location, j.type
+               j.title, j.company, j.location, j.type, j.status AS job_status
          FROM applications a
          JOIN jobs j ON a.job_id = j.id
          WHERE a.user_id = ?
@@ -48,7 +51,17 @@ $stmt->close();
         padding: 24px;
         border-radius: 16px;
         background: #ffffff;
+        border: 1px solid #e2e8f0;
+        color: #0f172a;
         box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+    }
+
+    .message-modal-content h3,
+    .message-modal-content p,
+    .message-modal-content strong,
+    .message-modal-content span:not(.badge),
+    .message-modal-content div:not(.badge) {
+        color: inherit;
     }
 
     .message-modal-close {
@@ -70,10 +83,11 @@ $stmt->close();
 
     .message-modal-meta {
         margin-bottom: 10px;
+        color: #334155;
     }
 
     .message-modal-label {
-        color: #6c757d;
+        color: #475569;
     }
 
     .message-modal-text {
@@ -82,6 +96,7 @@ $stmt->close();
         border: 1px solid #e9ecef;
         border-radius: 10px;
         background: #f8f9fa;
+        color: #0f172a;
         white-space: pre-wrap;
         word-break: break-word;
     }
@@ -135,6 +150,9 @@ $stmt->close();
                     $responseMessage = trim((string)($app['response_message'] ?? ''));
                     $modalMessage = $responseMessage !== '' ? $responseMessage : 'No response from company yet.';
                     $modalMessageJson = htmlspecialchars(json_encode($modalMessage, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8');
+                    $jobStatus = strtolower(trim((string)($app['job_status'] ?? 'active')));
+                    $jobStatusLabel = job_status_label($jobStatus);
+                    $jobStatusBadgeClass = job_status_badge_class($jobStatus);
                     ?>
                     <td>
                         <a href="job-detail.php?id=<?= $app['job_id'] ?>" class="text-decoration-none">
@@ -145,6 +163,14 @@ $stmt->close();
                     <td><?= htmlspecialchars($app['location']) ?></td>
                     <td>
                         <span class="badge <?= $badge ?>"><?= htmlspecialchars($statusLabel) ?></span>
+                        <?php if ($jobStatus !== 'active'): ?>
+                            <div class="mt-2 small">
+                                <span class="text-muted">Job:</span>
+                                <span class="badge <?= htmlspecialchars($jobStatusBadgeClass) ?>">
+                                    <?= htmlspecialchars($jobStatusLabel) ?>
+                                </span>
+                            </div>
+                        <?php endif; ?>
                     </td>
                     <td><?= date('M d, Y', strtotime($app['applied_at'])) ?></td>
                     <td>

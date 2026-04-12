@@ -30,16 +30,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove_bookmark'])) {
     }
 }
 
-// Fetch bookmarked jobs
-$sql = "SELECT b.id AS bookmark_id, b.created_at AS bookmarked_at,
+$deadlineColumn = job_deadline_column($conn);
+$bookmarkSelect = "b.id AS bookmark_id, b.created_at AS bookmarked_at,
                j.id, j.title, j.company, j.location, j.type, j.category,
-               j.salary, j.created_at AS posted_at
+               j.salary, j.created_at, j.status, j.application_duration";
+if ($deadlineColumn !== null) {
+    $bookmarkSelect .= ", j.{$deadlineColumn}";
+}
+
+$sql = "SELECT {$bookmarkSelect}
         FROM bookmarks b
         JOIN jobs j ON b.job_id = j.id
         LEFT JOIN companies c ON j.company_id = c.id
         WHERE b.user_id = ?
-          AND j.status = 'active'
           AND j.is_approved = 1
+          AND j.status <> 'draft'
           AND (j.company_id IS NULL OR c.is_approved = 1)
         ORDER BY b.created_at DESC";
 
@@ -66,6 +71,12 @@ $stmt->close();
 <?php else: ?>
     <div class="row g-4">
         <?php foreach ($bookmarks as $job): ?>
+            <?php
+            $jobStatus = job_effective_status($job);
+            $jobStatusLabel = job_status_label($jobStatus);
+            $jobStatusBadgeClass = job_status_badge_class($jobStatus);
+            $isActiveJob = $jobStatus === 'active';
+            ?>
             <div class="col-md-6 col-lg-4">
                 <div class="card h-100 shadow-sm position-relative">
                     <div class="card-body d-flex flex-column">
@@ -76,12 +87,18 @@ $stmt->close();
                         </h5>
 
                         <p class="text-muted mb-2 small">
-                            <?= htmlspecialchars($job['company']) ?> • 
+                            <?= htmlspecialchars($job['company']) ?> &middot;
                             <?= htmlspecialchars($job['location']) ?>
-                            <span class="badge bg-light text-dark ms-2 border">
+                        </p>
+
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <span class="badge <?= htmlspecialchars($jobStatusBadgeClass) ?>">
+                                <?= htmlspecialchars($jobStatusLabel) ?>
+                            </span>
+                            <span class="badge bg-light text-dark border">
                                 <?= htmlspecialchars($job['type'] ?? 'Full-time') ?>
                             </span>
-                        </p>
+                        </div>
 
                         <?php $salaryText = jobhub_salary_display_value($job['salary'] ?? '', ''); ?>
                         <?php if ($salaryText !== ''): ?>
@@ -90,12 +107,18 @@ $stmt->close();
                             </p>
                         <?php endif; ?>
 
+                        <?php if (!$isActiveJob): ?>
+                            <p class="small text-muted mb-2">
+                                Applications are closed. This saved job remains available here for reference.
+                            </p>
+                        <?php endif; ?>
+
                         <p class="small text-muted mb-3">
                             Bookmarked <?= date('M d, Y', strtotime($job['bookmarked_at'])) ?>
                         </p>
 
                         <div class="mt-auto d-flex gap-2">
-                            <a href="job-detail.php?id=<?= $job['id'] ?>" 
+                            <a href="job-detail.php?id=<?= $job['id'] ?>"
                                class="btn btn-outline-primary btn-sm flex-grow-1">
                                 View Details
                             </a>

@@ -122,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+$bodyClass = 'user-ui';
 require '../header.php';
 ?>
 

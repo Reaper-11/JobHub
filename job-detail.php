@@ -12,11 +12,12 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $job_id = (int)$_GET['id'];
 
 $sql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count,
-               c.name AS company_name, c.logo_path, c.is_approved
+               c.name AS company_name, c.logo_path, c.is_approved,
+               c.website AS company_website, c.location AS company_location
         FROM jobs j
         LEFT JOIN companies c ON j.company_id = c.id
         WHERE j.id = ? 
-          AND j.status = 'active'
+          AND j.status <> 'draft'
           AND j.is_approved = 1
           AND (j.company_id IS NULL OR c.is_approved = 1)";
 
@@ -33,9 +34,6 @@ if (!$job) {
     require 'footer.php';
     exit;
 }
-
-$bodyClass = 'user-ui';
-require 'header.php';
 
 $is_expired = is_job_expired($job);
 $is_closed  = is_job_closed($job);
@@ -126,6 +124,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
             if ($already_bookmarked) {
                 $alert = "This job is already bookmarked.";
                 $alert_type = 'info';
+            } elseif ($is_inactive) {
+                $alert = "This job is no longer active and cannot be bookmarked.";
+                $alert_type = 'warning';
             } else {
                 $stmt = $conn->prepare("INSERT INTO bookmarks (user_id, job_id, created_at) VALUES (?, ?, NOW())");
                 $stmt->bind_param("ii", $user_id, $job_id);
@@ -141,140 +142,289 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
         }
     }
 }
+
+$company_name = trim((string)($job['company_name'] ?: $job['company'] ?: 'Company'));
+$location_display = trim((string)($job['location'] ?? '')) !== '' ? trim((string)$job['location']) : 'Not specified';
+$type_display = trim((string)($job['type'] ?? '')) !== '' ? trim((string)$job['type']) : 'Not specified';
+$category_display = trim((string)($job['category'] ?? '')) !== '' ? trim((string)$job['category']) : 'Not specified';
+$experience_display = trim((string)($job['experience_level'] ?? '')) !== '' ? trim((string)$job['experience_level']) : 'Not specified';
+$salary_display = jobhub_salary_display_value($job, 'Not specified');
+$posted_timestamp = !empty($job['created_at']) ? strtotime((string)$job['created_at']) : false;
+$date_posted_display = $posted_timestamp ? date('M d, Y', $posted_timestamp) : 'Not specified';
+$apply_by_timestamp = job_expiration_timestamp($job);
+$apply_by_display = $apply_by_timestamp ? date('M d, Y', $apply_by_timestamp) : 'Not specified';
+$company_location_display = trim((string)($job['company_location'] ?? '')) !== '' ? trim((string)$job['company_location']) : $location_display;
+$company_website = trim((string)($job['company_website'] ?? ''));
+$company_focus = $category_display !== 'Not specified'
+    ? $category_display
+    : ($type_display !== 'Not specified' ? $type_display : 'Hiring company');
+
+$status_label = 'Open';
+$status_note = 'Currently accepting applications.';
+if ($is_expired) {
+    $status_label = 'Expired';
+    $status_note = 'This job has passed its application window.';
+} elseif ($is_closed) {
+    $status_label = 'Closed';
+    $status_note = 'This role has been closed by the employer.';
+}
+
+$skill_tags = [];
+$skills_required_raw = trim((string)($job['skills_required'] ?? ''));
+if ($skills_required_raw !== '') {
+    $normalized_skills = str_replace(["\r\n", "\r", "\n", ";", "|"], ',', $skills_required_raw);
+    $normalized_skills = preg_replace('/\s*\/\s*/', ',', $normalized_skills);
+    $skill_parts = preg_split('/,/', (string)$normalized_skills);
+    $seen_skills = [];
+
+    foreach ($skill_parts as $skill_part) {
+        $skill = trim((string)preg_replace('/\s+/', ' ', (string)$skill_part));
+        if ($skill === '') {
+            continue;
+        }
+
+        $skill_key = strtolower($skill);
+        if (isset($seen_skills[$skill_key])) {
+            continue;
+        }
+
+        $seen_skills[$skill_key] = true;
+        $skill_tags[] = $skill;
+    }
+}
+
+$company_initials = '';
+$initial_chunks = preg_split('/[\s\-&]+/', $company_name, -1, PREG_SPLIT_NO_EMPTY);
+if (is_array($initial_chunks)) {
+    foreach ($initial_chunks as $chunk) {
+        $company_initials .= strtoupper(substr($chunk, 0, 1));
+        if (strlen($company_initials) >= 2) {
+            break;
+        }
+    }
+}
+if ($company_initials === '') {
+    $company_initials = strtoupper(substr($company_name !== '' ? $company_name : 'CO', 0, 2));
+}
+
+$pageTitle = trim((string)($job['title'] ?? '')) !== ''
+    ? trim((string)$job['title']) . ' | JobHub'
+    : 'Job Details | JobHub';
+$bodyClass = 'user-ui';
+require 'header.php';
 ?>
 
-<div class="row">
-    <div class="col-lg-8">
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h1 class="h3 mb-3"><?= htmlspecialchars($job['title']) ?></h1>
-                
-                <div class="d-flex align-items-center mb-4">
-                    <?php if (!empty($job['logo_path'])): ?>
-                        <img src="<?= htmlspecialchars($job['logo_path']) ?>" alt="Company logo" 
-                             class="rounded me-3" style="width:60px; height:60px; object-fit:contain; border:1px solid var(--border);">
-                    <?php endif; ?>
-                    <div>
-                        <h5 class="mb-1"><?= htmlspecialchars($job['company_name'] ?: $job['company']) ?></h5>
-                        <div class="text-muted">
-                            <?= htmlspecialchars($job['location'] ?: 'Not specified') ?> 
-                            <span class="badge bg-warning ms-2"><?= htmlspecialchars($job['type'] ?: 'Not specified') ?></span>
+<div class="job-detail-page">
+    <div class="job-detail-layout">
+        <div class="job-detail-main">
+            <section class="job-section job-hero">
+                <a href="index.php" class="job-back-link">Back to Listings</a>
+
+                <div class="job-hero-content">
+                    <div class="job-hero-copy">
+                        <h1><?= htmlspecialchars($job['title']) ?></h1>
+                        <div class="job-meta-row">
+                            <span class="job-company-name"><?= htmlspecialchars($company_name) ?></span>
+                            <span class="job-meta-separator" aria-hidden="true"></span>
+                            <span><?= htmlspecialchars($location_display) ?></span>
                         </div>
+                    </div>
+
+                    <div class="job-hero-actions">
+                        <span class="job-type-pill"><?= htmlspecialchars($type_display) ?></span>
+
+                        <?php if ($already_bookmarked): ?>
+                            <span class="job-bookmark-state">Bookmarked</span>
+                        <?php elseif ($is_inactive): ?>
+                            <span class="job-bookmark-state"><?= htmlspecialchars($status_label) ?></span>
+                        <?php elseif ($user_id): ?>
+                            <form method="post" class="job-bookmark-form">
+                                <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                <input type="hidden" name="bookmark" value="1">
+                                <button type="submit" class="job-bookmark-btn">Bookmark Job</button>
+                            </form>
+                        <?php elseif (!$user_id): ?>
+                            <a href="login.php" class="job-bookmark-btn job-bookmark-link">Sign In to Bookmark</a>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </section>
+
+            <?php if ($is_inactive): ?>
+                <div class="alert alert-warning job-detail-alert">
+                    <?php if ($is_expired): ?>
+                        This job has expired.
+                    <?php elseif ($is_closed): ?>
+                        This position has been closed by the employer.
+                    <?php else: ?>
+                        Applications are no longer being accepted.
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($alert): ?>
+                <div class="alert alert-<?= $alert_type ?> job-detail-alert"><?= htmlspecialchars($alert) ?></div>
+            <?php endif; ?>
+
+            <section class="job-stat-grid" aria-label="Job summary">
+                <article class="job-stat-card">
+                    <span class="job-stat-label">Salary</span>
+                    <strong class="job-stat-value"><?= htmlspecialchars($salary_display) ?></strong>
+                </article>
+                <article class="job-stat-card">
+                    <span class="job-stat-label">Category</span>
+                    <strong class="job-stat-value"><?= htmlspecialchars($category_display) ?></strong>
+                </article>
+                <article class="job-stat-card">
+                    <span class="job-stat-label">Date Posted</span>
+                    <strong class="job-stat-value"><?= htmlspecialchars($date_posted_display) ?></strong>
+                </article>
+            </section>
+
+            <section class="job-section">
+                <div class="job-section-header">
+                    <div>
+                        <h2>Job Description</h2>
+                        <p>Review the scope, expectations, and responsibilities for this role.</p>
+                    </div>
+                </div>
+                <div class="job-description-content"><?= nl2br(htmlspecialchars($job['description'])) ?></div>
+            </section>
+
+            <section class="job-section">
+                <div class="job-section-header">
+                    <div>
+                        <h2>Role Snapshot</h2>
+                        <p>Concise information to help you evaluate the opportunity.</p>
                     </div>
                 </div>
 
-                <?php if ($is_inactive): ?>
-                    <div class="alert alert-warning">
-                        <?php if ($is_expired): ?>
-                            This job has expired.
-                        <?php elseif ($is_closed): ?>
-                            This position has been closed by the employer.
+                <div class="role-detail-grid">
+                    <article class="role-detail-card">
+                        <span class="role-detail-label">Experience</span>
+                        <strong class="role-detail-value"><?= htmlspecialchars($experience_display) ?></strong>
+                    </article>
+
+                    <article class="role-detail-card">
+                        <span class="role-detail-label">Apply By</span>
+                        <strong class="role-detail-value"><?= htmlspecialchars($apply_by_display) ?></strong>
+                    </article>
+
+                    <article class="role-detail-card">
+                        <span class="role-detail-label">Status</span>
+                        <strong class="role-detail-value"><?= htmlspecialchars($status_label) ?></strong>
+                        <p class="role-detail-note"><?= htmlspecialchars($status_note) ?></p>
+                    </article>
+
+                    <article class="role-detail-card role-detail-card--skills">
+                        <span class="role-detail-label">Skills</span>
+                        <?php if ($skill_tags): ?>
+                            <div class="skill-tags">
+                                <?php foreach ($skill_tags as $skill_tag): ?>
+                                    <span class="skill-tag"><?= htmlspecialchars($skill_tag) ?></span>
+                                <?php endforeach; ?>
+                            </div>
                         <?php else: ?>
-                            Applications are no longer being accepted.
+                            <strong class="role-detail-value">Not specified</strong>
                         <?php endif; ?>
-                    </div>
-                <?php endif; ?>
-
-                <?php if ($alert): ?>
-                    <div class="alert alert-<?= $alert_type ?>"><?= htmlspecialchars($alert) ?></div>
-                <?php endif; ?>
-
-                <h5 class="mt-4 mb-3">Job Description</h5>
-                <div class="mb-4"><?= nl2br(htmlspecialchars($job['description'])) ?></div>
-
-                <h5 class="mb-3">Details</h5>
-                <dl class="row">
-                    <dt class="col-sm-4 text-muted">Location</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars($job['location'] ?: 'Not specified') ?></dd>
-
-                    <dt class="col-sm-4 text-muted">Job Type</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars($job['type'] ?: 'Not specified') ?></dd>
-
-                    <dt class="col-sm-4 text-muted">Salary</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars(jobhub_salary_display_value($job, 'Not specified')) ?></dd>
-
-                    <dt class="col-sm-4 text-muted">Category</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars($job['category'] ?: '-') ?></dd>
-
-                    <dt class="col-sm-4 text-muted">Experience</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars($job['experience_level'] ?: 'Not specified') ?></dd>
-
-                    <dt class="col-sm-4 text-muted">Required Skills</dt>
-                    <dd class="col-sm-8"><?= htmlspecialchars($job['skills_required'] ?: 'Not specified') ?></dd>
-
-                    <?php if (!empty($job['application_duration'])): ?>
-                    <dt class="col-sm-4 text-muted">Last Date to Apply</dt>
-                    <dd class="col-sm-8">
-                        <?= htmlspecialchars($job['application_duration']) ?>
-                        <?php if ($expires = job_expiration_timestamp($job['created_at'], $job['application_duration'])): ?>
-                            <small class="text-muted">(<?= date('M d, Y', $expires) ?>)</small>
-                        <?php endif; ?>
-                    </dd>
-                    <?php endif; ?>
-
-                    <dt class="col-sm-4 text-muted">Posted</dt>
-                    <dd class="col-sm-8"><?= date('M d, Y', strtotime($job['created_at'])) ?></dd>
-                </dl>
-            </div>
+                    </article>
+                </div>
+            </section>
         </div>
-    </div>
 
-    <div class="col-lg-4">
-        <div class="card shadow-sm sticky-top" style="top:20px;">
-            <div class="card-body text-center">
-                <h5 class="mb-4">Apply for this position</h5>
+        <aside class="job-sidebar">
+            <section class="job-sidebar-card">
+                <div class="job-sidebar-header">
+                    <h2>Apply Now</h2>
+                    <p>Use your saved profile and CV to submit a polished application.</p>
+                </div>
 
-                <?php if (!$user_id): ?>
-                    <p class="text-muted mb-4">
-                        Please <a href="login.php" class="text-primary">sign in</a> or 
-                        <a href="register.php" class="text-primary">create an account</a> 
-                        to apply or bookmark this job.
-                    </p>
+                <?php if ($already_applied): ?>
+                    <div class="alert alert-success mb-0">
+                        You have already applied for this job.
+                    </div>
                 <?php elseif ($is_inactive): ?>
-                    <div class="alert alert-warning small mb-0">
+                    <div class="alert alert-warning mb-0">
                         Applications closed
                     </div>
-                <?php elseif ($already_applied): ?>
-                    <div class="alert alert-success small mb-4">
-                        You have already applied for this job
+                <?php elseif (!$user_id): ?>
+                    <p class="job-sidebar-copy">
+                        Please sign in or create an account to apply and bookmark this opportunity.
+                    </p>
+                    <div class="job-auth-actions">
+                        <a href="login.php" class="btn btn-primary job-apply-btn">Sign In</a>
+                        <a href="register.php" class="job-secondary-btn">Create Account</a>
                     </div>
                 <?php elseif (empty($user_cv_path)): ?>
-                    <div class="alert alert-warning small text-start mb-3">
+                    <div class="alert alert-warning mb-3">
                         Please upload your CV in <a href="user-account.php" class="alert-link">your account</a> before applying.
                     </div>
+                    <a href="user-account.php" class="job-secondary-btn w-100 text-center">Manage CV</a>
                 <?php else: ?>
-                    <form method="post" class="mb-4">
+                    <form method="post" class="job-apply-form">
                         <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                         <input type="hidden" name="apply" value="1">
 
-                        <div class="small text-success mb-3">
+                        <div class="job-cv-note">
                             Your saved CV will be attached automatically to this application.
                         </div>
 
-                        <div class="mb-3">
-                            <textarea name="cover_letter" class="form-control" rows="5" 
-                                      placeholder="Why are you a good fit? (optional)"></textarea>
-                        </div>
+                        <label for="cover_letter" class="job-form-label">Cover Letter</label>
+                        <textarea
+                            id="cover_letter"
+                            name="cover_letter"
+                            class="form-control job-cover-letter"
+                            rows="5"
+                            placeholder="Highlight your relevant experience and interest in this role."></textarea>
 
-                        <button type="submit" class="btn btn-primary w-100 mb-2">
+                        <button type="submit" class="btn btn-primary job-apply-btn">
                             Submit Application
                         </button>
                     </form>
                 <?php endif; ?>
+            </section>
 
-                <?php if ($user_id && !$already_bookmarked && !$is_inactive): ?>
-                    <form method="post">
-                        <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                        <input type="hidden" name="bookmark" value="1">
-                        <button type="submit" class="btn btn-outline-secondary w-100">
-                            <?= $already_bookmarked ? 'Bookmarked' : 'Bookmark this job' ?>
-                        </button>
-                    </form>
-                <?php elseif ($already_bookmarked): ?>
-                    <div class="text-success small">Already bookmarked</div>
-                <?php endif; ?>
-            </div>
-        </div>
+            <section class="company-overview-card">
+                <div class="job-section-header company-overview-title">
+                    <div>
+                        <h2>Company Overview</h2>
+                    </div>
+                </div>
+
+                <div class="company-overview-header">
+                    <?php if (!empty($job['logo_path'])): ?>
+                        <img
+                            src="<?= htmlspecialchars($job['logo_path']) ?>"
+                            alt="<?= htmlspecialchars($company_name) ?> logo"
+                            class="company-overview-logo">
+                    <?php else: ?>
+                        <div class="company-overview-placeholder"><?= htmlspecialchars($company_initials) ?></div>
+                    <?php endif; ?>
+
+                    <div class="company-overview-copy">
+                        <h3><?= htmlspecialchars($company_name) ?></h3>
+                        <p><?= htmlspecialchars($company_focus) ?></p>
+                    </div>
+                </div>
+
+                <div class="company-overview-meta">
+                    <div class="company-overview-item">
+                        <span>Location</span>
+                        <strong><?= htmlspecialchars($company_location_display) ?></strong>
+                    </div>
+                    <div class="company-overview-item">
+                        <span>Hiring For</span>
+                        <strong><?= htmlspecialchars($type_display) ?></strong>
+                    </div>
+                    <?php if ($company_website !== ''): ?>
+                        <div class="company-overview-item">
+                            <span>Website</span>
+                            <strong><a href="<?= htmlspecialchars($company_website) ?>" target="_blank" rel="noopener noreferrer">Visit website</a></strong>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </section>
+        </aside>
     </div>
 </div>
 
