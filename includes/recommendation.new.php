@@ -141,7 +141,7 @@ function recommend_fetch_candidate_jobs($pdo, $userId, $jobColumns, $candidateDa
         LEFT JOIN skills s ON s.id = js.skill_id
         LEFT JOIN applications a ON a.job_id = j.id AND a.user_id = ?
         WHERE j.status = 'active'
-          AND (j.company_id IS NULL OR c.is_approved = 1)
+          AND (j.company_id IS NULL OR " . jobhub_company_public_job_clause('c') . ")
           AND j.is_approved = 1
           AND a.id IS NULL
           AND j.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
@@ -185,7 +185,7 @@ function recommend_fallback_jobs($pdo, $userId, $limit, $jobColumns): array {
         LEFT JOIN skills s ON s.id = js.skill_id
         LEFT JOIN applications a ON a.job_id = j.id AND a.user_id = ?
         WHERE j.status = 'active'
-          AND (j.company_id IS NULL OR c.is_approved = 1)
+          AND (j.company_id IS NULL OR " . jobhub_company_public_job_clause('c') . ")
           AND j.is_approved = 1
           AND a.id IS NULL
         GROUP BY j.id

@@ -26,6 +26,7 @@ if (!defined('JOBHUB_EMAIL_FROM_NAME')) {
 }
 
 require_once __DIR__ . '/includes/session.php';
+require_once __DIR__ . '/includes/company_verification_helper.php';
 require_once __DIR__ . '/includes/security.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
@@ -562,7 +563,7 @@ function jobhub_browse_jobs_query_parts(array $filters = []): array
     $normalizedFilters = jobhub_collect_job_filters($filters);
 
     $jobWhereClauses = [
-        "(j.company_id IS NULL OR c.is_approved = 1)",
+        "(j.company_id IS NULL OR " . jobhub_company_public_job_clause('c') . ")",
         "j.is_approved = 1",
         "j.status = 'active'",
     ];

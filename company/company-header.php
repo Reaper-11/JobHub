@@ -29,7 +29,7 @@ $verificationPopupNotification = $shouldAutoShowVerificationPopup
     : null;
 
 $stmt = $conn->prepare("
-    SELECT name, email, is_approved, rejection_reason, operational_state, restriction_reason, restricted_at,
+    SELECT name, email, is_approved, is_active, rejection_reason, operational_state, restriction_reason, restricted_at,
            verification_company_name, verification_registration_number, verification_phone,
            verification_address, verification_document_path, verification_status,
            verification_admin_remarks, verification_submitted_at, verification_verified_at
@@ -42,6 +42,7 @@ $company = $stmt->get_result()->fetch_assoc() ?? [
     'name' => 'Company',
     'email' => '',
     'is_approved' => 0,
+    'is_active' => 1,
     'rejection_reason' => null,
     'operational_state' => 'active',
     'restriction_reason' => null,
@@ -60,13 +61,14 @@ $stmt->close();
 
 $isApproved = (int) $company['is_approved'] === 1;
 $isRejected = (int) $company['is_approved'] === -1;
+$finalCompanyStatus = jobhub_company_final_status($company);
 $operationalState = $company['operational_state'] ?? 'active';
 $restrictionReason = $company['restriction_reason'] ?? '';
 $restrictedAt = $company['restricted_at'] ?? null;
 $rejectionReason = $company['rejection_reason'] ?? '';
 $verificationStatus = get_company_verification_status($company);
 $isVerified = is_company_verified($company);
-$canPostJobs = $isApproved && $operationalState === 'active' && $isVerified;
+$canPostJobs = jobhub_company_can_post_jobs($company);
 $authFlash = jobhub_take_auth_flash();
 
 $approvalBadge = $isApproved
@@ -76,8 +78,12 @@ $approvalBadge = $isApproved
 $stateBadge = match ($operationalState) {
     'on_hold' => '<span class="badge bg-warning text-dark">On Hold</span>',
     'suspended' => '<span class="badge bg-danger">Suspended</span>',
-    default => '<span class="badge bg-success">Active</span>',
+    default => '<span class="badge ' . company_final_status_badge_class($finalCompanyStatus) . '">' . company_final_status_label($finalCompanyStatus) . '</span>',
 };
+
+if ($finalCompanyStatus !== 'active') {
+    $stateBadge = '<span class="badge ' . company_final_status_badge_class($finalCompanyStatus) . '">' . company_final_status_label($finalCompanyStatus) . '</span>';
+}
 
 $verificationBadge = '<span class="badge ' . company_verification_badge_class($verificationStatus) . '">' .
     company_verification_label($verificationStatus) .

@@ -20,7 +20,12 @@ if ($status === 'approved' && $state !== 'all') {
     $where .= " AND operational_state = '" . $conn->real_escape_string($state) . "'";
 }
 
-$companies = db_query_all("SELECT * FROM companies WHERE $where ORDER BY created_at DESC");
+$companies = db_query_all("
+    SELECT c.*
+    FROM companies c
+    WHERE $where
+    ORDER BY c.created_at DESC
+");
 
 $msg = $msg_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -30,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     if ($id > 0 && in_array($action, ['approve','unapprove','reject','hold','suspend','activate'])) {
         $companyRow = null;
         $companyInfo = db_query_all("SELECT id, account_id, name, email FROM companies WHERE id = ? LIMIT 1", "i", [$id])[0] ?? null;
-        $checkStmt = $conn->prepare("SELECT is_approved, operational_state FROM companies WHERE id = ? LIMIT 1");
+        $checkStmt = $conn->prepare("SELECT is_approved, is_active, operational_state, verification_status FROM companies WHERE id = ? LIMIT 1");
         if ($checkStmt) {
             $checkStmt->bind_param("i", $id);
             $checkStmt->execute();
@@ -55,7 +60,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     $msg = "Rejection reason is required.";
                     $msg_type = 'danger';
                 } else {
-                    $stmt = $conn->prepare("UPDATE companies SET is_approved = -1, rejection_reason = ? WHERE id = ?");
+                    $stmt = $conn->prepare("
+                        UPDATE companies
+                        SET is_approved = -1,
+                            is_active = 0,
+                            rejection_reason = ?,
+                            operational_state = 'active',
+                            restriction_reason = NULL,
+                            restricted_at = NULL,
+                            restricted_by_admin_id = NULL,
+                            updated_at = NOW()
+                        WHERE id = ?
+                    ");
                     $accountStatus = 'inactive';
                     $mailAction = 'rejected';
                     if ($stmt) {
@@ -63,14 +79,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     }
                 }
             } elseif ($action === 'approve') {
-                $stmt = $conn->prepare("UPDATE companies SET is_approved = 1, rejection_reason = NULL, operational_state = 'active', restriction_reason = NULL, restricted_at = NULL, restricted_by_admin_id = NULL WHERE id = ?");
+                $stmt = $conn->prepare("
+                    UPDATE companies
+                    SET is_approved = 1,
+                        is_active = 1,
+                        rejection_reason = NULL,
+                        operational_state = 'active',
+                        restriction_reason = NULL,
+                        restricted_at = NULL,
+                        restricted_by_admin_id = NULL,
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
                 $accountStatus = 'active';
                 $mailAction = 'approved';
                 if ($stmt) {
                     $stmt->bind_param("i", $id);
                 }
             } elseif ($action === 'unapprove') {
-                $stmt = $conn->prepare("UPDATE companies SET is_approved = 0, rejection_reason = NULL WHERE id = ?");
+                $stmt = $conn->prepare("
+                    UPDATE companies
+                    SET is_approved = 0,
+                        is_active = 1,
+                        rejection_reason = NULL,
+                        updated_at = NOW()
+                    WHERE id = ?
+                ");
                 $accountStatus = 'active';
                 $mailAction = 'unapproved';
                 if ($stmt) {
@@ -129,17 +163,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 
                         if ($companyInfo) {
                             $companyName = $companyInfo['name'] ?? 'your company';
+                            $updatedCompany = db_query_all("
+                                SELECT is_approved, is_active, rejection_reason, operational_state, restriction_reason,
+                                       verification_status, verification_admin_remarks
+                                FROM companies
+                                WHERE id = ?
+                                LIMIT 1
+                            ", "i", [$id])[0] ?? null;
+                            $finalCompanyStatus = jobhub_company_final_status($updatedCompany);
+                            $canPostJobsNow = jobhub_company_can_post_jobs($updatedCompany);
                             $title = 'Company Status Update';
                             $message = "Your company status was updated.";
                             if ($action === 'approve') {
                                 $title = 'Company Approved';
-                                $message = "{$companyName} has been approved. You can now post jobs publicly.";
+                                $message = $canPostJobsNow
+                                    ? "{$companyName} has been approved and is now Active."
+                                    : "{$companyName} has been approved, but the account is " . company_final_status_label($finalCompanyStatus) . ". Job posting stays disabled until verification is completed.";
                             } elseif ($action === 'reject') {
                                 $title = 'Company Rejected';
                                 $message = "{$companyName} was rejected. Reason: {$reason}";
                             } elseif ($action === 'unapprove') {
                                 $title = 'Approval Removed';
-                                $message = "{$companyName} approval has been removed. Job postings are not visible until re-approved.";
+                                $message = "{$companyName} approval has been removed. The account is now Pending and job posting is disabled until re-approved and verified.";
                             } elseif ($action === 'hold') {
                                 $title = 'Account On Hold';
                                 $message = "{$companyName} has been put on hold. Reason: {$reason}";
@@ -148,7 +193,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                                 $message = "{$companyName} has been suspended. Reason: {$reason}";
                             } elseif ($action === 'activate') {
                                 $title = 'Account Activated';
-                                $message = "{$companyName} has been reactivated and is allowed to post jobs.";
+                                $message = $canPostJobsNow
+                                    ? "{$companyName} has been reactivated and is now Active."
+                                    : "{$companyName} has been reactivated, but the account remains " . company_final_status_label($finalCompanyStatus) . " until verification is completed.";
                             }
 
                             notify_create('company', $id, $title, $message, 'company-dashboard.php');
@@ -234,6 +281,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <th>Registered</th>
                 <th>Status</th>
                 <th>Account State</th>
+                <th>Verification</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -246,33 +294,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <td><?= date('Y-m-d', strtotime($c['created_at'])) ?></td>
                 <td>
                     <?php
-                    $statusText = match($c['is_approved']) {
-                        1 => '<span class="badge bg-success">Approved</span>',
-                        -1 => '<span class="badge bg-danger">Rejected</span>',
-                        default => '<span class="badge bg-warning">Pending</span>'
-                    };
-                    echo $statusText;
+                    $finalCompanyStatus = jobhub_company_final_status($c);
+                    echo '<span class="badge ' . company_final_status_badge_class($finalCompanyStatus) . '">' . company_final_status_label($finalCompanyStatus) . '</span>';
                     ?>
                 </td>
                 <td>
                     <?php
-                    $opState = $c['operational_state'] ?? 'active';
-                    $isApprovedRow = (int)$c['is_approved'] === 1;
-                    if ($isApprovedRow) {
+                    $opState = strtolower(trim((string)($c['operational_state'] ?? 'active')));
+                    if ((int)($c['is_active'] ?? 1) !== 1 && $finalCompanyStatus !== 'rejected') {
+                        $stateBadge = '<span class="badge bg-secondary">Inactive</span>';
+                    } elseif ($finalCompanyStatus !== 'active') {
+                        $stateBadge = '<span class="badge ' . company_final_status_badge_class($finalCompanyStatus) . '">' . company_final_status_label($finalCompanyStatus) . '</span>';
+                    } else {
                         $stateBadge = match($opState) {
                             'on_hold' => '<span class="badge bg-warning text-dark" data-bs-toggle="tooltip" data-bs-title="Approval remains valid, but job posting is temporarily disabled.">On Hold</span>',
                             'suspended' => '<span class="badge bg-danger" data-bs-toggle="tooltip" data-bs-title="Company is restricted due to violations or misuse.">Suspended</span>',
-                            default => '<span class="badge bg-success" data-bs-toggle="tooltip" data-bs-title="Company is approved and allowed to post jobs.">Active</span>',
-                        };
-                    } else {
-                        $stateBadge = match($opState) {
-                            'on_hold' => '<span class="badge bg-warning text-dark" data-bs-toggle="tooltip" data-bs-title="Company is not approved, so job posting is not allowed.">On Hold</span>',
-                            'suspended' => '<span class="badge bg-danger" data-bs-toggle="tooltip" data-bs-title="Company is not approved, so job posting is not allowed.">Suspended</span>',
-                            default => '<span class="badge bg-success" data-bs-toggle="tooltip" data-bs-title="Company is not approved, so job posting is not allowed.">Active</span>',
+                            default => '<span class="badge bg-success" data-bs-toggle="tooltip" data-bs-title="Company is approved, verified, and allowed to post jobs.">Active</span>',
                         };
                     }
                     echo $stateBadge;
                     ?>
+                </td>
+                <td>
+                    <?php
+                    $verificationStatus = get_company_verification_status($c);
+                    $hasVerificationDocument = trim((string)($c['verification_document_path'] ?? '')) !== '';
+                    ?>
+                    <span class="badge <?= company_verification_badge_class($verificationStatus) ?>">
+                        <?= company_verification_label($verificationStatus) ?>
+                    </span>
+                    <?php if ($hasVerificationDocument): ?>
+                        <div class="mt-2">
+                            <a href="company-verification-view.php?id=<?= (int)$c['id'] ?>" class="btn btn-outline-primary btn-sm">View Docs</a>
+                        </div>
+                    <?php endif; ?>
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm">
@@ -421,7 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             </tr>
         <?php endforeach; ?>
         <?php if (empty($companies)): ?>
-            <tr><td colspan="7" class="text-center py-4">No companies found in this status.</td></tr>
+            <tr><td colspan="8" class="text-center py-4">No companies found in this status.</td></tr>
         <?php endif; ?>
         </tbody>
     </table>

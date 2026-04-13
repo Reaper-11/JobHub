@@ -151,7 +151,7 @@ $locationRows = db_query_all(
     "SELECT DISTINCT TRIM(j.location) AS location
      FROM jobs j
      LEFT JOIN companies c ON j.company_id = c.id
-     WHERE (j.company_id IS NULL OR c.is_approved = 1)
+     WHERE (j.company_id IS NULL OR " . jobhub_company_public_job_clause('c') . ")
        AND j.is_approved = 1
        AND j.status = 'active'
        AND j.location IS NOT NULL
@@ -184,7 +184,7 @@ require 'header.php';
         <div class="browse-jobs-hero-copy">
             <span class="browse-jobs-eyebrow">Career Opportunities</span>
             <h1>Browse Jobs</h1>
-            <p>Find your next career move among active listings from approved employers.</p>
+            <p>Find your next career move among active listings from active employers.</p>
         </div>
         <div class="browse-jobs-hero-badge">
             <span class="browse-jobs-hero-badge__label">Active listings</span>

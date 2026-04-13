@@ -39,22 +39,32 @@ $recentJobs = db_query_all("
 
 <?php require 'company-header.php'; ?>
 
-<?php if (!$isApproved): ?>
+<?php if ($finalCompanyStatus === 'rejected'): ?>
+    <div class="alert alert-danger pending-banner">
+        <strong>Your company account is rejected.</strong><br>
+        Rejected companies cannot post jobs and remain non-active until admin re-approves them.
+        <?php if (!empty($rejectionReason)): ?>
+            <br><strong>Reason:</strong> <?= htmlspecialchars($rejectionReason) ?>
+        <?php endif; ?>
+    </div>
+<?php elseif ($finalCompanyStatus === 'pending'): ?>
     <div class="alert alert-warning pending-banner">
         <strong>Your company account is awaiting approval.</strong><br>
         In the meantime, please submit your verification details in the <a href="company-verification.php">Company Verification</a> section to speed up the process and access all features.
-        <?php if (!empty($rejectionReason)): ?>
-            <br><strong>Previous rejection reason:</strong> <?= htmlspecialchars($rejectionReason) ?>
-        <?php endif; ?>
     </div>
-<?php elseif (!$isVerified): ?>
+<?php elseif ($finalCompanyStatus === 'approved_incomplete'): ?>
     <div class="alert alert-warning pending-banner">
-        <strong>Your company is not verified for job posting.</strong><br>
-        Submit your verification details before posting a new job.
+        <strong>Your company is approved, but verification is incomplete.</strong><br>
+        Submit or complete company verification before posting a new job.
         <?php if ($verificationStatus === 'rejected' && !empty($company['verification_admin_remarks'])): ?>
             <br><strong>Admin remarks:</strong> <?= htmlspecialchars($company['verification_admin_remarks']) ?>
         <?php endif; ?>
         <br><a href="company-verification.php" class="alert-link">Open company verification</a>
+    </div>
+<?php elseif ((int)($company['is_active'] ?? 1) !== 1): ?>
+    <div class="alert alert-danger pending-banner">
+        <strong>Your company account is inactive.</strong><br>
+        Please contact admin for access to posting features.
     </div>
 <?php elseif ($operationalState === 'on_hold'): ?>
     <div class="alert alert-warning pending-banner">

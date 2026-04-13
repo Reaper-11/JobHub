@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/company_verification_helper.php';
+
 require_once __DIR__ . '/session.php';
 
 if (!function_exists('jobhub_table_exists')) {
@@ -522,10 +524,6 @@ if (!function_exists('jobhub_account_status_message')) {
                 return 'Your company profile is unavailable.';
             }
 
-            if ((int) ($account['company_is_active'] ?? 1) !== 1) {
-                return 'Your company account is inactive. Please contact admin.';
-            }
-
             if ((int) ($account['company_is_approved'] ?? 0) === -1) {
                 $message = 'Your company account has been rejected by admin.';
                 $reason = trim((string) ($account['company_rejection_reason'] ?? ''));
@@ -534,6 +532,10 @@ if (!function_exists('jobhub_account_status_message')) {
                 }
 
                 return $message;
+            }
+
+            if ((int) ($account['company_is_active'] ?? 1) !== 1) {
+                return 'Your company account is inactive. Please contact admin.';
             }
         } elseif ($role === 'admin') {
             if ((int) ($account['admin_profile_id'] ?? 0) <= 0) {

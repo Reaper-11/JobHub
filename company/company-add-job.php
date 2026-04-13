@@ -57,7 +57,8 @@ $deadlineColumn = job_deadline_column($conn);
 $hasDeadlineColumn = $deadlineColumn !== null;
 
 $statusStmt = $conn->prepare("
-    SELECT name, is_approved, operational_state, restriction_reason, verification_status
+    SELECT name, is_approved, is_active, rejection_reason, operational_state, restriction_reason,
+           verification_status, verification_admin_remarks
     FROM companies
     WHERE id = ?
     LIMIT 1
@@ -65,9 +66,12 @@ $statusStmt = $conn->prepare("
 $companyStatus = [
     'name' => $_SESSION['company_name'] ?? 'Company',
     'is_approved' => 0,
+    'is_active' => 1,
+    'rejection_reason' => null,
     'operational_state' => 'active',
     'restriction_reason' => null,
     'verification_status' => null,
+    'verification_admin_remarks' => null,
 ];
 if ($statusStmt) {
     $statusStmt->bind_param("i", $cid);
@@ -84,23 +88,12 @@ if ($companyName === '') {
 $isApproved = (int) ($companyStatus['is_approved'] ?? 0) === 1;
 $operationalState = $companyStatus['operational_state'] ?? 'active';
 $restrictionReason = trim((string) ($companyStatus['restriction_reason'] ?? ''));
+$finalCompanyStatus = jobhub_company_final_status($companyStatus);
 $verificationStatus = get_company_verification_status($companyStatus);
 $isVerified = is_company_verified($companyStatus);
-$canPostJobs = $isApproved && $operationalState === 'active' && $isVerified;
+$canPostJobs = jobhub_company_can_post_jobs($companyStatus);
 
-$blockMsg = '';
-if (!$isApproved) {
-    $blockMsg = "Your company is not approved yet. You cannot post jobs until approval.";
-} elseif (!$isVerified) {
-    $blockMsg = "Your company account must be verified by admin before posting jobs.";
-} elseif ($operationalState === 'on_hold') {
-    $blockMsg = "Your company is currently on hold. Please contact support or wait for admin review.";
-} elseif ($operationalState === 'suspended') {
-    $blockMsg = "Your company account is suspended due to policy violations.";
-}
-if ($blockMsg !== '' && $restrictionReason !== '') {
-    $blockMsg .= " Reason: " . $restrictionReason;
-}
+$blockMsg = jobhub_company_posting_block_message($companyStatus);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
     $formData = [
@@ -323,7 +316,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
 <?php if ($blockMsg): ?>
     <div class="alert alert-danger">
         <?= htmlspecialchars($blockMsg) ?>
-        <?php if (!$isVerified): ?>
+        <?php if ($finalCompanyStatus !== 'rejected' && !$isVerified): ?>
             <br><a href="company-verification.php" class="alert-link">Submit company verification</a>
         <?php endif; ?>
     </div>

@@ -19,7 +19,7 @@ $sql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count,
         WHERE j.id = ? 
           AND j.status <> 'draft'
           AND j.is_approved = 1
-          AND (j.company_id IS NULL OR c.is_approved = 1)";
+          AND (j.company_id IS NULL OR " . jobhub_company_public_job_clause('c') . ")";
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param("i", $job_id);

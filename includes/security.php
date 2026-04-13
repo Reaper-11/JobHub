@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/company_verification_helper.php';
+
 function jobhub_validate_password_strength(string $password): ?string
 {
     if (strlen($password) < 8) {
@@ -193,12 +195,12 @@ function jobhub_company_session_status(mysqli $conn, int $companyId): string
         return 'removed';
     }
 
-    if ((int)($row['is_active'] ?? 1) !== 1) {
-        return 'inactive';
-    }
-
     if ((int)($row['is_approved'] ?? 0) === -1) {
         return 'rejected';
+    }
+
+    if ((int)($row['is_active'] ?? 1) !== 1) {
+        return 'inactive';
     }
 
     return 'active';

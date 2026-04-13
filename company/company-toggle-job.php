@@ -17,6 +17,19 @@ $requestedStatus = strtolower(trim((string)($_POST['status'] ?? '')));
 if ($jobId > 0 && in_array($requestedStatus, ['active', 'closed'], true)) {
     update_expired_jobs($conn, $cid, $jobId);
 
+    $companyStatus = db_query_all("
+        SELECT is_approved, is_active, rejection_reason, operational_state, restriction_reason,
+               verification_status, verification_admin_remarks
+        FROM companies
+        WHERE id = ?
+        LIMIT 1
+    ", "i", [$cid])[0] ?? null;
+
+    if ($requestedStatus === 'active' && !jobhub_company_can_post_jobs($companyStatus)) {
+        header("Location: company-my-jobs.php");
+        exit;
+    }
+
     $deadlineColumn = job_deadline_column($conn);
     $selectColumns = "id, status, application_duration, created_at";
     if ($deadlineColumn !== null) {
