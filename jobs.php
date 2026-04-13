@@ -83,6 +83,16 @@ if (!function_exists('jobhub_browse_jobs_posted_label')) {
     }
 }
 
+if (!function_exists('jobhub_browse_jobs_page_url')) {
+    function jobhub_browse_jobs_page_url(array $params, int $pageNumber): string
+    {
+        $params['page'] = $pageNumber;
+        $queryString = http_build_query($params);
+
+        return 'jobs.php' . ($queryString !== '' ? '?' . $queryString : '');
+    }
+}
+
 $filters = jobhub_collect_job_filters();
 $keyword = $filters['keyword'];
 $activeLocation = $filters['activeLocation'];
@@ -103,11 +113,39 @@ if (!array_key_exists($activeSort, $sortOptions)) {
     $activeSort = 'newest';
 }
 
+$page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($page < 1) {
+    $page = 1;
+}
+
+$limit = 20;
+
 jobhub_log_job_search($conn, current_user_id(), $filters);
 
 $sortKey = $activeSort === 'oldest' ? 'oldest' : 'latest';
-$jobs = jobhub_fetch_browse_jobs($filters, null, $sortKey);
+$totalJobs = jobhub_count_browse_jobs($filters);
+$totalPages = $totalJobs > 0 ? (int) ceil($totalJobs / $limit) : 0;
+
+if ($totalPages > 0 && $page > $totalPages) {
+    $page = $totalPages;
+}
+
+$offset = ($page - 1) * $limit;
+$jobs = jobhub_fetch_browse_jobs($filters, $limit, $sortKey, $offset);
 $jobsCount = count($jobs);
+$resultsStart = $totalJobs > 0 ? ($offset + 1) : 0;
+$resultsEnd = $totalJobs > 0 ? ($offset + $jobsCount) : 0;
+$paginationParams = array_filter(
+    $_GET,
+    static function ($value): bool {
+        if (is_array($value)) {
+            return !empty($value);
+        }
+
+        return $value !== '' && $value !== null;
+    }
+);
+unset($paginationParams['page']);
 
 $locationRows = db_query_all(
     "SELECT DISTINCT TRIM(j.location) AS location
@@ -150,7 +188,7 @@ require 'header.php';
         </div>
         <div class="browse-jobs-hero-badge">
             <span class="browse-jobs-hero-badge__label">Active listings</span>
-            <strong><?= (int)$jobsCount ?></strong>
+            <strong><?= (int)$totalJobs ?></strong>
         </div>
     </section>
 
@@ -244,7 +282,13 @@ require 'header.php';
                                     : 'Showing approved active roles that are open right now.' ?>
                             </p>
                         </div>
-                        <span class="jobs-results-count"><?= (int)$jobsCount ?> result<?= $jobsCount === 1 ? '' : 's' ?></span>
+                        <span class="jobs-results-count">
+                            <?php if ($totalJobs > 0): ?>
+                                Showing <?= (int)$resultsStart ?>-<?= (int)$resultsEnd ?> of <?= (int)$totalJobs ?>
+                            <?php else: ?>
+                                0 results
+                            <?php endif; ?>
+                        </span>
                     </div>
                 </div>
 
@@ -310,6 +354,29 @@ require 'header.php';
                             </article>
                         <?php endforeach; ?>
                     </div>
+
+                    <?php if ($totalPages > 1): ?>
+                        <nav class="jobs-pagination" aria-label="Browse jobs pagination">
+                            <div class="jobs-pagination-list">
+                                <?php if ($page > 1): ?>
+                                    <a href="<?= htmlspecialchars(jobhub_browse_jobs_page_url($paginationParams, $page - 1)) ?>" class="jobs-page-link prev-link">Previous</a>
+                                <?php endif; ?>
+
+                                <?php for ($pageNumber = 1; $pageNumber <= $totalPages; $pageNumber++): ?>
+                                    <a
+                                        href="<?= htmlspecialchars(jobhub_browse_jobs_page_url($paginationParams, $pageNumber)) ?>"
+                                        class="jobs-page-link<?= $pageNumber === $page ? ' active' : '' ?>"
+                                        <?= $pageNumber === $page ? 'aria-current="page"' : '' ?>>
+                                        <?= (int)$pageNumber ?>
+                                    </a>
+                                <?php endfor; ?>
+
+                                <?php if ($page < $totalPages): ?>
+                                    <a href="<?= htmlspecialchars(jobhub_browse_jobs_page_url($paginationParams, $page + 1)) ?>" class="jobs-page-link next-link">Next</a>
+                                <?php endif; ?>
+                            </div>
+                        </nav>
+                    <?php endif; ?>
                 <?php endif; ?>
             </section>
         </div>

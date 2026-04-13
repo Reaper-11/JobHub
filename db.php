@@ -557,12 +557,9 @@ function jobhub_popularity_sources(mysqli $conn): array
     return $cache[$cacheKey];
 }
 
-function jobhub_fetch_browse_jobs(array $filters = [], ?int $limit = null, string $sort = 'latest'): array
+function jobhub_browse_jobs_query_parts(array $filters = []): array
 {
-    global $conn;
-
     $normalizedFilters = jobhub_collect_job_filters($filters);
-    $popularitySources = jobhub_popularity_sources($conn);
 
     $jobWhereClauses = [
         "(j.company_id IS NULL OR c.is_approved = 1)",
@@ -619,6 +616,34 @@ function jobhub_fetch_browse_jobs(array $filters = [], ?int $limit = null, strin
         $jobBindParams[] = $normalizedFilters['selectedJobType'];
     }
 
+    return [
+        'filters' => $normalizedFilters,
+        'where_clauses' => $jobWhereClauses,
+        'bind_types' => $jobBindTypes,
+        'bind_params' => $jobBindParams,
+    ];
+}
+
+function jobhub_count_browse_jobs(array $filters = []): int
+{
+    $queryParts = jobhub_browse_jobs_query_parts($filters);
+    $countSql = "SELECT COUNT(*)
+        FROM jobs j
+        LEFT JOIN companies c ON j.company_id = c.id
+        WHERE " . implode(' AND ', $queryParts['where_clauses']);
+
+    return (int) db_query_value($countSql, $queryParts['bind_types'], $queryParts['bind_params'], 0);
+}
+
+function jobhub_fetch_browse_jobs(array $filters = [], ?int $limit = null, string $sort = 'latest', int $offset = 0): array
+{
+    global $conn;
+
+    $queryParts = jobhub_browse_jobs_query_parts($filters);
+    $popularitySources = jobhub_popularity_sources($conn);
+    $jobBindTypes = $queryParts['bind_types'];
+    $jobBindParams = $queryParts['bind_params'];
+
     $jobsSql = "SELECT j.*,
             {$popularitySources['application_expression']} AS application_count,
             {$popularitySources['view_expression']} AS view_count
@@ -630,7 +655,7 @@ function jobhub_fetch_browse_jobs(array $filters = [], ?int $limit = null, strin
     }
 
     $jobsSql .= "
-        WHERE " . implode(' AND ', $jobWhereClauses);
+        WHERE " . implode(' AND ', $queryParts['where_clauses']);
 
     if ($sort === 'popular') {
         $jobsSql .= " ORDER BY application_count DESC, view_count DESC, j.created_at DESC, j.id DESC";
@@ -641,7 +666,10 @@ function jobhub_fetch_browse_jobs(array $filters = [], ?int $limit = null, strin
     }
 
     if ($limit !== null && $limit > 0) {
-        $jobsSql .= " LIMIT " . (int)$limit;
+        $jobsSql .= " LIMIT ? OFFSET ?";
+        $jobBindTypes .= 'ii';
+        $jobBindParams[] = (int)$limit;
+        $jobBindParams[] = max(0, $offset);
     }
 
     return db_query_all($jobsSql, $jobBindTypes, $jobBindParams);
