@@ -136,6 +136,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                         $jobId
                     );
 
+                    $companyId = (int) ($job['company_id'] ?? 0);
+                    if ($companyId > 0) {
+                        $notificationTitle = $action === 'approve'
+                            ? 'Job Approved'
+                            : 'Job Rejected';
+                        $notificationMessage = $action === 'approve'
+                            ? 'Your job "' . ($job['title'] ?? 'Job') . '" has been approved by admin.'
+                            : 'Your job "' . ($job['title'] ?? 'Job') . '" has been rejected by admin.';
+
+                        if ($action === 'approve' && $nextStatus !== 'active') {
+                            $publishNote = $nextStatus === 'expired'
+                                ? ' The job is approved, but it is already expired and is not active.'
+                                : ' The job is approved, but its current status is ' . job_status_label($nextStatus) . '.';
+                            $notificationMessage .= $publishNote;
+                        }
+
+                        if ($remarks !== '') {
+                            $notificationMessage .= "\n\nAdmin remarks: " . $remarks;
+                        }
+
+                        notify_create(
+                            'company',
+                            $companyId,
+                            $notificationTitle,
+                            $notificationMessage,
+                            'company-my-jobs.php',
+                            $action === 'approve' ? 'success' : 'danger',
+                            'job',
+                            $jobId
+                        );
+                    }
+
                     $companyEmail = trim((string) ($job['company_email'] ?? ''));
                     if ($companyEmail !== '') {
                         $jobMailAction = $action === 'approve' ? 'approved' : 'rejected';

@@ -383,6 +383,270 @@ if (!function_exists('updateExpiredJobs')) {
     }
 }
 
+function jobhub_job_filter_options(): array
+{
+    static $options = null;
+
+    if ($options !== null) {
+        return $options;
+    }
+
+    $options = [
+        'categories' => require __DIR__ . '/includes/categories.php',
+        'experienceLevels' => require __DIR__ . '/includes/experience_levels.php',
+        'jobTypes' => require __DIR__ . '/includes/job_types.php',
+    ];
+
+    return $options;
+}
+
+function jobhub_collect_job_filters(?array $source = null): array
+{
+    $source = $source ?? $_GET;
+    $options = jobhub_job_filter_options();
+
+    $keyword = trim((string)($source['q'] ?? ''));
+    $location = trim((string)($source['location'] ?? ''));
+    $salary = trim((string)($source['salary'] ?? ''));
+    $jobTypeInput = trim((string)($source['job_type'] ?? ''));
+    $experienceInput = trim((string)($source['experience'] ?? ''));
+    $categoryInput = trim((string)($source['filter'] ?? ($source['category'] ?? '')));
+
+    $selectedCategory = in_array($categoryInput, $options['categories'], true) ? $categoryInput : '';
+    $selectedExperience = in_array($experienceInput, $options['experienceLevels'], true) ? $experienceInput : '';
+    $selectedJobType = in_array($jobTypeInput, $options['jobTypes'], true) ? $jobTypeInput : '';
+    $activeLocation = $location !== '' ? $location : '';
+    $activeSalary = $salary !== '' ? $salary : '';
+
+    return [
+        'q' => $keyword,
+        'keyword' => $keyword,
+        'filter' => $selectedCategory,
+        'category' => $selectedCategory,
+        'location' => $activeLocation,
+        'salary' => $activeSalary,
+        'job_type' => $selectedJobType,
+        'experience' => $selectedExperience,
+        'selectedCategory' => $selectedCategory,
+        'selectedExperience' => $selectedExperience,
+        'selectedJobType' => $selectedJobType,
+        'activeLocation' => $activeLocation,
+        'activeSalary' => $activeSalary,
+        'isFilterActive' => (
+            $keyword !== '' ||
+            $selectedCategory !== '' ||
+            $selectedExperience !== '' ||
+            $activeLocation !== '' ||
+            $activeSalary !== '' ||
+            $selectedJobType !== ''
+        ),
+        'categories' => $options['categories'],
+        'experienceLevels' => $options['experienceLevels'],
+        'jobTypes' => $options['jobTypes'],
+    ];
+}
+
+function jobhub_log_job_search(mysqli $conn, ?int $userId, array $filters): void
+{
+    if ($userId === null || empty($filters['isFilterActive'])) {
+        return;
+    }
+
+    $hasSearchLogsTable = $conn->query("SHOW TABLES LIKE 'job_search_logs'");
+    if (!$hasSearchLogsTable || $hasSearchLogsTable->num_rows === 0) {
+        if ($hasSearchLogsTable) {
+            $hasSearchLogsTable->close();
+        }
+        return;
+    }
+
+    $hasJobTypeColumn = false;
+    $logJobTypeColumn = $conn->query("SHOW COLUMNS FROM job_search_logs LIKE 'job_type'");
+    if ($logJobTypeColumn) {
+        $hasJobTypeColumn = $logJobTypeColumn->num_rows > 0;
+        $logJobTypeColumn->close();
+    }
+
+    $logColumns = ['user_id', 'keyword', 'category', 'location'];
+    $logValues = ['?', '?', '?', '?'];
+    $logTypes = 'isss';
+    $logParams = [
+        $userId,
+        ($filters['keyword'] ?? '') !== '' ? $filters['keyword'] : null,
+        ($filters['selectedCategory'] ?? '') !== '' ? $filters['selectedCategory'] : null,
+        ($filters['activeLocation'] ?? '') !== '' ? $filters['activeLocation'] : null,
+    ];
+
+    if ($hasJobTypeColumn) {
+        $logColumns[] = 'job_type';
+        $logValues[] = '?';
+        $logTypes .= 's';
+        $logParams[] = ($filters['selectedJobType'] ?? '') !== '' ? $filters['selectedJobType'] : null;
+    }
+
+    $logColumns[] = 'created_at';
+    $logValues[] = 'NOW()';
+
+    $logStmt = $conn->prepare("
+        INSERT INTO job_search_logs (" . implode(', ', $logColumns) . ")
+        VALUES (" . implode(', ', $logValues) . ")
+    ");
+
+    if ($logStmt) {
+        $logStmt->bind_param($logTypes, ...$logParams);
+        $logStmt->execute();
+        $logStmt->close();
+    }
+
+    $hasSearchLogsTable->close();
+}
+
+function jobhub_popularity_sources(mysqli $conn): array
+{
+    static $cache = [];
+
+    $cacheKey = (string) $conn->thread_id;
+    if (isset($cache[$cacheKey])) {
+        return $cache[$cacheKey];
+    }
+
+    $joinClauses = [];
+    $applicationExpression = jobhub_column_exists($conn, 'jobs', 'application_count')
+        ? 'COALESCE(j.application_count, 0)'
+        : '0';
+    $viewExpression = '0';
+
+    if (jobhub_table_exists($conn, 'applications') && jobhub_column_exists($conn, 'applications', 'job_id')) {
+        $joinClauses[] = "
+        LEFT JOIN (
+            SELECT a.job_id, COUNT(*) AS application_count
+            FROM applications a
+            GROUP BY a.job_id
+        ) AS application_stats ON application_stats.job_id = j.id";
+        $applicationExpression = "COALESCE(application_stats.application_count, {$applicationExpression})";
+    }
+
+    if (jobhub_column_exists($conn, 'jobs', 'view_count')) {
+        $viewExpression = 'COALESCE(j.view_count, 0)';
+    } elseif (jobhub_column_exists($conn, 'jobs', 'views')) {
+        $viewExpression = 'COALESCE(j.views, 0)';
+    } elseif (jobhub_table_exists($conn, 'job_view_logs') && jobhub_column_exists($conn, 'job_view_logs', 'job_id')) {
+        $joinClauses[] = "
+        LEFT JOIN (
+            SELECT v.job_id, COUNT(*) AS view_count
+            FROM job_view_logs v
+            GROUP BY v.job_id
+        ) AS view_stats ON view_stats.job_id = j.id";
+        $viewExpression = 'COALESCE(view_stats.view_count, 0)';
+    } elseif (jobhub_table_exists($conn, 'job_views') && jobhub_column_exists($conn, 'job_views', 'job_id')) {
+        $joinClauses[] = "
+        LEFT JOIN (
+            SELECT v.job_id, COUNT(*) AS view_count
+            FROM job_views v
+            GROUP BY v.job_id
+        ) AS view_stats ON view_stats.job_id = j.id";
+        $viewExpression = 'COALESCE(view_stats.view_count, 0)';
+    }
+
+    $cache[$cacheKey] = [
+        'joins' => $joinClauses,
+        'application_expression' => $applicationExpression,
+        'view_expression' => $viewExpression,
+    ];
+
+    return $cache[$cacheKey];
+}
+
+function jobhub_fetch_browse_jobs(array $filters = [], ?int $limit = null, string $sort = 'latest'): array
+{
+    global $conn;
+
+    $normalizedFilters = jobhub_collect_job_filters($filters);
+    $popularitySources = jobhub_popularity_sources($conn);
+
+    $jobWhereClauses = [
+        "(j.company_id IS NULL OR c.is_approved = 1)",
+        "j.is_approved = 1",
+        "j.status = 'active'",
+    ];
+    $jobBindTypes = '';
+    $jobBindParams = [];
+
+    if ($normalizedFilters['keyword'] !== '') {
+        $keywordLike = '%' . $normalizedFilters['keyword'] . '%';
+        $jobWhereClauses[] = "(j.title LIKE ? OR j.description LIKE ? OR j.company LIKE ? OR j.category LIKE ? OR j.location LIKE ? OR j.type LIKE ? OR j.experience_level LIKE ? OR j.skills_required LIKE ?)";
+        $jobBindTypes .= 'ssssssss';
+        array_push(
+            $jobBindParams,
+            $keywordLike,
+            $keywordLike,
+            $keywordLike,
+            $keywordLike,
+            $keywordLike,
+            $keywordLike,
+            $keywordLike,
+            $keywordLike
+        );
+    }
+
+    if ($normalizedFilters['selectedCategory'] !== '') {
+        $jobWhereClauses[] = "j.category = ?";
+        $jobBindTypes .= 's';
+        $jobBindParams[] = $normalizedFilters['selectedCategory'];
+    }
+
+    if ($normalizedFilters['selectedExperience'] !== '') {
+        $jobWhereClauses[] = "j.experience_level = ?";
+        $jobBindTypes .= 's';
+        $jobBindParams[] = $normalizedFilters['selectedExperience'];
+    }
+
+    if ($normalizedFilters['activeLocation'] !== '') {
+        $jobWhereClauses[] = "j.location LIKE ?";
+        $jobBindTypes .= 's';
+        $jobBindParams[] = '%' . $normalizedFilters['activeLocation'] . '%';
+    }
+
+    if ($normalizedFilters['activeSalary'] !== '') {
+        $jobWhereClauses[] = "j.salary LIKE ?";
+        $jobBindTypes .= 's';
+        $jobBindParams[] = '%' . $normalizedFilters['activeSalary'] . '%';
+    }
+
+    if ($normalizedFilters['selectedJobType'] !== '') {
+        $jobWhereClauses[] = "j.type = ?";
+        $jobBindTypes .= 's';
+        $jobBindParams[] = $normalizedFilters['selectedJobType'];
+    }
+
+    $jobsSql = "SELECT j.*,
+            {$popularitySources['application_expression']} AS application_count,
+            {$popularitySources['view_expression']} AS view_count
+        FROM jobs j
+        LEFT JOIN companies c ON j.company_id = c.id";
+
+    if (!empty($popularitySources['joins'])) {
+        $jobsSql .= implode('', $popularitySources['joins']);
+    }
+
+    $jobsSql .= "
+        WHERE " . implode(' AND ', $jobWhereClauses);
+
+    if ($sort === 'popular') {
+        $jobsSql .= " ORDER BY application_count DESC, view_count DESC, j.created_at DESC, j.id DESC";
+    } elseif ($sort === 'oldest') {
+        $jobsSql .= " ORDER BY j.created_at ASC, j.id ASC";
+    } else {
+        $jobsSql .= " ORDER BY j.created_at DESC, j.id DESC";
+    }
+
+    if ($limit !== null && $limit > 0) {
+        $jobsSql .= " LIMIT " . (int)$limit;
+    }
+
+    return db_query_all($jobsSql, $jobBindTypes, $jobBindParams);
+}
+
 // CSRF token generation (basic)
 function generate_csrf_token() {
     if (empty($_SESSION['csrf_token'])) {

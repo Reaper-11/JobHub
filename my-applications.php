@@ -186,8 +186,8 @@ $stmt->close();
                             >
                                 View Message
                             </button>
-                            <a href="my-application-edit.php?id=<?= $app['id'] ?>"
-                               class="btn btn-sm btn-outline-primary">Edit Cover Letter</a>
+                            <a href="job-detail.php?id=<?= $app['job_id'] ?>"
+                               class="btn btn-sm btn-outline-primary">View Job</a>
                         </div>
                     </td>
                 </tr>

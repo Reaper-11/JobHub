@@ -197,6 +197,7 @@ if ($isLoggedIn && $isJobSeeker) {
     }
 
     $navLinks = [
+        ['href' => $basePath . 'jobs.php', 'label' => 'Jobs'],
         ['href' => $basePath . 'my-bookmarks.php', 'label' => 'Bookmarks'],
         ['href' => $basePath . 'my-applications.php', 'label' => 'Applications'],
         ['href' => $basePath . 'notifications.php', 'label' => $notificationLabel],
@@ -219,6 +220,7 @@ if ($isLoggedIn && $isJobSeeker) {
 } else {
     $navLinks = [
         ['href' => $basePath . 'index.php', 'label' => 'Home'],
+        ['href' => $basePath . 'jobs.php', 'label' => 'Jobs'],
         ['href' => $basePath . 'login.php', 'label' => 'Login'],
         ['href' => $basePath . 'register-choice.php', 'label' => 'Register'],
     ];

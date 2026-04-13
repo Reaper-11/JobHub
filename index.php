@@ -3,173 +3,53 @@ require 'db.php';
 
 update_expired_jobs($conn);
 
-$keyword = trim($_GET['q'] ?? '');
-$filter  = trim($_GET['filter'] ?? '');
-$location = trim($_GET['location'] ?? '');
-$salary = trim($_GET['salary'] ?? '');
-$jobType = trim($_GET['job_type'] ?? '');
-$experience = trim($_GET['experience'] ?? '');
+$filters = jobhub_collect_job_filters();
 
-$categories = require __DIR__ . '/includes/categories.php';
-$experienceLevels = require __DIR__ . '/includes/experience_levels.php';
-$jobTypes = require __DIR__ . '/includes/job_types.php';
-
-$selectedCategory = in_array($filter, $categories, true) ? $filter : '';
-$selectedExperience = in_array($experience, $experienceLevels, true) ? $experience : '';
-$selectedJobType = in_array($jobType, $jobTypes, true) ? $jobType : '';
-$activeLocation = $location !== '' ? $location : '';
-$activeSalary = $salary !== '' ? $salary : '';
-$isFilterActive = (
-    $keyword !== '' ||
-    $selectedCategory !== '' ||
-    $selectedExperience !== '' ||
-    $activeLocation !== '' ||
-    $activeSalary !== '' ||
-    $selectedJobType !== ''
-);
+$keyword = $filters['keyword'];
+$filter = $filters['filter'];
+$location = $filters['location'];
+$salary = $filters['salary'];
+$jobType = $filters['job_type'];
+$experience = $filters['experience'];
+$categories = $filters['categories'];
+$experienceLevels = $filters['experienceLevels'];
+$jobTypes = $filters['jobTypes'];
+$selectedCategory = $filters['selectedCategory'];
+$selectedExperience = $filters['selectedExperience'];
+$selectedJobType = $filters['selectedJobType'];
+$activeLocation = $filters['activeLocation'];
+$activeSalary = $filters['activeSalary'];
+$isFilterActive = $filters['isFilterActive'];
 
 $currentUserId = current_user_id();
 $currentCompanyId = current_company_id();
 $currentAdminId = current_admin_id();
 
 if ($currentUserId !== null && $isFilterActive) {
-    $hasSearchLogsTable = $conn->query("SHOW TABLES LIKE 'job_search_logs'");
-    if ($hasSearchLogsTable && $hasSearchLogsTable->num_rows > 0) {
-        $hasJobTypeColumn = false;
-        $logJobTypeColumn = $conn->query("SHOW COLUMNS FROM job_search_logs LIKE 'job_type'");
-        if ($logJobTypeColumn) {
-            $hasJobTypeColumn = $logJobTypeColumn->num_rows > 0;
-            $logJobTypeColumn->close();
-        }
-
-        $logColumns = ['user_id', 'keyword', 'category', 'location'];
-        $logValues = ['?', '?', '?', '?'];
-        $logTypes = 'isss';
-        $logParams = [
-            $currentUserId,
-            $keyword !== '' ? $keyword : null,
-            $selectedCategory !== '' ? $selectedCategory : null,
-            $activeLocation !== '' ? $activeLocation : null,
-        ];
-
-        if ($hasJobTypeColumn) {
-            $logColumns[] = 'job_type';
-            $logValues[] = '?';
-            $logTypes .= 's';
-            $logParams[] = $selectedJobType !== '' ? $selectedJobType : null;
-        }
-
-        $logColumns[] = 'created_at';
-        $logValues[] = 'NOW()';
-
-        $logStmt = $conn->prepare("
-            INSERT INTO job_search_logs (" . implode(', ', $logColumns) . ")
-            VALUES (" . implode(', ', $logValues) . ")
-        ");
-        if ($logStmt) {
-            $logStmt->bind_param($logTypes, ...$logParams);
-            $logStmt->execute();
-            $logStmt->close();
-        }
-    }
-    if ($hasSearchLogsTable) {
-        $hasSearchLogsTable->close();
-    }
+    jobhub_log_job_search($conn, $currentUserId, $filters);
 }
 
-$jobWhereClauses = [
-    "(j.company_id IS NULL OR c.is_approved = 1)",
-    "j.is_approved = 1",
-    "j.status = 'active'",
-];
-$jobBindTypes = '';
-$jobBindParams = [];
-
-if ($keyword !== '') {
-    $keywordLike = '%' . $keyword . '%';
-    $jobWhereClauses[] = "(j.title LIKE ? OR j.description LIKE ? OR j.company LIKE ? OR j.category LIKE ? OR j.location LIKE ? OR j.type LIKE ? OR j.experience_level LIKE ? OR j.skills_required LIKE ?)";
-    $jobBindTypes .= 'ssssssss';
-    array_push(
-        $jobBindParams,
-        $keywordLike,
-        $keywordLike,
-        $keywordLike,
-        $keywordLike,
-        $keywordLike,
-        $keywordLike,
-        $keywordLike,
-        $keywordLike
-    );
-}
-
-if ($selectedCategory !== '') {
-    $jobWhereClauses[] = "j.category = ?";
-    $jobBindTypes .= 's';
-    $jobBindParams[] = $selectedCategory;
-}
-
-if ($selectedExperience !== '') {
-    $jobWhereClauses[] = "j.experience_level = ?";
-    $jobBindTypes .= 's';
-    $jobBindParams[] = $selectedExperience;
-}
-
-if ($activeLocation !== '') {
-    $jobWhereClauses[] = "j.location LIKE ?";
-    $jobBindTypes .= 's';
-    $jobBindParams[] = '%' . $activeLocation . '%';
-}
-
-if ($activeSalary !== '') {
-    $jobWhereClauses[] = "j.salary LIKE ?";
-    $jobBindTypes .= 's';
-    $jobBindParams[] = '%' . $activeSalary . '%';
-}
-
-if ($selectedJobType !== '') {
-    $jobWhereClauses[] = "j.type = ?";
-    $jobBindTypes .= 's';
-    $jobBindParams[] = $selectedJobType;
-}
-
-$jobsSql = "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
-    FROM jobs j
-    LEFT JOIN companies c ON j.company_id = c.id
-    WHERE " . implode(' AND ', $jobWhereClauses);
-
-if ($isFilterActive) {
-    $jobsSql .= " ORDER BY j.created_at DESC, application_count DESC";
-} else {
-    $jobsSql .= " ORDER BY application_count DESC, j.created_at DESC";
-}
-
-$jobsSql .= " LIMIT 50";
-
-$jobs = db_query_all($jobsSql, $jobBindTypes, $jobBindParams);
+$jobs = jobhub_fetch_browse_jobs($filters, $isFilterActive ? 50 : 9, 'latest');
 
 $resultsDescription = $isFilterActive
     ? 'Showing jobs that match your current search and selected filters.'
-    : 'Browse recently posted opportunities from approved employers';
-$resultsStateMessage = $isFilterActive ? 'Showing filtered results' : 'Showing all jobs';
+    : 'A quick preview of the latest approved openings. Use Browse Jobs to explore the full listing.';
+$resultsStateMessage = $isFilterActive ? 'Showing filtered results' : 'Showing the latest 9 jobs';
 
 $topJobs = [];
 if (!$isFilterActive) {
-    $topJobs = db_query_all(
-        "SELECT j.*, COALESCE(j.application_count, 0) AS application_count
-         FROM jobs j
-         LEFT JOIN companies c ON j.company_id = c.id
-         WHERE (j.company_id IS NULL OR c.is_approved = 1)
-           AND j.is_approved = 1
-           AND j.status = 'active'
-         ORDER BY application_count DESC, j.created_at DESC
-         LIMIT 6"
-    );
+    $topJobs = jobhub_fetch_browse_jobs([], 6, 'popular');
 }
 
 $isJobSeeker = $currentUserId !== null;
 $isCompany   = $currentCompanyId !== null;
 $isAdmin     = $currentAdminId !== null;
 $isLoggedIn  = $isJobSeeker || $isCompany || $isAdmin;
+$notificationCount = 0;
+
+if ($isJobSeeker && $currentUserId !== null) {
+    $notificationCount = notify_unread_count('user', $currentUserId);
+}
 
 $recommendedJobs = [];
 if ($isJobSeeker && !$isFilterActive) {
@@ -928,6 +808,7 @@ $basePath = '';
                 }
 
                 $navLinks = [
+                    ['href' => $basePath . 'jobs.php', 'label' => 'Jobs'],
                     ['href' => $basePath . 'my-bookmarks.php', 'label' => 'Bookmarks'],
                     ['href' => $basePath . 'my-applications.php', 'label' => 'Applications'],
                     ['href' => $basePath . 'notifications.php', 'label' => $notificationLabel],
@@ -950,6 +831,7 @@ $basePath = '';
             } else {
                 $isGuestNavbar = true;
                 $navLinks = [
+                    ['href' => $basePath . 'jobs.php', 'label' => 'Jobs'],
                     ['href' => $basePath . 'login.php', 'label' => 'Log In'],
                     ['href' => $basePath . 'register-choice.php', 'label' => 'Register'],
                 ];
@@ -963,11 +845,14 @@ $basePath = '';
                 </a>
                 <?php if ($isGuestNavbar): ?>
                     <div class="flex items-center gap-2.5">
-                        <a href="<?= htmlspecialchars($navLinks[0]['href']) ?>" class="<?= $guestLoginLinkClass ?>">
+                        <a href="<?= htmlspecialchars($navLinks[0]['href']) ?>" class="<?= $navLinkClass ?>">
                             <?= htmlspecialchars($navLinks[0]['label']) ?>
                         </a>
-                        <a href="<?= htmlspecialchars($navLinks[1]['href']) ?>" class="<?= $guestRegisterLinkClass ?>">
+                        <a href="<?= htmlspecialchars($navLinks[1]['href']) ?>" class="<?= $guestLoginLinkClass ?>">
                             <?= htmlspecialchars($navLinks[1]['label']) ?>
+                        </a>
+                        <a href="<?= htmlspecialchars($navLinks[2]['href']) ?>" class="<?= $guestRegisterLinkClass ?>">
+                            <?= htmlspecialchars($navLinks[2]['label']) ?>
                         </a>
                     </div>
                 <?php else: ?>
@@ -1029,8 +914,14 @@ $basePath = '';
             </p>
 
             <div class="max-w-6xl mx-auto">
+                <div class="flex justify-center mb-6">
+                    <a href="<?= $basePath ?>jobs.php" class="hero-filter-action hero-filter-action--primary px-8 gap-2">
+                        <i class="fas fa-briefcase"></i>
+                        Browse Jobs
+                    </a>
+                </div>
                 <div class="hero-filter-shell">
-                    <form method="get" class="hero-filter-form">
+                    <form method="get" action="<?= htmlspecialchars($basePath) ?>jobs.php" class="hero-filter-form">
                         <div class="hero-filter-primary-row">
                             <label class="hero-filter-field" for="hero-filter-keyword">
                                 <i class="fas fa-search hero-filter-icon"></i>
@@ -1059,7 +950,7 @@ $basePath = '';
                             <button type="submit" class="hero-filter-action hero-filter-action--primary">
                                 Search
                             </button>
-                            <a href="<?= $basePath ?>index.php" class="hero-filter-action hero-filter-action--secondary">
+                            <a href="<?= $basePath ?>jobs.php" class="hero-filter-action hero-filter-action--secondary">
                                 Clear Filters
                             </a>
                         </div>
@@ -1081,7 +972,7 @@ $basePath = '';
                     <div class="h-px w-12 md:w-20 bg-gradient-to-r from-transparent via-[#1a237e] to-transparent"></div>
                 </div>
                 <p class="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
-                    Highly engaged roles with strong employer activity and fast response times
+                    Most popular opportunities based on applications and job views
                 </p>
             </div>
 
@@ -1169,7 +1060,7 @@ $basePath = '';
                         Check back soon or explore the full list of active openings below.
                     </p>
                     <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                        <a href="#jobs"
+                        <a href="<?= $basePath ?>jobs.php"
                             class="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-[#1a237e] to-[#283593] text-white rounded-xl text-lg font-medium hover:opacity-90 transition shadow-lg hover:shadow-xl hover-lift">
                             <i class="fas fa-search"></i>
                             Browse Jobs
@@ -1540,7 +1431,7 @@ $basePath = '';
             <?php if ($isLoggedIn): ?>
                 <div class="flex flex-col sm:flex-row gap-6 justify-center">
                     <?php
-                    $ctaHref = $basePath . 'index.php';
+                    $ctaHref = $basePath . 'jobs.php';
                     $ctaIcon = 'fa-clipboard-list';
                     $ctaLabel = 'Browse Jobs';
 
