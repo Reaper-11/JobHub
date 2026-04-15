@@ -4,13 +4,13 @@ require_role('admin');
 
 $editingDisabled = true;
 if ($editingDisabled) {
-    header("Location: admin-jobs.php");
+    header("Location: job-approval.php?status=all&page=1");
     exit;
 }
 
 $jobId = (int) ($_GET['id'] ?? 0);
 if ($jobId <= 0) {
-    header("Location: admin-jobs.php");
+    header("Location: job-approval.php?status=all&page=1");
     exit;
 }
 
@@ -23,7 +23,7 @@ $salaryPeriodError = '';
 $jobRes = $conn->query("SELECT * FROM jobs WHERE id = $jobId");
 $job = $jobRes ? $jobRes->fetch_assoc() : null;
 if (!$job) {
-    header("Location: admin-jobs.php");
+    header("Location: job-approval.php?status=all&page=1");
     exit;
 }
 $salaryFormData = jobhub_salary_form_values_from_job($job);
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_job'])) {
 <body>
 <main class="container py-4">
     <h1 class="mb-2">Edit Job</h1>
-    <p><a class="link-primary text-decoration-none" href="admin-jobs.php">&laquo; Back to Jobs</a></p>
+    <p><a class="link-primary text-decoration-none" href="job-approval.php?status=all&page=1">&laquo; Back to Jobs</a></p>
 
     <?php if ($msg): ?><div class="alert alert-success"><?php echo htmlspecialchars($msg); ?></div><?php endif; ?>
 

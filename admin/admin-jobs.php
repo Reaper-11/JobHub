@@ -15,9 +15,18 @@ if (job_has_post_date_column($conn)) {
     $jobListSelect .= ", j.post_date";
 }
 
-$statusFilter = $_GET['approval'] ?? 'all';
+$jobApprovalBaseUrl = 'job-approval.php';
+$statusFilter = strtolower(trim((string)($_GET['status'] ?? ($_GET['approval'] ?? 'all'))));
 if (!in_array($statusFilter, ['all', 'pending', 'approved', 'rejected'], true)) {
     $statusFilter = 'all';
+}
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = $statusFilter === 'all' ? 30 : 20;
+$offset = ($page - 1) * $limit;
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && basename($_SERVER['PHP_SELF']) === 'admin-jobs.php') {
+    header('Location: ' . $jobApprovalBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . $page);
+    exit;
 }
 
 $msg = $msg_type = '';
@@ -232,19 +241,37 @@ if ($statusFilter === 'pending') {
 
 $where = empty($conditions) ? '1=1' : implode(' AND ', $conditions);
 
+$counts = [
+    'all' => (int)db_query_value("SELECT COUNT(*) FROM jobs", '', [], 0),
+    'pending' => (int)db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = 0", '', [], 0),
+    'approved' => (int)db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = 1", '', [], 0),
+    'rejected' => (int)db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = -1", '', [], 0),
+];
+
+$totalJobs = (int)($counts[$statusFilter] ?? $counts['all']);
+$totalPages = $totalJobs > 0 ? (int)ceil($totalJobs / $limit) : 1;
+
+if ($page > $totalPages) {
+    $page = $totalPages;
+    $offset = ($page - 1) * $limit;
+}
+
 $jobs = db_query_all("
     SELECT {$jobListSelect}, c.name AS company_name
     FROM jobs j
     LEFT JOIN companies c ON j.company_id = c.id
     WHERE {$where}
     ORDER BY j.created_at DESC
-");
+    LIMIT ? OFFSET ?
+", "ii", [$limit, $offset]);
 
-$counts = [
-    'pending' => db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = 0"),
-    'approved' => db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = 1"),
-    'rejected' => db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = -1"),
-];
+$tabUrl = static function (string $status) use ($jobApprovalBaseUrl): string {
+    return $jobApprovalBaseUrl . '?status=' . urlencode($status) . '&page=1';
+};
+
+$pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFilter): string {
+    return $jobApprovalBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . max(1, $targetPage);
+};
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -283,10 +310,10 @@ $counts = [
 </div>
 
 <ul class="nav nav-tabs mb-4">
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'all' ? 'active' : '' ?>" href="?approval=all">All</a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'pending' ? 'active' : '' ?>" href="?approval=pending">Pending</a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'approved' ? 'active' : '' ?>" href="?approval=approved">Approved</a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'rejected' ? 'active' : '' ?>" href="?approval=rejected">Rejected</a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('all')) ?>">All</a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'pending' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('pending')) ?>">Pending</a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'approved' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('approved')) ?>">Approved</a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'rejected' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('rejected')) ?>">Rejected</a></li>
 </ul>
 
 <div class="table-responsive">
@@ -349,5 +376,21 @@ $counts = [
         </tbody>
     </table>
 </div>
+
+<?php if ($totalPages > 1): ?>
+    <nav class="mt-4" aria-label="Job approval pagination">
+        <ul class="pagination justify-content-end mb-0">
+            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= $page > 1 ? htmlspecialchars($pageUrl($page - 1)) : '#' ?>">Previous</a>
+            </li>
+            <li class="page-item disabled">
+                <span class="page-link">Page <?= (int)$page ?> of <?= (int)$totalPages ?></span>
+            </li>
+            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= $page < $totalPages ? htmlspecialchars($pageUrl($page + 1)) : '#' ?>">Next</a>
+            </li>
+        </ul>
+    </nav>
+<?php endif; ?>
 
 <?php require '../footer.php'; ?>

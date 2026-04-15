@@ -29,7 +29,34 @@ if ($currentUserId !== null && $isFilterActive) {
     jobhub_log_job_search($conn, $currentUserId, $filters);
 }
 
-$jobs = jobhub_fetch_browse_jobs($filters, $isFilterActive ? 50 : 9, 'latest');
+$homeResultsLimit = 9;
+$page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+if ($page < 1) {
+    $page = 1;
+}
+
+$totalJobs = 0;
+$totalPages = 0;
+$offset = 0;
+
+if ($isFilterActive) {
+    $totalJobs = jobhub_count_browse_jobs($filters);
+    $totalPages = $totalJobs > 0 ? (int) ceil($totalJobs / $homeResultsLimit) : 0;
+
+    if ($totalPages > 0 && $page > $totalPages) {
+        $page = $totalPages;
+    }
+
+    $offset = ($page - 1) * $homeResultsLimit;
+    $jobs = jobhub_fetch_browse_jobs($filters, $homeResultsLimit, 'latest', $offset);
+} else {
+    $jobs = jobhub_fetch_browse_jobs($filters, $homeResultsLimit, 'latest');
+}
+
+$jobsCount = count($jobs);
+$resultsStart = $isFilterActive && $totalJobs > 0 ? ($offset + 1) : 0;
+$resultsEnd = $isFilterActive && $totalJobs > 0 ? ($offset + $jobsCount) : 0;
+$paginationParams = jobhub_browse_jobs_pagination_params($_GET);
 
 $resultsDescription = $isFilterActive
     ? 'Showing jobs that match your current search and selected filters.'
@@ -921,7 +948,8 @@ $basePath = '';
                     </a>
                 </div>
                 <div class="hero-filter-shell">
-                    <form method="get" action="<?= htmlspecialchars($basePath) ?>jobs.php" class="hero-filter-form">
+                    <form method="get" action="<?= htmlspecialchars($basePath) ?>index.php" class="hero-filter-form">
+                        <input type="hidden" name="source" value="home">
                         <div class="hero-filter-primary-row">
                             <label class="hero-filter-field" for="hero-filter-keyword">
                                 <i class="fas fa-search hero-filter-icon"></i>
@@ -950,7 +978,7 @@ $basePath = '';
                             <button type="submit" class="hero-filter-action hero-filter-action--primary">
                                 Search
                             </button>
-                            <a href="<?= $basePath ?>jobs.php" class="hero-filter-action hero-filter-action--secondary">
+                            <a href="<?= $basePath ?>index.php" class="hero-filter-action hero-filter-action--secondary">
                                 Clear Filters
                             </a>
                         </div>
@@ -1213,7 +1241,7 @@ $basePath = '';
                     <?= htmlspecialchars($resultsDescription) ?>
                 </p>
                 <p class="mt-4 text-sm font-medium text-gray-600">
-                    <?= htmlspecialchars($resultsStateMessage) ?><?php if ($isFilterActive && !empty($jobs)): ?> | <?= count($jobs) ?> matching job result<?= count($jobs) === 1 ? '' : 's' ?> found.<?php endif; ?>
+                    <?= htmlspecialchars($resultsStateMessage) ?><?php if ($isFilterActive && $totalJobs > 0): ?> | Showing <?= (int)$resultsStart ?>-<?= (int)$resultsEnd ?> of <?= (int)$totalJobs ?> matching job result<?= $totalJobs === 1 ? '' : 's' ?>.<?php endif; ?>
                 </p>
             </div>
 
@@ -1316,6 +1344,35 @@ $basePath = '';
                         </div>
                     <?php endforeach; ?>
                 </div>
+
+                <?php if ($isFilterActive && $totalPages > 1): ?>
+                    <nav class="mt-12 flex flex-wrap items-center justify-center gap-2" aria-label="Homepage job search pagination">
+                        <?php if ($page > 1): ?>
+                            <a
+                                href="<?= htmlspecialchars(jobhub_browse_jobs_page_url($paginationParams, $page - 1, 'index.php')) ?>"
+                                class="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:border-[#1a237e] hover:text-[#1a237e] transition">
+                                Previous
+                            </a>
+                        <?php endif; ?>
+
+                        <?php for ($pageNumber = 1; $pageNumber <= $totalPages; $pageNumber++): ?>
+                            <a
+                                href="<?= htmlspecialchars(jobhub_browse_jobs_page_url($paginationParams, $pageNumber, 'index.php')) ?>"
+                                class="px-4 py-2 rounded-lg border text-sm font-semibold shadow-sm transition <?= $pageNumber === $page ? 'border-[#1a237e] bg-[#1a237e] text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-[#1a237e] hover:text-[#1a237e]' ?>"
+                                <?= $pageNumber === $page ? 'aria-current="page"' : '' ?>>
+                                <?= (int)$pageNumber ?>
+                            </a>
+                        <?php endfor; ?>
+
+                        <?php if ($page < $totalPages): ?>
+                            <a
+                                href="<?= htmlspecialchars(jobhub_browse_jobs_page_url($paginationParams, $page + 1, 'index.php')) ?>"
+                                class="px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm font-semibold text-gray-700 shadow-sm hover:border-[#1a237e] hover:text-[#1a237e] transition">
+                                Next
+                            </a>
+                        <?php endif; ?>
+                    </nav>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </section>

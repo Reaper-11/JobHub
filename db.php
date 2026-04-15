@@ -401,33 +401,85 @@ function jobhub_job_filter_options(): array
     return $options;
 }
 
+function jobhub_sanitize_job_filter_value($value, int $maxLength = 255): string
+{
+    if (is_array($value) || is_object($value)) {
+        return '';
+    }
+
+    $value = trim(strip_tags((string) $value));
+    $value = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $value) ?? '';
+    $value = preg_replace('/\s+/u', ' ', $value) ?? '';
+
+    if ($maxLength > 0) {
+        if (function_exists('mb_substr')) {
+            $value = mb_substr($value, 0, $maxLength);
+        } else {
+            $value = substr($value, 0, $maxLength);
+        }
+    }
+
+    return trim($value);
+}
+
+function jobhub_first_job_filter_value(array $source, array $keys, int $maxLength = 255): string
+{
+    foreach ($keys as $key) {
+        if (!array_key_exists($key, $source)) {
+            continue;
+        }
+
+        $value = jobhub_sanitize_job_filter_value($source[$key], $maxLength);
+        if ($value !== '') {
+            return $value;
+        }
+    }
+
+    return '';
+}
+
+function jobhub_truthy_job_filter_value($value): bool
+{
+    $value = strtolower(jobhub_sanitize_job_filter_value($value, 20));
+
+    return in_array($value, ['1', 'true', 'yes', 'on', 'remote'], true);
+}
+
 function jobhub_collect_job_filters(?array $source = null): array
 {
     $source = $source ?? $_GET;
     $options = jobhub_job_filter_options();
 
-    $keyword = trim((string)($source['q'] ?? ''));
-    $location = trim((string)($source['location'] ?? ''));
-    $salary = trim((string)($source['salary'] ?? ''));
-    $jobTypeInput = trim((string)($source['job_type'] ?? ''));
-    $experienceInput = trim((string)($source['experience'] ?? ''));
-    $categoryInput = trim((string)($source['filter'] ?? ($source['category'] ?? '')));
+    $keyword = jobhub_first_job_filter_value($source, ['q', 'keyword', 'title'], 255);
+    $location = jobhub_first_job_filter_value($source, ['location', 'city'], 200);
+    $salary = jobhub_first_job_filter_value($source, ['salary'], 120);
+    $jobTypeInput = jobhub_first_job_filter_value($source, ['job_type', 'type'], 120);
+    $experienceInput = jobhub_first_job_filter_value($source, ['experience', 'experience_level'], 120);
+    $categoryInput = jobhub_first_job_filter_value($source, ['filter', 'category'], 120);
+    $remoteInput = $source['remote'] ?? '';
+    $remoteRequested = jobhub_truthy_job_filter_value($remoteInput);
 
     $selectedCategory = in_array($categoryInput, $options['categories'], true) ? $categoryInput : '';
     $selectedExperience = in_array($experienceInput, $options['experienceLevels'], true) ? $experienceInput : '';
     $selectedJobType = in_array($jobTypeInput, $options['jobTypes'], true) ? $jobTypeInput : '';
     $activeLocation = $location !== '' ? $location : '';
     $activeSalary = $salary !== '' ? $salary : '';
+    $remoteRequested = $remoteRequested && $selectedJobType !== 'Remote';
 
     return [
         'q' => $keyword,
         'keyword' => $keyword,
+        'title' => $keyword,
         'filter' => $selectedCategory,
         'category' => $selectedCategory,
         'location' => $activeLocation,
+        'city' => $activeLocation,
         'salary' => $activeSalary,
         'job_type' => $selectedJobType,
+        'type' => $selectedJobType,
         'experience' => $selectedExperience,
+        'experience_level' => $selectedExperience,
+        'remote' => $remoteRequested,
         'selectedCategory' => $selectedCategory,
         'selectedExperience' => $selectedExperience,
         'selectedJobType' => $selectedJobType,
@@ -439,12 +491,39 @@ function jobhub_collect_job_filters(?array $source = null): array
             $selectedExperience !== '' ||
             $activeLocation !== '' ||
             $activeSalary !== '' ||
-            $selectedJobType !== ''
+            $selectedJobType !== '' ||
+            $remoteRequested
         ),
         'categories' => $options['categories'],
         'experienceLevels' => $options['experienceLevels'],
         'jobTypes' => $options['jobTypes'],
     ];
+}
+
+function jobhub_browse_jobs_page_url(array $params, int $pageNumber, string $baseUrl = 'jobs.php'): string
+{
+    $params['page'] = max(1, $pageNumber);
+    $queryString = http_build_query($params);
+
+    return $baseUrl . ($queryString !== '' ? '?' . $queryString : '');
+}
+
+function jobhub_browse_jobs_pagination_params(array $source): array
+{
+    $params = array_filter(
+        $source,
+        static function ($value): bool {
+            if (is_array($value)) {
+                return !empty($value);
+            }
+
+            return $value !== '' && $value !== null;
+        }
+    );
+
+    unset($params['page']);
+
+    return $params;
 }
 
 function jobhub_log_job_search(mysqli $conn, ?int $userId, array $filters): void
@@ -615,6 +694,13 @@ function jobhub_browse_jobs_query_parts(array $filters = []): array
         $jobWhereClauses[] = "j.type = ?";
         $jobBindTypes .= 's';
         $jobBindParams[] = $normalizedFilters['selectedJobType'];
+    }
+
+    if (!empty($normalizedFilters['remote'])) {
+        $jobWhereClauses[] = "(j.type = ? OR j.location LIKE ?)";
+        $jobBindTypes .= 'ss';
+        $jobBindParams[] = 'Remote';
+        $jobBindParams[] = '%Remote%';
     }
 
     return [

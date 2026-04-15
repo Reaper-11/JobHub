@@ -594,7 +594,7 @@ function support_reply_message(mysqli $conn, int $messageId, string $replyMessag
         );
 
         $emailSent = $emailResult['success'];
-        $emailMessage = $emailResult['message'];
+        $emailMessage = $emailResult['debug_message'] ?? $emailResult['message'];
 
         $emailSentValue = $emailSent ? 1 : 0;
         $emailError = $emailSent ? null : substr($emailMessage, 0, 255);

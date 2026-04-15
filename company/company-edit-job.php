@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 UPDATE jobs
                 SET title = ?, location = ?, type = ?, category = ?, salary = ?, application_duration = ?,
                     experience_level = ?, description = ?, is_approved = 0, approved_by = NULL, approved_at = NULL,
-                    admin_remarks = NULL, updated_at = NOW()
+                    admin_remarks = NULL, status = 'pending', updated_at = NOW()
             ";
             $salaryValue = $salaryValidation['salary_text'] ?? null;
             $bindTypes = "ssssssss";

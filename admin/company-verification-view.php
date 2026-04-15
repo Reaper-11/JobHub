@@ -6,13 +6,13 @@ require_role('admin');
 
 $companyId = (int)($_GET['id'] ?? $_POST['company_id'] ?? 0);
 if ($companyId <= 0) {
-    header("Location: company-verifications.php");
+    header("Location: verifications.php?status=all&page=1");
     exit;
 }
 
 $record = get_company_verification_record($conn, $companyId);
 if (!$record) {
-    header("Location: company-verifications.php");
+    header("Location: verifications.php?status=all&page=1");
     exit;
 }
 
@@ -129,7 +129,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1 class="mb-0">Review Company Verification</h1>
-    <a href="company-verifications.php" class="btn btn-outline-secondary">Back</a>
+    <a href="verifications.php?status=all&page=1" class="btn btn-outline-secondary">Back</a>
 </div>
 
 <?php if ($msg !== ''): ?>

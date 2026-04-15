@@ -4,8 +4,15 @@ require '../db.php';
 
 require_role('admin');
 
-$status = strtolower($_GET['status'] ?? 'pending');
-if (!in_array($status, ['pending','approved','rejected','all'])) $status = 'pending';
+$companyAdminBaseUrl = 'companies.php';
+$status = strtolower(trim((string)($_GET['status'] ?? 'all')));
+if (!in_array($status, ['all', 'pending', 'approved', 'rejected'], true)) {
+    $status = 'all';
+}
+
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = $status === 'all' ? 30 : 20;
+$offset = ($page - 1) * $limit;
 
 $state = strtolower($_GET['state'] ?? 'all');
 if (!in_array($state, ['all','active','on_hold','suspended'])) {
@@ -15,17 +22,78 @@ if ($status !== 'approved') {
     $state = 'all';
 }
 
-$where = $status === 'all' ? "1=1" : "is_approved = " . ($status === 'pending' ? 0 : ($status === 'approved' ? 1 : -1));
-if ($status === 'approved' && $state !== 'all') {
-    $where .= " AND operational_state = '" . $conn->real_escape_string($state) . "'";
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && basename($_SERVER['PHP_SELF']) === 'admin-companies.php') {
+    $redirectQuery = 'status=' . urlencode($status) . '&page=' . $page;
+    if ($status === 'approved' && $state !== 'all') {
+        $redirectQuery .= '&state=' . urlencode($state);
+    }
+
+    header('Location: ' . $companyAdminBaseUrl . '?' . $redirectQuery);
+    exit;
 }
+
+$whereClauses = [];
+$whereTypes = '';
+$whereParams = [];
+
+if ($status === 'pending') {
+    $whereClauses[] = 'c.is_approved = 0';
+} elseif ($status === 'approved') {
+    $whereClauses[] = 'c.is_approved = 1';
+} elseif ($status === 'rejected') {
+    $whereClauses[] = 'c.is_approved = -1';
+}
+
+if ($status === 'approved' && $state !== 'all') {
+    $whereClauses[] = 'c.operational_state = ?';
+    $whereTypes .= 's';
+    $whereParams[] = $state;
+}
+
+$where = empty($whereClauses) ? '1=1' : implode(' AND ', $whereClauses);
+$totalCompanies = (int)db_query_value(
+    "SELECT COUNT(*) FROM companies c WHERE {$where}",
+    $whereTypes,
+    $whereParams,
+    0
+);
+$totalPages = $totalCompanies > 0 ? (int)ceil($totalCompanies / $limit) : 1;
+
+if ($page > $totalPages) {
+    $page = $totalPages;
+    $offset = ($page - 1) * $limit;
+}
+
+$companyQueryTypes = $whereTypes . 'ii';
+$companyQueryParams = array_merge($whereParams, [$limit, $offset]);
 
 $companies = db_query_all("
     SELECT c.*
     FROM companies c
-    WHERE $where
+    WHERE {$where}
     ORDER BY c.created_at DESC
-");
+    LIMIT ? OFFSET ?
+", $companyQueryTypes, $companyQueryParams);
+
+$tabUrl = static function (string $targetStatus) use ($companyAdminBaseUrl): string {
+    return $companyAdminBaseUrl . '?status=' . urlencode($targetStatus) . '&page=1';
+};
+
+$stateUrl = static function (string $targetState) use ($companyAdminBaseUrl): string {
+    return $companyAdminBaseUrl . '?status=approved&page=1&state=' . urlencode($targetState);
+};
+
+$pageUrl = static function (int $targetPage) use ($companyAdminBaseUrl, $status, $state): string {
+    $query = 'status=' . urlencode($status) . '&page=' . max(1, $targetPage);
+    if ($status === 'approved' && $state !== 'all') {
+        $query .= '&state=' . urlencode($state);
+    }
+
+    return $companyAdminBaseUrl . '?' . $query;
+};
+
+$paginationStart = max(1, $page - 2);
+$paginationEnd = min($totalPages, $page + 2);
 
 $msg = $msg_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -229,11 +297,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                             }
                         }
 
-                        $query = "status=$status";
+                        $query = 'status=' . urlencode($status) . '&page=' . $page;
                         if ($status === 'approved' && $state !== 'all') {
                             $query .= "&state=" . urlencode($state);
                         }
-                        header("Location: admin-companies.php?$query");
+                        header("Location: {$companyAdminBaseUrl}?{$query}");
                         exit;
                     }
                 } elseif (!isset($msg) || $msg === '') {
@@ -256,18 +324,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
 <?php endif; ?>
 
 <ul class="nav nav-tabs mb-4">
-    <li class="nav-item"><a class="nav-link <?= $status==='pending'?'active':'' ?>" href="?status=pending">Pending</a></li>
-    <li class="nav-item"><a class="nav-link <?= $status==='approved'?'active':'' ?>" href="?status=approved">Approved</a></li>
-    <li class="nav-item"><a class="nav-link <?= $status==='rejected'?'active':'' ?>" href="?status=rejected">Rejected</a></li>
-    <li class="nav-item"><a class="nav-link <?= $status==='all'?'active':'' ?>" href="?status=all">All</a></li>
+    <li class="nav-item"><a class="nav-link <?= $status==='all'?'active':'' ?>" href="<?= htmlspecialchars($tabUrl('all')) ?>">All</a></li>
+    <li class="nav-item"><a class="nav-link <?= $status==='pending'?'active':'' ?>" href="<?= htmlspecialchars($tabUrl('pending')) ?>">Pending</a></li>
+    <li class="nav-item"><a class="nav-link <?= $status==='approved'?'active':'' ?>" href="<?= htmlspecialchars($tabUrl('approved')) ?>">Approved</a></li>
+    <li class="nav-item"><a class="nav-link <?= $status==='rejected'?'active':'' ?>" href="<?= htmlspecialchars($tabUrl('rejected')) ?>">Rejected</a></li>
 </ul>
 
 <?php if ($status === 'approved'): ?>
     <ul class="nav nav-pills mb-3">
-        <li class="nav-item"><a class="nav-link <?= $state==='all'?'active':'' ?>" href="?status=approved&state=all">All Approved</a></li>
-        <li class="nav-item"><a class="nav-link <?= $state==='active'?'active':'' ?>" href="?status=approved&state=active">Active</a></li>
-        <li class="nav-item"><a class="nav-link <?= $state==='on_hold'?'active':'' ?>" href="?status=approved&state=on_hold">On Hold</a></li>
-        <li class="nav-item"><a class="nav-link <?= $state==='suspended'?'active':'' ?>" href="?status=approved&state=suspended">Suspended</a></li>
+        <li class="nav-item"><a class="nav-link <?= $state==='all'?'active':'' ?>" href="<?= htmlspecialchars($stateUrl('all')) ?>">All Approved</a></li>
+        <li class="nav-item"><a class="nav-link <?= $state==='active'?'active':'' ?>" href="<?= htmlspecialchars($stateUrl('active')) ?>">Active</a></li>
+        <li class="nav-item"><a class="nav-link <?= $state==='on_hold'?'active':'' ?>" href="<?= htmlspecialchars($stateUrl('on_hold')) ?>">On Hold</a></li>
+        <li class="nav-item"><a class="nav-link <?= $state==='suspended'?'active':'' ?>" href="<?= htmlspecialchars($stateUrl('suspended')) ?>">Suspended</a></li>
     </ul>
 <?php endif; ?>
 
@@ -345,7 +413,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                                 <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                                 <input type="hidden" name="company_id" value="<?= $c['id'] ?>">
                                 <input type="hidden" name="action" value="unapprove">
-                                <button type="submit" class="btn btn-outline-warning btn-sm">Unapprove</button>
+                                <button type="submit" class="btn btn-outline-warning btn-sm">Pending</button>
                             </form>
                         <?php endif; ?>
 
@@ -481,6 +549,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         </tbody>
     </table>
 </div>
+
+<?php if ($totalPages > 1): ?>
+    <nav class="mt-4" aria-label="Company pagination">
+        <ul class="pagination justify-content-end mb-0">
+            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= $page > 1 ? htmlspecialchars($pageUrl($page - 1)) : '#' ?>">Previous</a>
+            </li>
+
+            <?php for ($pageNumber = $paginationStart; $pageNumber <= $paginationEnd; $pageNumber++): ?>
+                <li class="page-item <?= $pageNumber === $page ? 'active' : '' ?>">
+                    <a class="page-link" href="<?= htmlspecialchars($pageUrl($pageNumber)) ?>"><?= (int)$pageNumber ?></a>
+                </li>
+            <?php endfor; ?>
+
+            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= $page < $totalPages ? htmlspecialchars($pageUrl($page + 1)) : '#' ?>">Next</a>
+            </li>
+        </ul>
+    </nav>
+<?php endif; ?>
 
 <?php require '../footer.php'; ?>
 

@@ -7,52 +7,55 @@ $cid = current_company_id() ?? 0;
 update_expired_jobs($conn, $cid);
 
 $deadlineColumn = job_deadline_column($conn);
-$jobSelect = "id, title, location, type, status, is_approved, admin_remarks, created_at, application_count, application_duration";
+$jobSelect = "j.id, j.title, j.location, j.type, j.status, j.is_approved, j.admin_remarks, j.created_at,
+              COALESCE(application_stats.application_count, 0) AS application_count, j.application_duration";
 if ($deadlineColumn !== null) {
-    $jobSelect .= ", {$deadlineColumn}";
+    $jobSelect .= ", j.{$deadlineColumn}";
 }
 if (job_has_post_date_column($conn)) {
-    $jobSelect .= ", post_date";
+    $jobSelect .= ", j.post_date";
 }
 
 $statusFilter = strtolower(trim($_GET['status'] ?? 'all'));
-$allowedFilters = ['all', 'active', 'pending', 'rejected', 'closed', 'draft', 'expired'];
+$allowedFilters = ['all', 'active', 'pending', 'rejected', 'closed', 'expired'];
 if (!in_array($statusFilter, $allowedFilters, true)) {
     $statusFilter = 'all';
 }
 
-$whereClauses = ['company_id = ?'];
+$whereClauses = ['j.company_id = ?'];
 $params = [$cid];
 $types = 'i';
 
 switch ($statusFilter) {
     case 'active':
-        $whereClauses[] = "status = 'active'";
-        $whereClauses[] = "is_approved = 1";
+        $whereClauses[] = "j.status = 'active'";
+        $whereClauses[] = "j.is_approved = 1";
         break;
     case 'pending':
-        $whereClauses[] = 'is_approved = 0';
-        $whereClauses[] = "status <> 'draft'";
+        $whereClauses[] = 'j.is_approved = 0';
+        $whereClauses[] = "j.status <> 'draft'";
         break;
     case 'rejected':
-        $whereClauses[] = 'is_approved = -1';
+        $whereClauses[] = 'j.is_approved = -1';
         break;
     case 'closed':
-        $whereClauses[] = "status = 'closed'";
-        break;
-    case 'draft':
-        $whereClauses[] = "status = 'draft'";
+        $whereClauses[] = "j.status = 'closed'";
         break;
     case 'expired':
-        $whereClauses[] = "status = 'expired'";
+        $whereClauses[] = "j.status = 'expired'";
         break;
 }
 
 $jobs = db_query_all("
     SELECT {$jobSelect}
-    FROM jobs
+    FROM jobs j
+    LEFT JOIN (
+        SELECT job_id, COUNT(*) AS application_count
+        FROM applications
+        GROUP BY job_id
+    ) AS application_stats ON application_stats.job_id = j.id
     WHERE " . implode(' AND ', $whereClauses) . "
-    ORDER BY created_at DESC
+    ORDER BY j.created_at DESC
 ", $types, $params);
 ?>
 
@@ -76,7 +79,6 @@ $jobs = db_query_all("
                 <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : '' ?>>Pending</option>
                 <option value="rejected" <?= $statusFilter === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                 <option value="closed" <?= $statusFilter === 'closed' ? 'selected' : '' ?>>Closed</option>
-                <option value="draft" <?= $statusFilter === 'draft' ? 'selected' : '' ?>>Draft</option>
                 <option value="expired" <?= $statusFilter === 'expired' ? 'selected' : '' ?>>Expired</option>
             </select>
             <a href="company-my-jobs.php" class="btn btn-outline-secondary btn-sm">Reset</a>
@@ -97,17 +99,34 @@ $jobs = db_query_all("
                         <th>Approval</th>
                         <th>Applications</th>
                         <th>Posted</th>
+                        <th>Expiry</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                 <?php if (empty($jobs)): ?>
-                    <tr><td colspan="8" class="text-center py-5 text-muted">No jobs found.</td></tr>
+                    <tr><td colspan="9" class="text-center py-5 text-muted">No jobs found.</td></tr>
                 <?php else: ?>
                     <?php foreach ($jobs as $job): ?>
                         <?php
                         $effectiveStatus = job_effective_status($job);
                         $canReopen = $effectiveStatus === 'closed' && !is_job_expired($job);
+                        $expirationTimestamp = job_expiration_timestamp($job);
+                        $expiryLabel = 'Ongoing';
+                        $expiryClass = 'text-muted';
+
+                        if ($expirationTimestamp !== null) {
+                            $expiryDate = date('M d, Y', $expirationTimestamp);
+                            if ($expirationTimestamp < time()) {
+                                $expiryLabel = 'Expired ' . $expiryDate;
+                                $expiryClass = 'text-danger';
+                            } else {
+                                $expiryLabel = 'Expires ' . $expiryDate;
+                            }
+                        } elseif ($effectiveStatus === 'expired') {
+                            $expiryLabel = 'Expired date unavailable';
+                            $expiryClass = 'text-danger';
+                        }
                         ?>
                         <tr>
                             <td>
@@ -132,6 +151,7 @@ $jobs = db_query_all("
                             </td>
                             <td><?= number_format($job['application_count'] ?? 0) ?></td>
                             <td><?= date('M d, Y', strtotime($job['created_at'])) ?></td>
+                            <td class="<?= htmlspecialchars($expiryClass) ?>"><?= htmlspecialchars($expiryLabel) ?></td>
                             <td class="text-nowrap">
                                 <a href="company-edit-job.php?id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
 

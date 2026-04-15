@@ -9,9 +9,10 @@ defined('JOBHUB_SUPPORT_SMTP_HOST') || define('JOBHUB_SUPPORT_SMTP_HOST', 'smtp.
 defined('JOBHUB_SUPPORT_SMTP_PORT') || define('JOBHUB_SUPPORT_SMTP_PORT', 587);
 defined('JOBHUB_SUPPORT_SMTP_SECURE') || define('JOBHUB_SUPPORT_SMTP_SECURE', 'tls');
 defined('JOBHUB_SUPPORT_SMTP_USERNAME') || define('JOBHUB_SUPPORT_SMTP_USERNAME', 'ddipenmhz123@gmail.com');
-// Paste your real 16-character Gmail App Password here
+// Paste your real 16-character Gmail App Password here.
+// If Google displays it in groups, enter it without spaces.
 // Do not use your normal Gmail password.
-defined('JOBHUB_SUPPORT_SMTP_PASSWORD') || define('JOBHUB_SUPPORT_SMTP_PASSWORD', 'axak tafy zfjv crlt');
+defined('JOBHUB_SUPPORT_SMTP_PASSWORD') || define('JOBHUB_SUPPORT_SMTP_PASSWORD', 'amez arle nobj yzjc');
 // For Gmail, keep this the same as JOBHUB_SUPPORT_SMTP_USERNAME.
 defined('JOBHUB_SUPPORT_FROM_EMAIL') || define('JOBHUB_SUPPORT_FROM_EMAIL', 'ddipenmhz123@gmail.com');
 defined('JOBHUB_SUPPORT_FROM_NAME') || define('JOBHUB_SUPPORT_FROM_NAME', 'JobHub Support');

@@ -4,7 +4,7 @@ require_role('admin');
 
 $jobId = (int) ($_GET['id'] ?? 0);
 if ($jobId <= 0) {
-    header("Location: admin-jobs.php");
+    header("Location: job-approval.php?status=all&page=1");
     exit;
 }
 
@@ -35,7 +35,7 @@ $stmt->close();
 <body>
 <main class="container py-4">
     <h1 class="mb-2">Job Details</h1>
-    <p><a class="link-primary text-decoration-none" href="admin-jobs.php">&laquo; Back to Jobs</a></p>
+    <p><a class="link-primary text-decoration-none" href="job-approval.php?status=all&page=1">&laquo; Back to Jobs</a></p>
 
     <?php if (!$job): ?>
         <div class="alert alert-danger">Job not found.</div>

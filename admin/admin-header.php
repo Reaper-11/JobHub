@@ -4,6 +4,7 @@ require_once '../db.php';
 require_role('admin');
 
 $hasSidebarLayout = true;
+$hideSharedFooter = true;
 $authFlash = jobhub_take_auth_flash();
 ?>
 <!DOCTYPE html>
@@ -202,9 +203,9 @@ $authFlash = jobhub_take_auth_flash();
             </ul>
             <div class="sidebar-section-label">Manage</div>
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-jobs.php' ? 'active' : '' ?>" href="admin-jobs.php"><i class="fas fa-briefcase"></i> Job Approval</a></li>
-                <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-companies.php' ? 'active' : '' ?>" href="admin-companies.php"><i class="fas fa-building"></i> Companies</a></li>
-                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['company-verifications.php', 'company-verification-view.php'], true) ? 'active' : '' ?>" href="company-verifications.php"><i class="fas fa-circle-check"></i> Verifications</a></li>
+                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['admin-jobs.php', 'job-approval.php'], true) ? 'active' : '' ?>" href="job-approval.php?status=all&page=1"><i class="fas fa-briefcase"></i> Job Approval</a></li>
+                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['admin-companies.php', 'companies.php'], true) ? 'active' : '' ?>" href="companies.php?status=all&page=1"><i class="fas fa-building"></i> Companies</a></li>
+                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['company-verifications.php', 'verifications.php', 'company-verification-view.php'], true) ? 'active' : '' ?>" href="verifications.php?status=all&page=1"><i class="fas fa-circle-check"></i> Verifications</a></li>
                 <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-users.php' ? 'active' : '' ?>" href="admin-users.php"><i class="fas fa-users"></i> Users</a></li>
                 <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-applications.php' ? 'active' : '' ?>" href="admin-applications.php"><i class="fas fa-file-alt"></i> Applications</a></li>
                 <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['support-messages.php', 'support-view.php'], true) ? 'active' : '' ?>" href="support-messages.php"><i class="fas fa-headset"></i> Support Messages</a></li>

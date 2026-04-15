@@ -83,16 +83,6 @@ if (!function_exists('jobhub_browse_jobs_posted_label')) {
     }
 }
 
-if (!function_exists('jobhub_browse_jobs_page_url')) {
-    function jobhub_browse_jobs_page_url(array $params, int $pageNumber): string
-    {
-        $params['page'] = $pageNumber;
-        $queryString = http_build_query($params);
-
-        return 'jobs.php' . ($queryString !== '' ? '?' . $queryString : '');
-    }
-}
-
 $filters = jobhub_collect_job_filters();
 $keyword = $filters['keyword'];
 $activeLocation = $filters['activeLocation'];
@@ -135,17 +125,7 @@ $jobs = jobhub_fetch_browse_jobs($filters, $limit, $sortKey, $offset);
 $jobsCount = count($jobs);
 $resultsStart = $totalJobs > 0 ? ($offset + 1) : 0;
 $resultsEnd = $totalJobs > 0 ? ($offset + $jobsCount) : 0;
-$paginationParams = array_filter(
-    $_GET,
-    static function ($value): bool {
-        if (is_array($value)) {
-            return !empty($value);
-        }
-
-        return $value !== '' && $value !== null;
-    }
-);
-unset($paginationParams['page']);
+$paginationParams = jobhub_browse_jobs_pagination_params($_GET);
 
 $locationRows = db_query_all(
     "SELECT DISTINCT TRIM(j.location) AS location
@@ -193,6 +173,7 @@ require 'header.php';
     </section>
 
     <form method="get" action="jobs.php" class="browse-jobs-form">
+        <input type="hidden" name="source" value="jobs">
         <?php if ($selectedCategory !== ''): ?>
             <input type="hidden" name="filter" value="<?= htmlspecialchars($selectedCategory) ?>">
         <?php endif; ?>

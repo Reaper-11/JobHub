@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         $reasonForLog = substr($reasonForLog, 0, 160);
     }
 
-    if ($uid > 0 && in_array($action, ['block', 'unblock', 'remove'], true)) {
+    if ($uid > 0 && in_array($action, ['block', 'unblock', 'remove', 'restore'], true)) {
         $stmt = $conn->prepare("SELECT id, name, email, account_id FROM users WHERE id = ? LIMIT 1");
         $stmt->bind_param("i", $uid);
         $stmt->execute();
@@ -46,13 +46,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 $description = "Admin unblocked user {$user['name']}";
                 $successMessage = "User unblocked successfully.";
                 $failureMessage = "Failed to unblock user.";
-            } else {
+            } elseif ($action === 'remove') {
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'removed', is_active = 0, updated_at = NOW() WHERE id = ?");
                 $accountStatus = 'inactive';
                 $activityType = 'user_removed';
                 $description = "Admin removed user {$user['name']}. Reason: {$reasonForLog}";
                 $successMessage = "User removed safely.";
                 $failureMessage = "Failed to remove user.";
+            } else {
+                $stmt = $conn->prepare("UPDATE users SET account_status = 'active', is_active = 1, updated_at = NOW() WHERE id = ?");
+                $accountStatus = 'active';
+                $activityType = 'user_restored';
+                $description = "Admin restored user {$user['name']}";
+                $successMessage = "User restored successfully.";
+                $failureMessage = "Failed to restore user.";
             }
 
             if ($stmt) {
@@ -158,11 +165,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     }
 }
 
+$statusFilter = strtolower(trim((string)($_GET['status'] ?? 'all')));
+$allowedStatusFilters = ['active', 'blocked', 'removed', 'all'];
+if (!in_array($statusFilter, $allowedStatusFilters, true)) {
+    $statusFilter = 'all';
+}
+
+$statusCounts = [
+    'active' => (int)db_query_value("SELECT COUNT(*) FROM users WHERE account_status = 'active'", '', [], 0),
+    'blocked' => (int)db_query_value("SELECT COUNT(*) FROM users WHERE account_status = 'blocked'", '', [], 0),
+    'removed' => (int)db_query_value("SELECT COUNT(*) FROM users WHERE account_status = 'removed'", '', [], 0),
+];
+$statusCounts['all'] = $statusCounts['active'] + $statusCounts['blocked'] + $statusCounts['removed'];
+
+$userWhere = '';
+$userTypes = '';
+$userParams = [];
+if ($statusFilter !== 'all') {
+    $userWhere = 'WHERE account_status = ?';
+    $userTypes = 's';
+    $userParams[] = $statusFilter;
+}
+
+$statusTabs = [
+    'active' => 'Active',
+    'blocked' => 'Blocked',
+    'removed' => 'Removed',
+    'all' => 'All',
+];
+
 $users = db_query_all("
     SELECT id, account_id, name, email, phone, role, account_status, is_active, created_at
     FROM users
+    {$userWhere}
     ORDER BY created_at DESC
-");
+", $userTypes, $userParams);
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -176,6 +213,17 @@ $users = db_query_all("
 <div class="alert alert-secondary">
     Removed users are soft-deactivated to keep applications, bookmarks, and history safe. Reasons are required for block and remove actions.
 </div>
+
+<ul class="nav nav-tabs mb-4">
+    <?php foreach ($statusTabs as $tabStatus => $tabLabel): ?>
+        <li class="nav-item">
+            <a class="nav-link <?= $statusFilter === $tabStatus ? 'active' : '' ?>" href="?status=<?= htmlspecialchars($tabStatus) ?>">
+                <?= htmlspecialchars($tabLabel) ?>
+                <span class="badge text-bg-secondary ms-1"><?= (int)($statusCounts[$tabStatus] ?? 0) ?></span>
+            </a>
+        </li>
+    <?php endforeach; ?>
+</ul>
 
 <div class="table-responsive">
     <table class="table table-hover table-striped align-middle">
@@ -226,6 +274,13 @@ $users = db_query_all("
                                     <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
                                     <input type="hidden" name="action" value="unblock">
                                     <button type="submit" class="btn btn-sm btn-outline-success">Unblock</button>
+                                </form>
+                            <?php elseif ($status === 'removed'): ?>
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <input type="hidden" name="action" value="restore">
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Restore</button>
                                 </form>
                             <?php endif; ?>
 

@@ -92,7 +92,7 @@ $stats = [
 
 <div class="row g-4 mt-4">
     <div class="col-md-4">
-        <a href="admin-jobs.php" class="text-decoration-none">
+        <a href="job-approval.php?status=all&page=1" class="text-decoration-none">
             <div class="card shadow-sm h-100 border-0 hover-lift">
                 <div class="card-body">
                     <h5>Manage Jobs</h5>
@@ -102,7 +102,7 @@ $stats = [
         </a>
     </div>
     <div class="col-md-4">
-        <a href="admin-companies.php" class="text-decoration-none">
+        <a href="companies.php?status=all&page=1" class="text-decoration-none">
             <div class="card shadow-sm h-100 border-0 hover-lift">
                 <div class="card-body">
                     <h5>Manage Companies</h5>
@@ -122,7 +122,7 @@ $stats = [
         </a>
     </div>
     <div class="col-md-4">
-        <a href="company-verifications.php" class="text-decoration-none">
+        <a href="verifications.php?status=all&page=1" class="text-decoration-none">
             <div class="card shadow-sm h-100 border-0 hover-lift">
                 <div class="card-body">
                     <h5>Review Verifications</h5>

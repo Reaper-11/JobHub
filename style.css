@@ -2157,9 +2157,15 @@ button:focus-visible,
 }
 
 .browse-jobs-body main.container {
-  max-width: 1240px;
-  padding-top: 48px;
-  padding-bottom: 72px;
+  width: min(calc(100% - 80px), 1680px);
+  max-width: 1680px;
+  padding-top: 32px !important;
+  padding-bottom: 72px !important;
+}
+
+.browse-jobs-body .simple-navbar-inner {
+  width: min(calc(100% - 80px), 1680px);
+  max-width: 1680px;
 }
 
 .browse-jobs-page {
@@ -2730,6 +2736,11 @@ button:focus-visible,
 }
 
 @media (max-width: 1199.98px) {
+  .browse-jobs-body main.container,
+  .browse-jobs-body .simple-navbar-inner {
+    width: min(calc(100% - 48px), 100%);
+  }
+
   .browse-jobs-layout {
     grid-template-columns: 280px minmax(0, 1fr);
   }
@@ -2808,8 +2819,13 @@ button:focus-visible,
 
 @media (max-width: 575.98px) {
   .browse-jobs-body main.container {
-    padding-top: 28px;
-    padding-bottom: 48px;
+    width: min(calc(100% - 28px), 100%);
+    padding-top: 28px !important;
+    padding-bottom: 48px !important;
+  }
+
+  .browse-jobs-body .simple-navbar-inner {
+    width: min(calc(100% - 28px), 100%);
   }
 
   .browse-jobs-page {

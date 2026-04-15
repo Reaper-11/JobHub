@@ -12,16 +12,31 @@ function jobhub_log_mail_error(string $context, string $detail): void
 
 function jobhub_support_mail_config(): array
 {
+    $host = trim((string) JOBHUB_SUPPORT_SMTP_HOST);
+    $password = jobhub_support_normalize_smtp_password((string) JOBHUB_SUPPORT_SMTP_PASSWORD, $host);
+
     return [
         'smtp_enabled' => (bool) JOBHUB_SUPPORT_SMTP_ENABLED,
-        'host' => trim((string) JOBHUB_SUPPORT_SMTP_HOST),
+        'host' => $host,
         'port' => (int) JOBHUB_SUPPORT_SMTP_PORT,
         'secure' => strtolower(trim((string) JOBHUB_SUPPORT_SMTP_SECURE)),
         'username' => trim((string) JOBHUB_SUPPORT_SMTP_USERNAME),
-        'password' => trim((string) JOBHUB_SUPPORT_SMTP_PASSWORD),
+        'password' => $password,
         'from_email' => trim((string) JOBHUB_SUPPORT_FROM_EMAIL),
         'from_name' => trim((string) JOBHUB_SUPPORT_FROM_NAME),
     ];
+}
+
+function jobhub_support_normalize_smtp_password(string $password, string $host): string
+{
+    $password = trim($password);
+    $host = strtolower(trim($host));
+
+    if ($host === 'smtp.gmail.com' || str_ends_with($host, '.gmail.com')) {
+        return preg_replace('/\s+/', '', $password) ?? $password;
+    }
+
+    return $password;
 }
 
 function jobhub_support_mail_has_placeholder(string $value): bool
@@ -291,6 +306,25 @@ function jobhub_mail_recipient_summary(array $recipients): string
     ));
 }
 
+function jobhub_mail_admin_failure_message(\Throwable $e): string
+{
+    $detail = trim($e->getMessage());
+
+    if (stripos($detail, 'Could not authenticate') !== false) {
+        return 'SMTP authentication failed. Check JOBHUB_SUPPORT_SMTP_USERNAME and the Gmail App Password in includes/support_mail_config.php.';
+    }
+
+    if (stripos($detail, 'connect') !== false || stripos($detail, 'SMTP host') !== false) {
+        return 'SMTP connection failed. Check the SMTP host, port, encryption setting, and local firewall/network access.';
+    }
+
+    if ($detail !== '') {
+        return 'Email could not be sent: ' . $detail;
+    }
+
+    return 'Email could not be sent. Check the SMTP settings and PHP error log.';
+}
+
 function jobhub_send_email_message(array $message): array
 {
     $mailStatus = jobhub_support_mail_status();
@@ -429,6 +463,7 @@ function jobhub_send_email_message(array $message): array
         return [
             'success' => false,
             'message' => 'Email could not be sent. Check the SMTP settings and PHP error log.',
+            'debug_message' => jobhub_mail_admin_failure_message($e),
         ];
     } catch (\Throwable $e) {
         $recipientSummary = jobhub_mail_recipient_summary(array_merge($toRecipients, $ccRecipients, $bccRecipients));
@@ -440,6 +475,7 @@ function jobhub_send_email_message(array $message): array
         return [
             'success' => false,
             'message' => 'Email could not be sent. Check the SMTP settings and PHP error log.',
+            'debug_message' => jobhub_mail_admin_failure_message($e),
         ];
     }
 }
