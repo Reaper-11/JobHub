@@ -1,15 +1,15 @@
+<?php require_once __DIR__ . '/includes/shared_footer.php'; ?>
 </main>
 <?php if (!empty($hasSidebarLayout)) : ?>
+    <?php if (empty($hideSharedFooter)) : ?>
+        <?php jobhub_render_site_footer(); ?>
+    <?php endif; ?>
     </div>
 </div>
-<?php endif; ?>
-
-<?php if (empty($hideSharedFooter)) : ?>
-    <footer class="bg-dark text-white py-4 mt-auto">
-        <div class="container text-center">
-            <p class="mb-0">&copy; <?= date('Y') ?> JobHub - A Simple & Practical Job Portal for Nepal</p>
-        </div>
-    </footer>
+<?php else: ?>
+    <?php if (empty($hideSharedFooter)) : ?>
+        <?php jobhub_render_site_footer(); ?>
+    <?php endif; ?>
 <?php endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

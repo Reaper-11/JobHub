@@ -208,6 +208,7 @@ CREATE TABLE support_messages (
     admin_reply TEXT NULL,
     status ENUM('new', 'read', 'replied', 'resolved') NOT NULL DEFAULT 'new',
     is_read TINYINT(1) NOT NULL DEFAULT 0,
+    is_deleted TINYINT(1) NOT NULL DEFAULT 0,
     reply_email_sent TINYINT(1) NOT NULL DEFAULT 0,
     reply_email_error VARCHAR(255) NULL,
     replied_by_admin_id INT NULL,
@@ -223,6 +224,8 @@ CREATE INDEX idx_support_messages_status_created
     ON support_messages (status, created_at);
 CREATE INDEX idx_support_messages_read_created
     ON support_messages (is_read, created_at);
+CREATE INDEX idx_support_messages_deleted_created
+    ON support_messages (is_deleted, created_at);
 CREATE INDEX idx_support_messages_user
     ON support_messages (user_id);
 CREATE INDEX idx_support_messages_company

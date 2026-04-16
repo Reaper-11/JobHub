@@ -127,33 +127,6 @@ $resultsStart = $totalJobs > 0 ? ($offset + 1) : 0;
 $resultsEnd = $totalJobs > 0 ? ($offset + $jobsCount) : 0;
 $paginationParams = jobhub_browse_jobs_pagination_params($_GET);
 
-$locationRows = db_query_all(
-    "SELECT DISTINCT TRIM(j.location) AS location
-     FROM jobs j
-     LEFT JOIN companies c ON j.company_id = c.id
-     WHERE (j.company_id IS NULL OR " . jobhub_company_public_job_clause('c') . ")
-       AND j.is_approved = 1
-       AND j.status = 'active'
-       AND j.location IS NOT NULL
-       AND TRIM(j.location) <> ''
-     ORDER BY location ASC"
-);
-
-$locationOptions = [];
-foreach ($locationRows as $locationRow) {
-    $locationLabel = trim((string)($locationRow['location'] ?? ''));
-    if ($locationLabel === '') {
-        continue;
-    }
-
-    $locationOptions[strtolower($locationLabel)] = $locationLabel;
-}
-$locationOptions = array_values($locationOptions);
-
-if ($activeLocation !== '' && !in_array($activeLocation, $locationOptions, true)) {
-    array_unshift($locationOptions, $activeLocation);
-}
-
 $pageTitle = 'Browse Jobs | JobHub';
 $bodyClass = 'user-ui browse-jobs-body';
 require 'header.php';
@@ -184,47 +157,49 @@ require 'header.php';
             <input type="hidden" name="salary" value="<?= htmlspecialchars($activeSalary) ?>">
         <?php endif; ?>
 
-        <div class="browse-jobs-layout">
-            <aside class="jobs-filter-card" aria-label="Job filters">
-                <div class="jobs-filter-card__header">
-                    <span class="jobs-filter-card__icon" aria-hidden="true"><?= jobhub_browse_jobs_icon('filter') ?></span>
-                    <div>
-                        <h2>Filters</h2>
-                        <p>Narrow the list by job type and preferred location.</p>
-                    </div>
-                </div>
-
-                <div class="jobs-filter-fields">
-                    <div class="jobs-filter-field">
-                        <label for="browse-jobs-type">Job Type</label>
-                        <select id="browse-jobs-type" name="job_type" class="form-select">
-                            <option value="">All job types</option>
-                            <?php foreach ($jobTypes as $jobType): ?>
-                                <option value="<?= htmlspecialchars($jobType) ?>" <?= $selectedJobType === $jobType ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($jobType) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+        <div class="browse-jobs-layout" id="browse-jobs-layout">
+            <div class="jobs-filter-sidebar" id="jobs-filter-sidebar">
+                <aside class="jobs-filter-card" id="jobs-filter-card" aria-label="Job filters">
+                    <div class="jobs-filter-card__header">
+                        <span class="jobs-filter-card__icon" aria-hidden="true"><?= jobhub_browse_jobs_icon('filter') ?></span>
+                        <div>
+                            <h2>Filters</h2>
+                            <p>Narrow the list by job type and preferred location.</p>
+                        </div>
                     </div>
 
-                    <div class="jobs-filter-field">
-                        <label for="browse-jobs-location">Location</label>
-                        <select id="browse-jobs-location" name="location" class="form-select">
-                            <option value="">All locations</option>
-                            <?php foreach ($locationOptions as $locationOption): ?>
-                                <option value="<?= htmlspecialchars($locationOption) ?>" <?= $activeLocation === $locationOption ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($locationOption) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
+                    <div class="jobs-filter-fields">
+                        <div class="jobs-filter-field">
+                            <label for="browse-jobs-type">Job Type</label>
+                            <select id="browse-jobs-type" name="job_type" class="form-select">
+                                <option value="">All job types</option>
+                                <?php foreach ($jobTypes as $jobType): ?>
+                                    <option value="<?= htmlspecialchars($jobType) ?>" <?= $selectedJobType === $jobType ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($jobType) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
 
-                <div class="jobs-filter-actions">
-                    <button type="submit" class="jobs-filter-apply">Apply Filters</button>
-                    <a href="jobs.php" class="jobs-filter-reset">Reset</a>
-                </div>
-            </aside>
+                        <div class="jobs-filter-field">
+                            <label for="browse-jobs-location">Location</label>
+                            <input
+                                type="search"
+                                id="browse-jobs-location"
+                                name="location"
+                                value="<?= htmlspecialchars($activeLocation) ?>"
+                                class="form-control"
+                                placeholder="Search location"
+                                autocomplete="off">
+                        </div>
+                    </div>
+
+                    <div class="jobs-filter-actions">
+                        <button type="submit" class="jobs-filter-apply">Apply Filters</button>
+                        <a href="jobs.php" class="jobs-filter-reset">Reset</a>
+                    </div>
+                </aside>
+            </div>
 
             <section class="jobs-results-area">
                 <div class="jobs-search-panel">
@@ -363,5 +338,84 @@ require 'header.php';
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var desktopBreakpoint = window.matchMedia('(min-width: 992px)');
+    var sidebar = document.getElementById('jobs-filter-sidebar');
+    var card = document.getElementById('jobs-filter-card');
+    var layout = document.getElementById('browse-jobs-layout');
+
+    if (!sidebar || !card || !layout) {
+        return;
+    }
+
+    function resetSidebarState() {
+        sidebar.style.minHeight = '';
+        sidebar.style.setProperty('--jobs-filter-sidebar-width', '');
+        sidebar.style.setProperty('--jobs-filter-sidebar-left', '');
+        card.classList.remove('is-fixed', 'is-bottom');
+    }
+
+    function updateSidebarPosition() {
+        if (!desktopBreakpoint.matches) {
+            resetSidebarState();
+            return;
+        }
+
+        var topOffset = 24;
+        var sidebarRect = sidebar.getBoundingClientRect();
+        var layoutRect = layout.getBoundingClientRect();
+        var cardHeight = card.offsetHeight;
+        var viewportTop = topOffset;
+        var layoutTop = layoutRect.top + window.scrollY;
+        var sidebarTop = sidebarRect.top + window.scrollY;
+        var sidebarBottom = sidebarTop + sidebar.offsetHeight;
+        var scrollTop = window.scrollY;
+        var fixedStart = Math.max(layoutTop, sidebarTop) - topOffset;
+        var fixedEnd = sidebarBottom - cardHeight - topOffset;
+
+        sidebar.style.minHeight = cardHeight + 'px';
+        sidebar.style.setProperty('--jobs-filter-sidebar-width', sidebarRect.width + 'px');
+        sidebar.style.setProperty('--jobs-filter-sidebar-left', sidebarRect.left + 'px');
+
+        if (scrollTop >= fixedStart && scrollTop < fixedEnd) {
+            card.classList.add('is-fixed');
+            card.classList.remove('is-bottom');
+            return;
+        }
+
+        if (scrollTop >= fixedEnd) {
+            card.classList.remove('is-fixed');
+            card.classList.add('is-bottom');
+            return;
+        }
+
+        card.classList.remove('is-fixed', 'is-bottom');
+    }
+
+    var ticking = false;
+    function requestUpdate() {
+        if (ticking) {
+            return;
+        }
+
+        ticking = true;
+        window.requestAnimationFrame(function () {
+            updateSidebarPosition();
+            ticking = false;
+        });
+    }
+
+    updateSidebarPosition();
+    window.addEventListener('scroll', requestUpdate, { passive: true });
+    window.addEventListener('resize', requestUpdate);
+    if (desktopBreakpoint.addEventListener) {
+        desktopBreakpoint.addEventListener('change', requestUpdate);
+    } else if (desktopBreakpoint.addListener) {
+        desktopBreakpoint.addListener(requestUpdate);
+    }
+});
+</script>
 
 <?php require 'footer.php'; ?>

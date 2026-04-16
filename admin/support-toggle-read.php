@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $messageId = (int)($_POST['message_id'] ?? 0);
 $targetState = strtolower(trim((string)($_POST['target_state'] ?? 'read')));
 $returnTo = strtolower(trim((string)($_POST['return_to'] ?? 'list')));
+$activeFilter = support_normalize_filter($_POST['filter'] ?? 'all');
 $page = max(1, (int)($_POST['page'] ?? 1));
 
 if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -42,8 +43,8 @@ if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
 }
 
 $redirect = $returnTo === 'view'
-    ? 'support-view.php?id=' . $messageId
-    : 'support-messages.php?page=' . $page;
+    ? support_view_url($messageId, $activeFilter, $page)
+    : support_messages_url($activeFilter, $page);
 
 header('Location: ' . $redirect);
 exit;

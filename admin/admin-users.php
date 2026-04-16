@@ -3,6 +3,22 @@ require '../db.php';
 
 require_role('admin');
 
+$userAdminBaseUrl = 'users.php';
+$statusFilter = strtolower(trim((string)($_GET['status'] ?? 'all')));
+$allowedStatusFilters = ['active', 'blocked', 'removed', 'all'];
+if (!in_array($statusFilter, $allowedStatusFilters, true)) {
+    $statusFilter = 'all';
+}
+
+$page = max(1, (int)($_GET['page'] ?? 1));
+$limit = $statusFilter === 'all' ? 30 : 20;
+$offset = ($page - 1) * $limit;
+
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && basename($_SERVER['PHP_SELF']) === 'admin-users.php') {
+    header('Location: ' . $userAdminBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . $page);
+    exit;
+}
+
 $msg = $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
@@ -165,18 +181,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
     }
 }
 
-$statusFilter = strtolower(trim((string)($_GET['status'] ?? 'all')));
-$allowedStatusFilters = ['active', 'blocked', 'removed', 'all'];
-if (!in_array($statusFilter, $allowedStatusFilters, true)) {
-    $statusFilter = 'all';
-}
-
 $statusCounts = [
     'active' => (int)db_query_value("SELECT COUNT(*) FROM users WHERE account_status = 'active'", '', [], 0),
     'blocked' => (int)db_query_value("SELECT COUNT(*) FROM users WHERE account_status = 'blocked'", '', [], 0),
     'removed' => (int)db_query_value("SELECT COUNT(*) FROM users WHERE account_status = 'removed'", '', [], 0),
 ];
-$statusCounts['all'] = $statusCounts['active'] + $statusCounts['blocked'] + $statusCounts['removed'];
+$statusCounts['all'] = (int)db_query_value("SELECT COUNT(*) FROM users", '', [], 0);
 
 $userWhere = '';
 $userTypes = '';
@@ -187,6 +197,22 @@ if ($statusFilter !== 'all') {
     $userParams[] = $statusFilter;
 }
 
+$totalUsers = (int)db_query_value(
+    "SELECT COUNT(*) FROM users {$userWhere}",
+    $userTypes,
+    $userParams,
+    0
+);
+$totalPages = $totalUsers > 0 ? (int)ceil($totalUsers / $limit) : 1;
+
+if ($page > $totalPages) {
+    $page = $totalPages;
+    $offset = ($page - 1) * $limit;
+}
+
+$userQueryTypes = $userTypes . 'ii';
+$userQueryParams = array_merge($userParams, [$limit, $offset]);
+
 $statusTabs = [
     'active' => 'Active',
     'blocked' => 'Blocked',
@@ -194,12 +220,24 @@ $statusTabs = [
     'all' => 'All',
 ];
 
+$tabUrl = static function (string $targetStatus) use ($userAdminBaseUrl): string {
+    return $userAdminBaseUrl . '?status=' . urlencode($targetStatus) . '&page=1';
+};
+
+$pageUrl = static function (int $targetPage) use ($userAdminBaseUrl, $statusFilter): string {
+    return $userAdminBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . max(1, $targetPage);
+};
+
+$paginationStart = max(1, $page - 2);
+$paginationEnd = min($totalPages, $page + 2);
+
 $users = db_query_all("
     SELECT id, account_id, name, email, phone, role, account_status, is_active, created_at
     FROM users
     {$userWhere}
     ORDER BY created_at DESC
-", $userTypes, $userParams);
+    LIMIT ? OFFSET ?
+", $userQueryTypes, $userQueryParams);
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -217,7 +255,7 @@ $users = db_query_all("
 <ul class="nav nav-tabs mb-4">
     <?php foreach ($statusTabs as $tabStatus => $tabLabel): ?>
         <li class="nav-item">
-            <a class="nav-link <?= $statusFilter === $tabStatus ? 'active' : '' ?>" href="?status=<?= htmlspecialchars($tabStatus) ?>">
+            <a class="nav-link <?= $statusFilter === $tabStatus ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl($tabStatus)) ?>">
                 <?= htmlspecialchars($tabLabel) ?>
                 <span class="badge text-bg-secondary ms-1"><?= (int)($statusCounts[$tabStatus] ?? 0) ?></span>
             </a>
@@ -351,5 +389,25 @@ $users = db_query_all("
         </tbody>
     </table>
 </div>
+
+<?php if ($totalPages > 1): ?>
+    <nav class="mt-4" aria-label="User pagination">
+        <ul class="pagination justify-content-end mb-0">
+            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= $page > 1 ? htmlspecialchars($pageUrl($page - 1)) : '#' ?>">Previous</a>
+            </li>
+
+            <?php for ($pageNumber = $paginationStart; $pageNumber <= $paginationEnd; $pageNumber++): ?>
+                <li class="page-item <?= $pageNumber === $page ? 'active' : '' ?>">
+                    <a class="page-link" href="<?= htmlspecialchars($pageUrl($pageNumber)) ?>"><?= (int)$pageNumber ?></a>
+                </li>
+            <?php endfor; ?>
+
+            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
+                <a class="page-link" href="<?= $page < $totalPages ? htmlspecialchars($pageUrl($page + 1)) : '#' ?>">Next</a>
+            </li>
+        </ul>
+    </nav>
+<?php endif; ?>
 
 <?php require '../footer.php'; ?>

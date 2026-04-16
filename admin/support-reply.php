@@ -10,10 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $messageId = (int)($_POST['message_id'] ?? 0);
+$activeFilter = support_normalize_filter($_POST['filter'] ?? 'all');
+$page = max(1, (int)($_POST['page'] ?? 1));
 
 if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
     support_set_flash('admin', 'danger', 'Invalid request. Please try again.');
-    header('Location: support-view.php?id=' . $messageId);
+    header('Location: ' . support_view_url($messageId, $activeFilter, $page));
     exit;
 }
 
@@ -83,5 +85,5 @@ if (!$result['success']) {
     support_set_flash('admin', 'success', 'Reply saved successfully.');
 }
 
-header('Location: support-view.php?id=' . $messageId);
+header('Location: ' . support_view_url($messageId, $activeFilter, $page));
 exit;

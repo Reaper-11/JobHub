@@ -2245,13 +2245,22 @@ button:focus-visible,
 
 .browse-jobs-form {
   margin: 0;
+  width: 100%;
 }
 
 .browse-jobs-layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
   gap: 28px;
   align-items: start;
+  width: 100%;
+}
+
+.jobs-filter-sidebar {
+  position: relative;
+  align-self: start;
+  border-radius: 28px;
+  background: linear-gradient(180deg, #07111f 0%, #091426 100%);
 }
 
 .jobs-filter-card,
@@ -2264,12 +2273,23 @@ button:focus-visible,
 }
 
 .jobs-filter-card {
-  position: sticky;
-  top: 24px;
   display: grid;
   gap: 24px;
+  width: 100%;
   padding: 24px;
   border-radius: 28px;
+}
+
+.jobs-filter-card.is-fixed {
+  position: fixed;
+  top: 24px;
+  left: var(--jobs-filter-sidebar-left);
+  width: var(--jobs-filter-sidebar-width);
+}
+
+.jobs-filter-card.is-bottom {
+  position: absolute;
+  inset: auto 0 0 0;
 }
 
 .jobs-filter-card__header {
@@ -2321,6 +2341,11 @@ button:focus-visible,
   color: #dce6fb;
   font-size: 0.93rem;
   font-weight: 600;
+}
+
+.jobs-filter-field .form-control,
+.jobs-filter-field .form-select {
+  width: 100%;
 }
 
 .browse-jobs-page .form-control,
@@ -2408,6 +2433,8 @@ button:focus-visible,
 .jobs-results-area {
   display: grid;
   gap: 20px;
+  min-width: 0;
+  align-self: start;
 }
 
 .jobs-search-panel {
@@ -2664,6 +2691,103 @@ button:focus-visible,
   min-width: 144px;
 }
 
+.bookmark-job-card {
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(10, 16, 30, 0.98) 100%);
+  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.34);
+}
+
+.bookmark-job-card .card-body {
+  gap: 0.2rem;
+}
+
+.bookmark-job-title {
+  margin-bottom: 0.6rem;
+  font-size: 1.35rem;
+  line-height: 1.3;
+}
+
+.bookmark-job-link {
+  color: #f8fafc;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.bookmark-job-link:hover,
+.bookmark-job-link:focus {
+  color: #bfdbfe;
+  text-decoration: none;
+}
+
+.bookmark-job-company {
+  color: #bfd0ea;
+  font-size: 0.96rem;
+}
+
+.bookmark-job-type {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.92);
+  color: #dbe7ff;
+}
+
+.bookmark-job-salary {
+  color: #e5eefc;
+  font-size: 1rem;
+}
+
+.bookmark-job-salary strong {
+  color: #ffffff;
+}
+
+.bookmark-job-note,
+.bookmark-job-saved {
+  color: #9fb2cc;
+}
+
+.bookmark-job-actions {
+  padding-top: 0.4rem;
+}
+
+.bookmark-job-details,
+.bookmark-job-remove {
+  min-height: 46px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.bookmark-job-details {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  border-color: rgba(96, 165, 250, 0.32);
+  color: #eff6ff;
+  box-shadow: 0 12px 24px rgba(59, 130, 246, 0.22);
+}
+
+.bookmark-job-details:hover,
+.bookmark-job-details:focus {
+  background: linear-gradient(135deg, #7bb7ff 0%, #4d92ff 100%);
+  color: #ffffff;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
+.bookmark-job-remove {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.28);
+  color: #fca5a5;
+}
+
+.bookmark-job-remove:hover,
+.bookmark-job-remove:focus {
+  background: rgba(248, 113, 113, 0.16);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fecaca;
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+
 .jobs-empty-card {
   display: grid;
   justify-items: start;
@@ -2742,7 +2866,7 @@ button:focus-visible,
   }
 
   .browse-jobs-layout {
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
   }
 }
 
@@ -2762,7 +2886,18 @@ button:focus-visible,
   }
 
   .jobs-filter-card {
+    height: auto;
+  }
+
+  .jobs-filter-sidebar {
     position: static;
+  }
+
+  .jobs-filter-card.is-fixed,
+  .jobs-filter-card.is-bottom {
+    position: static;
+    inset: auto;
+    width: 100%;
   }
 
   .jobs-results-summary {

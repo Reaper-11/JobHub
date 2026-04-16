@@ -112,7 +112,7 @@ $stats = [
         </a>
     </div>
     <div class="col-md-4">
-        <a href="admin-users.php" class="text-decoration-none">
+        <a href="users.php?status=all&page=1" class="text-decoration-none">
             <div class="card shadow-sm h-100 border-0 hover-lift">
                 <div class="card-body">
                     <h5>Manage Users</h5>

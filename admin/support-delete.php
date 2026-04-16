@@ -10,11 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $messageId = (int)($_POST['message_id'] ?? 0);
+$activeFilter = support_normalize_filter($_POST['filter'] ?? 'all');
 $page = max(1, (int)($_POST['page'] ?? 1));
 
 if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
     support_set_flash('admin', 'danger', 'Invalid request. Please try again.');
-    header('Location: support-messages.php?page=' . $page);
+    header('Location: ' . support_messages_url($activeFilter, $page));
     exit;
 }
 
@@ -38,5 +39,5 @@ support_set_flash(
     $ok ? 'Support message deleted successfully.' : 'Could not delete the support message.'
 );
 
-header('Location: support-messages.php?page=' . $page);
+header('Location: ' . support_messages_url($activeFilter, $page));
 exit;

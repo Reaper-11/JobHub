@@ -163,7 +163,10 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
             background: radial-gradient(circle at top, rgba(14, 165, 233, 0.14), transparent 28%), linear-gradient(180deg, #020617 0%, #081120 100%);
             min-height: 100vh;
             color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
         }
+        .main-content > main { flex: 1 0 auto; }
         .page-topbar {
             background: rgba(2, 6, 23, 0.88); border-bottom: 1px solid #1e293b;
             padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;

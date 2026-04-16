@@ -1519,49 +1519,10 @@ $basePath = '';
         </div>
     </section>
 
-    <footer class="bg-gradient-to-b from-gray-900 to-gray-950 text-white py-16">
-        <div class="max-w-7xl mx-auto px-4 text-center">
-            <div class="flex justify-center mb-8">
-                <div class="flex items-center gap-4 bg-gradient-to-r from-[#1a237e]/20 to-[#283593]/20 px-8 py-4 rounded-2xl border border-[#1a237e]/30 backdrop-blur-sm">
-                    <div class="p-3 bg-gradient-to-r from-[#1a237e] to-[#283593] rounded-xl shadow-lg">
-                        <i class="fas fa-briefcase text-2xl text-white"></i>
-                    </div>
-                    <div class="text-left">
-                        <h3 class="text-2xl font-bold">JobHub</h3>
-                        <p class="text-gray-400 text-sm">Nepal's Career Marketplace</p>
-                    </div>
-                </div>
-            </div>
-
-            <p class="text-lg text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-                JobHub connects talented professionals with verified employers across Nepal.
-                Dedicated to transparent hiring and long-term career success.
-            </p>
-
-            <div class="flex flex-wrap justify-center gap-6 md:gap-8 mb-12">
-                <?php if ($isJobSeeker || $isCompany): ?>
-                    <a href="contact-support.php" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
-                        <div class="w-10 h-10 bg-gradient-to-r from-[#388e3c]/20 to-[#4caf50]/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <i class="fas fa-envelope text-sm"></i>
-                        </div>
-                        <span>Contact Support</span>
-                    </a>
-                <?php endif; ?>
-                <a href="terms-policies.php" class="group text-gray-300 hover:text-white transition flex items-center gap-3">
-                    <div class="w-10 h-10 bg-gradient-to-r from-gray-600/20 to-gray-700/20 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <i class="fas fa-file-alt text-sm"></i>
-                    </div>
-                    <span>Terms and Policies</span>
-                </a>
-            </div>
-
-            <div class="border-t border-gray-800 pt-8 mt-8">
-                <p class="text-gray-500 text-sm">
-                    &copy; <?= date('Y') ?> JobHub. All rights reserved.
-                </p>
-            </div>
-        </div>
-    </footer>
+    <?php
+    require_once __DIR__ . '/includes/shared_footer.php';
+    jobhub_render_site_footer();
+    ?>
 
     <script>
         const scrollHint = document.getElementById('scroll-hint');

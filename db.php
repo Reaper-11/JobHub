@@ -445,6 +445,13 @@ function jobhub_truthy_job_filter_value($value): bool
     return in_array($value, ['1', 'true', 'yes', 'on', 'remote'], true);
 }
 
+function jobhub_like_search_pattern(string $value): string
+{
+    $value = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value);
+
+    return '%' . $value . '%';
+}
+
 function jobhub_collect_job_filters(?array $source = null): array
 {
     $source = $source ?? $_GET;
@@ -650,8 +657,8 @@ function jobhub_browse_jobs_query_parts(array $filters = []): array
     $jobBindParams = [];
 
     if ($normalizedFilters['keyword'] !== '') {
-        $keywordLike = '%' . $normalizedFilters['keyword'] . '%';
-        $jobWhereClauses[] = "(j.title LIKE ? OR j.description LIKE ? OR j.company LIKE ? OR j.category LIKE ? OR j.location LIKE ? OR j.type LIKE ? OR j.experience_level LIKE ? OR j.skills_required LIKE ?)";
+        $keywordLike = jobhub_like_search_pattern($normalizedFilters['keyword']);
+        $jobWhereClauses[] = "(j.title LIKE ? ESCAPE '!' OR j.description LIKE ? ESCAPE '!' OR j.company LIKE ? ESCAPE '!' OR j.category LIKE ? ESCAPE '!' OR j.location LIKE ? ESCAPE '!' OR j.type LIKE ? ESCAPE '!' OR j.experience_level LIKE ? ESCAPE '!' OR j.skills_required LIKE ? ESCAPE '!')";
         $jobBindTypes .= 'ssssssss';
         array_push(
             $jobBindParams,
@@ -679,15 +686,15 @@ function jobhub_browse_jobs_query_parts(array $filters = []): array
     }
 
     if ($normalizedFilters['activeLocation'] !== '') {
-        $jobWhereClauses[] = "j.location LIKE ?";
+        $jobWhereClauses[] = "j.location LIKE ? ESCAPE '!'";
         $jobBindTypes .= 's';
-        $jobBindParams[] = '%' . $normalizedFilters['activeLocation'] . '%';
+        $jobBindParams[] = jobhub_like_search_pattern($normalizedFilters['activeLocation']);
     }
 
     if ($normalizedFilters['activeSalary'] !== '') {
-        $jobWhereClauses[] = "j.salary LIKE ?";
+        $jobWhereClauses[] = "j.salary LIKE ? ESCAPE '!'";
         $jobBindTypes .= 's';
-        $jobBindParams[] = '%' . $normalizedFilters['activeSalary'] . '%';
+        $jobBindParams[] = jobhub_like_search_pattern($normalizedFilters['activeSalary']);
     }
 
     if ($normalizedFilters['selectedJobType'] !== '') {
@@ -697,10 +704,10 @@ function jobhub_browse_jobs_query_parts(array $filters = []): array
     }
 
     if (!empty($normalizedFilters['remote'])) {
-        $jobWhereClauses[] = "(j.type = ? OR j.location LIKE ?)";
+        $jobWhereClauses[] = "(j.type = ? OR j.location LIKE ? ESCAPE '!')";
         $jobBindTypes .= 'ss';
         $jobBindParams[] = 'Remote';
-        $jobBindParams[] = '%Remote%';
+        $jobBindParams[] = jobhub_like_search_pattern('Remote');
     }
 
     return [

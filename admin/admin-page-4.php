@@ -25,7 +25,7 @@ if ((current_admin_id() ?? 0) !== 4) {
             <ul class="list-unstyled mb-0">
                 <li><a class="link-primary text-decoration-none" href="admin-dashboard.php">Dashboard</a></li>
                 <li><a class="link-primary text-decoration-none" href="job-approval.php?status=all&page=1">Manage Jobs</a></li>
-                <li><a class="link-primary text-decoration-none" href="admin-users.php">Manage Users</a></li>
+                <li><a class="link-primary text-decoration-none" href="users.php?status=all&page=1">Manage Users</a></li>
                 <li><a class="link-primary text-decoration-none" href="admin-applications.php">View Applications</a></li>
             </ul>
         </div>

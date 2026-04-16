@@ -78,15 +78,15 @@ $stmt->close();
             $isActiveJob = $jobStatus === 'active';
             ?>
             <div class="col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm position-relative">
+                <div class="card bookmark-job-card h-100 shadow-sm position-relative">
                     <div class="card-body d-flex flex-column">
-                        <h5 class="card-title mb-2">
-                            <a href="job-detail.php?id=<?= $job['id'] ?>" class="text-decoration-none text-dark">
+                        <h5 class="card-title bookmark-job-title mb-2">
+                            <a href="job-detail.php?id=<?= $job['id'] ?>" class="bookmark-job-link">
                                 <?= htmlspecialchars($job['title']) ?>
                             </a>
                         </h5>
 
-                        <p class="text-muted mb-2 small">
+                        <p class="bookmark-job-company mb-2 small">
                             <?= htmlspecialchars($job['company']) ?> &middot;
                             <?= htmlspecialchars($job['location']) ?>
                         </p>
@@ -95,31 +95,31 @@ $stmt->close();
                             <span class="badge <?= htmlspecialchars($jobStatusBadgeClass) ?>">
                                 <?= htmlspecialchars($jobStatusLabel) ?>
                             </span>
-                            <span class="badge bg-light text-dark border">
+                            <span class="badge bookmark-job-type">
                                 <?= htmlspecialchars($job['type'] ?? 'Full-time') ?>
                             </span>
                         </div>
 
                         <?php $salaryText = jobhub_salary_display_value($job['salary'] ?? '', ''); ?>
                         <?php if ($salaryText !== ''): ?>
-                            <p class="small mb-2">
+                            <p class="bookmark-job-salary small mb-2">
                                 <strong>Salary:</strong> <?= htmlspecialchars($salaryText) ?>
                             </p>
                         <?php endif; ?>
 
                         <?php if (!$isActiveJob): ?>
-                            <p class="small text-muted mb-2">
+                            <p class="bookmark-job-note small mb-2">
                                 Applications are closed. This saved job remains available here for reference.
                             </p>
                         <?php endif; ?>
 
-                        <p class="small text-muted mb-3">
+                        <p class="bookmark-job-saved small mb-3">
                             Bookmarked <?= date('M d, Y', strtotime($job['bookmarked_at'])) ?>
                         </p>
 
-                        <div class="mt-auto d-flex gap-2">
+                        <div class="bookmark-job-actions mt-auto d-flex gap-2">
                             <a href="job-detail.php?id=<?= $job['id'] ?>"
-                               class="btn btn-outline-primary btn-sm flex-grow-1">
+                               class="btn bookmark-job-details btn-sm flex-grow-1">
                                 View Details
                             </a>
 
@@ -127,7 +127,7 @@ $stmt->close();
                                 <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                                 <input type="hidden" name="bookmark_id" value="<?= $job['bookmark_id'] ?>">
                                 <input type="hidden" name="remove_bookmark" value="1">
-                                <button type="submit" class="btn btn-sm btn-outline-danger"
+                                <button type="submit" class="btn bookmark-job-remove btn-sm"
                                         onclick="return confirm('Remove this bookmark?');">
                                     Remove
                                 </button>

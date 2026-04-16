@@ -57,6 +57,124 @@ function support_admin_notifications_supported(mysqli $conn): bool
     return $supported;
 }
 
+function support_column_exists(mysqli $conn, string $column): bool
+{
+    if (!support_table_exists($conn)) {
+        return false;
+    }
+
+    if (!preg_match('/^[a-zA-Z0-9_]+$/', $column)) {
+        return false;
+    }
+
+    $escapedColumn = $conn->real_escape_string($column);
+    $result = $conn->query("SHOW COLUMNS FROM support_messages LIKE '{$escapedColumn}'");
+    $exists = $result instanceof mysqli_result && $result->num_rows > 0;
+
+    if ($result instanceof mysqli_result) {
+        $result->close();
+    }
+
+    return $exists;
+}
+
+function support_index_exists(mysqli $conn, string $indexName): bool
+{
+    if (!support_table_exists($conn)) {
+        return false;
+    }
+
+    if (!preg_match('/^[a-zA-Z0-9_]+$/', $indexName)) {
+        return false;
+    }
+
+    $escapedIndexName = $conn->real_escape_string($indexName);
+    $result = $conn->query("SHOW INDEX FROM support_messages WHERE Key_name = '{$escapedIndexName}'");
+    $exists = $result instanceof mysqli_result && $result->num_rows > 0;
+
+    if ($result instanceof mysqli_result) {
+        $result->close();
+    }
+
+    return $exists;
+}
+
+function support_ensure_soft_delete_column(mysqli $conn): bool
+{
+    if (!support_table_exists($conn)) {
+        return false;
+    }
+
+    if (!support_column_exists($conn, 'is_deleted')) {
+        $conn->query("
+            ALTER TABLE support_messages
+            ADD COLUMN is_deleted TINYINT(1) NOT NULL DEFAULT 0 AFTER is_read
+        ");
+    }
+
+    if (support_column_exists($conn, 'is_deleted')
+        && !support_index_exists($conn, 'idx_support_messages_deleted_created')) {
+        $conn->query("
+            CREATE INDEX idx_support_messages_deleted_created
+            ON support_messages (is_deleted, created_at)
+        ");
+    }
+
+    return support_column_exists($conn, 'is_deleted');
+}
+
+function support_filter_options(): array
+{
+    return [
+        'all' => 'All',
+        'new' => 'New',
+        'viewed' => 'Viewed',
+    ];
+}
+
+function support_normalize_filter($filter): string
+{
+    $filter = strtolower(trim((string)$filter));
+
+    return array_key_exists($filter, support_filter_options()) ? $filter : 'all';
+}
+
+function support_messages_url(string $filter = 'all', int $page = 1): string
+{
+    $filter = support_normalize_filter($filter);
+    $page = max(1, $page);
+
+    return 'support-messages.php?' . http_build_query([
+        'filter' => $filter,
+        'page' => $page,
+    ]);
+}
+
+function support_view_url(int $messageId, string $filter = 'all', int $page = 1): string
+{
+    $filter = support_normalize_filter($filter);
+    $page = max(1, $page);
+
+    return 'support-view.php?' . http_build_query([
+        'id' => $messageId,
+        'filter' => $filter,
+        'page' => $page,
+    ]);
+}
+
+function support_filter_where_clause(mysqli $conn, string $filter): string
+{
+    $filter = support_normalize_filter($filter);
+    $hasSoftDelete = support_ensure_soft_delete_column($conn);
+    $activeClause = $hasSoftDelete ? 'is_deleted = 0' : '1 = 1';
+
+    return match ($filter) {
+        'new' => $activeClause . " AND status = 'new'",
+        'viewed' => $activeClause . " AND is_read = 1",
+        default => $activeClause,
+    };
+}
+
 function support_flash_key(string $channel): string
 {
     return 'support_flash_' . preg_replace('/[^a-z0-9_]/i', '', strtolower($channel));
@@ -379,23 +497,45 @@ function support_fetch_counts(mysqli $conn): array
     if (!support_table_exists($conn)) {
         return [
             'total' => 0,
+            'all' => 0,
             'new' => 0,
+            'viewed' => 0,
             'unread' => 0,
             'replied' => 0,
             'resolved' => 0,
         ];
     }
 
+    $activeClause = support_ensure_soft_delete_column($conn) ? 'is_deleted = 0' : '1 = 1';
+
     return [
-        'total' => (int)db_query_value("SELECT COUNT(*) FROM support_messages", '', [], 0),
-        'new' => (int)db_query_value("SELECT COUNT(*) FROM support_messages WHERE status = 'new'", '', [], 0),
-        'unread' => (int)db_query_value("SELECT COUNT(*) FROM support_messages WHERE is_read = 0", '', [], 0),
-        'replied' => (int)db_query_value("SELECT COUNT(*) FROM support_messages WHERE status = 'replied'", '', [], 0),
-        'resolved' => (int)db_query_value("SELECT COUNT(*) FROM support_messages WHERE status = 'resolved'", '', [], 0),
+        'total' => support_count_messages($conn, 'all'),
+        'all' => support_count_messages($conn, 'all'),
+        'new' => support_count_messages($conn, 'new'),
+        'viewed' => support_count_messages($conn, 'viewed'),
+        'unread' => (int)db_query_value("SELECT COUNT(*) FROM support_messages WHERE {$activeClause} AND is_read = 0", '', [], 0),
+        'replied' => (int)db_query_value("SELECT COUNT(*) FROM support_messages WHERE {$activeClause} AND status = 'replied'", '', [], 0),
+        'resolved' => (int)db_query_value("SELECT COUNT(*) FROM support_messages WHERE {$activeClause} AND status = 'resolved'", '', [], 0),
     ];
 }
 
-function support_fetch_messages_page(mysqli $conn, int $page, int $perPage): array
+function support_count_messages(mysqli $conn, string $filter = 'all'): int
+{
+    if (!support_table_exists($conn)) {
+        return 0;
+    }
+
+    $whereClause = support_filter_where_clause($conn, $filter);
+
+    return (int)db_query_value(
+        "SELECT COUNT(*) FROM support_messages WHERE {$whereClause}",
+        '',
+        [],
+        0
+    );
+}
+
+function support_fetch_messages_page(mysqli $conn, int $page, int $perPage, string $filter = 'all'): array
 {
     if (!support_table_exists($conn)) {
         return [];
@@ -404,10 +544,14 @@ function support_fetch_messages_page(mysqli $conn, int $page, int $perPage): arr
     $page = max(1, $page);
     $perPage = max(1, min(50, $perPage));
     $offset = ($page - 1) * $perPage;
+    $whereClause = support_filter_where_clause($conn, $filter);
+    $deletedSelect = support_ensure_soft_delete_column($conn) ? 'is_deleted' : '0 AS is_deleted';
 
     $stmt = $conn->prepare("
-        SELECT id, sender_name, sender_email, sender_phone, sender_role, subject, status, is_read, created_at
+        SELECT id, sender_name, sender_email, sender_phone, sender_role, subject, status, is_read,
+               {$deletedSelect}, created_at
         FROM support_messages
+        WHERE {$whereClause}
         ORDER BY created_at DESC, id DESC
         LIMIT ?, ?
     ");
@@ -424,18 +568,23 @@ function support_fetch_messages_page(mysqli $conn, int $page, int $perPage): arr
     return $rows;
 }
 
-function support_fetch_message(mysqli $conn, int $messageId): ?array
+function support_fetch_message(mysqli $conn, int $messageId, bool $includeDeleted = false): ?array
 {
     if ($messageId <= 0 || !support_table_exists($conn)) {
         return null;
     }
 
+    $hasSoftDelete = support_ensure_soft_delete_column($conn);
+    $deletedSelect = $hasSoftDelete ? 'is_deleted' : '0 AS is_deleted';
+    $deletedClause = ($hasSoftDelete && !$includeDeleted) ? 'AND is_deleted = 0' : '';
+
     $stmt = $conn->prepare("
         SELECT id, sender_name, sender_email, sender_phone, sender_role, user_id, company_id,
-               subject, message, admin_reply, status, is_read, reply_email_sent,
+               subject, message, admin_reply, status, is_read, {$deletedSelect}, reply_email_sent,
                reply_email_error, replied_by_admin_id, replied_at, created_at, updated_at
         FROM support_messages
         WHERE id = ?
+        {$deletedClause}
         LIMIT 1
     ");
 
@@ -517,7 +666,26 @@ function support_delete_message(mysqli $conn, int $messageId): bool
         return false;
     }
 
-    $stmt = $conn->prepare("DELETE FROM support_messages WHERE id = ?");
+    if (!support_ensure_soft_delete_column($conn)) {
+        $stmt = $conn->prepare("DELETE FROM support_messages WHERE id = ?");
+        if (!$stmt) {
+            return false;
+        }
+
+        $stmt->bind_param("i", $messageId);
+        $ok = $stmt->execute();
+        $stmt->close();
+
+        return $ok;
+    }
+
+    $stmt = $conn->prepare("
+        UPDATE support_messages
+        SET is_deleted = 1,
+            updated_at = NOW()
+        WHERE id = ?
+    ");
+
     if (!$stmt) {
         return false;
     }
