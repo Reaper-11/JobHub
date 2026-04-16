@@ -340,198 +340,227 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_job'])) {
         <form method="POST" action="company-add-job.php">
             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
 
-            <div class="mb-3">
-                <label class="form-label">Job Title *</label>
-                <input
-                    type="text"
-                    name="job_title"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'job_title', 'form-control')) ?>"
-                    required
-                    minlength="3"
-                    maxlength="150"
-                    value="<?= htmlspecialchars($formData['job_title']) ?>"
-                >
-                <?php if (isset($errors['job_title'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['job_title']) ?></div>
-                <?php endif; ?>
-            </div>
+            <!-- Job Details Section -->
+            <div class="mb-5" style="margin-top: 0;">
+                <h5 class="mb-3" style="color: #ffffff; font-weight: 700; font-size: 1.1rem;">Job Details</h5>
 
-            <div class="mb-3">
-                <label class="form-label">Location *</label>
-                <input
-                    type="text"
-                    name="location"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'location', 'form-control')) ?>"
-                    required
-                    placeholder="Kathmandu, Nepal"
-                    value="<?= htmlspecialchars($formData['location']) ?>"
-                >
-                <?php if (isset($errors['location'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['location']) ?></div>
-                <?php endif; ?>
-            </div>
+                <div class="mb-3">
+                    <label class="form-label">Job Title <span class="text-danger">*</span></label>
+                    <input
+                        type="text"
+                        name="job_title"
+                        class="<?= htmlspecialchars(company_add_job_input_class($errors, 'job_title', 'form-control')) ?>"
+                        required
+                        minlength="3"
+                        maxlength="150"
+                        value="<?= htmlspecialchars($formData['job_title']) ?>"
+                    >
+                    <?php if (isset($errors['job_title'])): ?>
+                        <div class="invalid-feedback"><?= htmlspecialchars($errors['job_title']) ?></div>
+                    <?php endif; ?>
+                </div>
 
-            <div class="mb-3">
-                <label class="form-label">Job Type *</label>
-                <select
-                    name="job_type"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'job_type', 'form-select')) ?>"
-                    required
-                >
-                    <?php foreach ($jobTypes as $jobType): ?>
-                        <option value="<?= htmlspecialchars($jobType) ?>" <?= $formData['job_type'] === $jobType ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($jobType) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if (isset($errors['job_type'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['job_type']) ?></div>
-                <?php endif; ?>
-            </div>
+                <div class="mb-3">
+                    <label class="form-label">Location <span class="text-danger">*</span></label>
+                    <input
+                        type="text"
+                        name="location"
+                        class="<?= htmlspecialchars(company_add_job_input_class($errors, 'location', 'form-control')) ?>"
+                        required
+                        placeholder="Kathmandu, Nepal"
+                        value="<?= htmlspecialchars($formData['location']) ?>"
+                    >
+                    <?php if (isset($errors['location'])): ?>
+                        <div class="invalid-feedback"><?= htmlspecialchars($errors['location']) ?></div>
+                    <?php endif; ?>
+                </div>
 
-            <div class="mb-3">
-                <label class="form-label">Category *</label>
-                <select
-                    name="category"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'category', 'form-select')) ?>"
-                    required
-                >
-                    <option value="" disabled <?= $formData['category'] === '' ? 'selected' : '' ?>>Select category...</option>
-                    <?php foreach ($categories as $cat): ?>
-                        <option value="<?= htmlspecialchars($cat) ?>" <?= $formData['category'] === $cat ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($cat) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if (isset($errors['category'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['category']) ?></div>
-                <?php endif; ?>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Salary *</label>
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">Minimum Salary</label>
-                        <input
-                            type="number"
-                            name="salary_min"
-                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_min', 'form-control')) ?>"
-                            min="1"
-                            step="1"
-                            inputmode="numeric"
-                            placeholder="40000"
-                            onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
-                            required
-                            value="<?= htmlspecialchars($formData['salary_min']) ?>"
-                        >
-                        <?php if (isset($errors['salary_min'])): ?>
-                            <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_min']) ?></div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Maximum Salary</label>
-                        <input
-                            type="number"
-                            name="salary_max"
-                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_max', 'form-control')) ?>"
-                            min="1"
-                            step="1"
-                            inputmode="numeric"
-                            placeholder="70000"
-                            onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
-                            oninput="this.value = this.value.replace(/[^0-9]/g, '');"
-                            value="<?= htmlspecialchars($formData['salary_max']) ?>"
-                        >
-                        <?php if (isset($errors['salary_max'])): ?>
-                            <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_max']) ?></div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">Salary Period</label>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Job Type <span class="text-danger">*</span></label>
                         <select
-                            name="salary_period"
-                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_period', 'form-select')) ?>"
+                            name="job_type"
+                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'job_type', 'form-select')) ?>"
+                            required
                         >
-                            <?php foreach ($salaryPeriods as $periodValue => $periodLabel): ?>
-                                <option value="<?= htmlspecialchars($periodValue) ?>" <?= $formData['salary_period'] === $periodValue ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($periodLabel) ?>
+                            <?php foreach ($jobTypes as $jobType): ?>
+                                <option value="<?= htmlspecialchars($jobType) ?>" <?= $formData['job_type'] === $jobType ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($jobType) ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <?php if (isset($errors['salary_period'])): ?>
-                            <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_period']) ?></div>
+                        <?php if (isset($errors['job_type'])): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($errors['job_type']) ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">Category <span class="text-danger">*</span></label>
+                        <select
+                            name="category"
+                            class="<?= htmlspecialchars(company_add_job_input_class($errors, 'category', 'form-select')) ?>"
+                            required
+                        >
+                            <option value="" disabled <?= $formData['category'] === '' ? 'selected' : '' ?>>Select category...</option>
+                            <?php foreach ($categories as $cat): ?>
+                                <option value="<?= htmlspecialchars($cat) ?>" <?= $formData['category'] === $cat ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($cat) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (isset($errors['category'])): ?>
+                            <div class="invalid-feedback"><?= htmlspecialchars($errors['category']) ?></div>
                         <?php endif; ?>
                     </div>
                 </div>
-                <div class="form-text">Example display: <?= htmlspecialchars(jobhub_salary_format_text('40000', '70000', 'month', 'NPR')) ?></div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Application Duration *</label>
-                <input
-                    type="number"
-                    name="application_duration"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'application_duration', 'form-control')) ?>"
-                    min="1"
-                    max="365"
-                    step="1"
-                    inputmode="numeric"
-                    placeholder="e.g. 30"
-                    aria-describedby="application-duration-help"
-                    onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
-                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
-                    required
-                    value="<?= htmlspecialchars($formData['application_duration']) ?>"
-                >
-                <div id="application-duration-help" class="form-text">Enter number only. Days will be applied automatically.</div>
-                <?php if (isset($errors['application_duration'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['application_duration']) ?></div>
-                <?php endif; ?>
+            <!-- Salary Information Section -->
+            <div class="mb-5" style="margin-top: 2rem;">
+                <h5 class="mb-3" style="color: #ffffff; font-weight: 700; font-size: 1.1rem;">Salary Information</h5>
+
+                <div class="mb-3">
+                    <label class="form-label">Salary <span class="text-danger">*</span></label>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text" style="background-color: #374151; border-color: #4b5563; color: #9ca3af;">NPR</span>
+                                <input
+                                    type="number"
+                                    name="salary_min"
+                                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_min', 'form-control')) ?>"
+                                    min="1"
+                                    step="1"
+                                    inputmode="numeric"
+                                    placeholder="Min"
+                                    onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                                    required
+                                    value="<?= htmlspecialchars($formData['salary_min']) ?>"
+                                >
+                                <?php if (isset($errors['salary_min'])): ?>
+                                    <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_min']) ?></div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text" style="background-color: #374151; border-color: #4b5563; color: #9ca3af;">NPR</span>
+                                <input
+                                    type="number"
+                                    name="salary_max"
+                                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_max', 'form-control')) ?>"
+                                    min="1"
+                                    step="1"
+                                    inputmode="numeric"
+                                    placeholder="Max"
+                                    onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                                    oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                                    value="<?= htmlspecialchars($formData['salary_max']) ?>"
+                                >
+                                <?php if (isset($errors['salary_max'])): ?>
+                                    <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_max']) ?></div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select
+                                name="salary_period"
+                                class="<?= htmlspecialchars(company_add_job_input_class($errors, 'salary_period', 'form-select')) ?>"
+                            >
+                                <?php foreach ($salaryPeriods as $periodValue => $periodLabel): ?>
+                                    <option value="<?= htmlspecialchars($periodValue) ?>" <?= $formData['salary_period'] === $periodValue ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($periodLabel) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php if (isset($errors['salary_period'])): ?>
+                                <div class="invalid-feedback"><?= htmlspecialchars($errors['salary_period']) ?></div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="form-text mt-2">Example display: <?= htmlspecialchars(jobhub_salary_format_text('40000', '70000', 'month', 'NPR')) ?></div>
+                </div>
             </div>
 
-            <div class="mb-3">
-                <label class="form-label">Experience Required *</label>
-                <select
-                    name="experience_required"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'experience_required', 'form-select')) ?>"
-                    required
-                >
-                    <option value="" disabled <?= $formData['experience_required'] === '' ? 'selected' : '' ?>>Select experience level...</option>
-                    <?php foreach ($experienceLevels as $level): ?>
-                        <option value="<?= htmlspecialchars($level) ?>" <?= $formData['experience_required'] === $level ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($level) ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-                <?php if (isset($errors['experience_required'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['experience_required']) ?></div>
-                <?php endif; ?>
+            <!-- Requirements Section -->
+            <div class="mb-5" style="margin-top: 2rem;">
+                <h5 class="mb-3" style="color: #ffffff; font-weight: 700; font-size: 1.1rem;">Requirements</h5>
+
+                <div class="mb-3">
+                    <label class="form-label">Application Duration <span class="text-danger">*</span></label>
+                    <input
+                        type="number"
+                        name="application_duration"
+                        class="<?= htmlspecialchars(company_add_job_input_class($errors, 'application_duration', 'form-control')) ?>"
+                        min="1"
+                        max="365"
+                        step="1"
+                        inputmode="numeric"
+                        placeholder="30"
+                        aria-describedby="application-duration-help"
+                        onkeydown="if (['e', 'E', '+', '-', '.'].includes(event.key)) { event.preventDefault(); }"
+                        oninput="this.value = this.value.replace(/[^0-9]/g, '');"
+                        required
+                        value="<?= htmlspecialchars($formData['application_duration']) ?>"
+                    >
+                    <div id="application-duration-help" class="form-text">Enter number of days (e.g. 30)</div>
+                    <?php if (isset($errors['application_duration'])): ?>
+                        <div class="invalid-feedback"><?= htmlspecialchars($errors['application_duration']) ?></div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Experience Required <span class="text-danger">*</span></label>
+                    <select
+                        name="experience_required"
+                        class="<?= htmlspecialchars(company_add_job_input_class($errors, 'experience_required', 'form-select')) ?>"
+                        required
+                    >
+                        <option value="" disabled <?= $formData['experience_required'] === '' ? 'selected' : '' ?>>Select experience level...</option>
+                        <?php foreach ($experienceLevels as $level): ?>
+                            <option value="<?= htmlspecialchars($level) ?>" <?= $formData['experience_required'] === $level ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($level) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <?php if (isset($errors['experience_required'])): ?>
+                        <div class="invalid-feedback"><?= htmlspecialchars($errors['experience_required']) ?></div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Description <span class="text-danger">*</span></label>
+                    <textarea
+                        name="description"
+                        class="<?= htmlspecialchars(company_add_job_input_class($errors, 'description', 'form-control')) ?>"
+                        rows="6"
+                        required
+                        minlength="20"
+                        placeholder="Describe the job responsibilities, expectations, and what you're looking for in a candidate..."
+                    ><?= htmlspecialchars($formData['description']) ?></textarea>
+                    <div class="form-text">Provide clear job responsibilities and expectations.</div>
+                    <?php if (isset($errors['description'])): ?>
+                        <div class="invalid-feedback"><?= htmlspecialchars($errors['description']) ?></div>
+                    <?php endif; ?>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Required Skills (optional)</label>
+                    <textarea name="skills_required" class="form-control" rows="3" placeholder="Laravel, PHP, MySQL, REST API"><?= htmlspecialchars($formData['skills_required']) ?></textarea>
+                    <div class="form-text">Enter comma-separated skills to improve job recommendations.</div>
+                </div>
             </div>
 
-            <div class="mb-4">
-                <label class="form-label">Required Skills (optional)</label>
-                <textarea name="skills_required" class="form-control" rows="3" placeholder="Laravel, PHP, MySQL, REST API"><?= htmlspecialchars($formData['skills_required']) ?></textarea>
-                <div class="form-text">Enter comma-separated skills to improve job recommendations.</div>
+            <!-- Form Actions -->
+            <div class="d-flex gap-3" style="margin-top: 2rem;">
+                <button type="submit" name="submit_job" class="btn btn-primary btn-lg" <?= $canPostJobs ? '' : 'disabled' ?>>
+                    <i class="fas fa-rocket me-2"></i>Publish Job
+                </button>
+                <a href="company-dashboard.php" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </a>
             </div>
-
-            <div class="mb-4">
-                <label class="form-label">Description *</label>
-                <textarea
-                    name="description"
-                    class="<?= htmlspecialchars(company_add_job_input_class($errors, 'description', 'form-control')) ?>"
-                    rows="6"
-                    required
-                    minlength="20"
-                ><?= htmlspecialchars($formData['description']) ?></textarea>
-                <?php if (isset($errors['description'])): ?>
-                    <div class="invalid-feedback"><?= htmlspecialchars($errors['description']) ?></div>
-                <?php endif; ?>
-            </div>
-
-            <button type="submit" name="submit_job" class="btn btn-primary" <?= $canPostJobs ? '' : 'disabled' ?>>Publish Job</button>
-            <a href="company-dashboard.php" class="btn btn-outline-secondary ms-2">Cancel</a>
         </form>
     </div>
 </div>

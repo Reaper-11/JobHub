@@ -1482,40 +1482,27 @@ $basePath = '';
             <h2 class="text-3xl md:text-4xl font-bold mb-6">
                 Ready to Make Your Next Move?
             </h2>
-            <p class="text-xl mb-10 opacity-90 max-w-2xl mx-auto leading-relaxed">
+            <p class="text-xl mb-12 opacity-90 max-w-2xl mx-auto leading-relaxed">
                 Join JobHub to connect with top employers and accelerate your career today.
             </p>
-            <?php if ($isLoggedIn): ?>
-                <div class="flex flex-col sm:flex-row gap-6 justify-center">
-                    <?php
-                    $ctaHref = $basePath . 'jobs.php';
-                    $ctaIcon = 'fa-clipboard-list';
-                    $ctaLabel = 'Browse Jobs';
-
-                    if ($isJobSeeker) {
-                        $ctaHref = $basePath . 'my-applications.php';
-                        $ctaIcon = 'fa-clipboard-list';
-                        $ctaLabel = 'View Applications';
-                    } elseif ($isCompany) {
-                        $ctaHref = $basePath . 'company/company-dashboard.php';
-                        $ctaIcon = 'fa-building';
-                        $ctaLabel = 'Open Company Dashboard';
-                    } elseif ($isAdmin) {
-                        $ctaHref = $basePath . 'admin/admin-dashboard.php';
-                        $ctaIcon = 'fa-shield-halved';
-                        $ctaLabel = 'Open Admin Dashboard';
-                    }
-                    ?>
-                    <a href="<?= htmlspecialchars($ctaHref) ?>"
-                        class="group relative px-8 py-4 bg-white text-[#1a237e] rounded-xl text-lg md:text-xl font-bold hover:bg-gray-50 transition shadow-xl hover:shadow-2xl hover-lift flex items-center justify-center gap-3 overflow-hidden">
-                        <span class="relative z-10 flex items-center gap-3">
-                            <i class="fas <?= htmlspecialchars($ctaIcon) ?>"></i>
-                            <?= htmlspecialchars($ctaLabel) ?>
-                        </span>
-                        <div class="absolute inset-0 bg-gradient-to-r from-[#1a237e]/0 via-[#1a237e]/5 to-[#1a237e]/0 transform -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
-                    </a>
-                </div>
-            <?php endif; ?>
+            
+            <!-- Footer Links -->
+            <div class="flex flex-wrap justify-center items-center gap-6 text-center pt-8">
+                <a href="<?= htmlspecialchars($basePath . 'terms-policies.php') ?>" 
+                    class="text-sm text-slate-300 hover:text-white transition-colors duration-200 hover:underline decoration-offset-2">
+                    Terms & Conditions
+                </a>
+                <span class="text-slate-600">•</span>
+                <a href="<?= htmlspecialchars($basePath . 'terms-policies.php') ?>" 
+                    class="text-sm text-slate-300 hover:text-white transition-colors duration-200 hover:underline decoration-offset-2">
+                    Privacy Policy
+                </a>
+                <span class="text-slate-600">•</span>
+                <a href="<?= htmlspecialchars($basePath . 'contact-support.php') ?>" 
+                    class="text-sm text-slate-300 hover:text-white transition-colors duration-200 hover:underline decoration-offset-2">
+                    Contact Support
+                </a>
+            </div>
         </div>
     </section>
 

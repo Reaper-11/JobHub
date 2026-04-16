@@ -10,17 +10,19 @@ if (!function_exists('jobhub_render_site_footer')) {
             <style>
                 .jobhub-site-footer {
                     width: 100%;
-                    padding: 30px 18px 28px;
-                    background: #050b1a;
+                    padding: 45px 20px 40px;
+                    background: linear-gradient(180deg, rgba(5, 11, 26, 0.8) 0%, #050b1a 100%);
+                    border-top: 1px solid rgba(96, 165, 250, 0.15);
+                    margin-top: auto;
                 }
                 .jobhub-site-footer__inner {
-                    width: min(100%, 900px);
+                    width: min(100%, 1200px);
                     margin: 0 auto;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    gap: 10px;
+                    gap: 14px;
                     text-align: center;
                 }
                 .jobhub-site-footer__brand {
@@ -28,57 +30,73 @@ if (!function_exists('jobhub_render_site_footer')) {
                     align-items: baseline;
                     justify-content: center;
                     font-family: "Segoe UI", "Trebuchet MS", sans-serif;
-                    font-size: clamp(1.9rem, 3vw, 2.35rem);
+                    font-size: clamp(1.8rem, 3.5vw, 2.3rem);
                     font-weight: 900;
                     line-height: 1;
-                    letter-spacing: -0.07em;
+                    letter-spacing: -0.09em;
                     white-space: nowrap;
                     text-rendering: optimizeLegibility;
+                    margin-bottom: 5px;
                 }
                 .jobhub-site-footer__brand-job {
                     color: #ffffff;
+                    font-weight: 900;
+                    letter-spacing: -0.02em;
                 }
                 .jobhub-site-footer__brand-hub {
-                    color: #ff9f1a;
-                    margin-left: -0.06em;
+                    color: #ff9f1a !important;
+                    margin-left: -0.12em;
+                    font-weight: 900;
+                    letter-spacing: -0.02em;
                 }
                 .jobhub-site-footer__tagline {
                     margin: 0;
-                    max-width: 40rem;
-                    color: #ffffff;
-                    font-size: clamp(0.92rem, 1.2vw, 1.02rem);
-                    line-height: 1.5;
-                    font-weight: 600;
+                    max-width: 55rem;
+                    color: #e2e8f0;
+                    font-size: clamp(0.92rem, 1vw, 0.98rem);
+                    line-height: 1.6;
+                    font-weight: 500;
+                    letter-spacing: 0.3px;
                 }
                 .jobhub-site-footer__meta {
                     margin: 0;
-                    color: #9aa9c4;
-                    font-size: 0.82rem;
+                    color: #94a3b8;
+                    font-size: clamp(0.8rem, 0.9vw, 0.86rem);
                     line-height: 1.5;
+                    font-weight: 400;
+                    letter-spacing: 0.1px;
                 }
                 @media (max-width: 768px) {
                     .jobhub-site-footer {
-                        padding: 26px 16px 24px;
+                        padding: 38px 18px 32px;
                     }
                     .jobhub-site-footer__inner {
-                        gap: 9px;
+                        gap: 12px;
                     }
                     .jobhub-site-footer__brand {
-                        font-size: 1.8rem;
+                        font-size: 1.7rem;
+                        margin-bottom: 4px;
+                    }
+                    .jobhub-site-footer__tagline {
+                        font-size: 0.92rem;
                     }
                 }
                 @media (max-width: 480px) {
                     .jobhub-site-footer {
-                        padding: 24px 14px 22px;
+                        padding: 32px 16px 26px;
+                    }
+                    .jobhub-site-footer__inner {
+                        gap: 10px;
                     }
                     .jobhub-site-footer__brand {
-                        font-size: 1.62rem;
+                        font-size: 1.5rem;
+                        margin-bottom: 3px;
                     }
                     .jobhub-site-footer__tagline {
-                        font-size: 0.9rem;
+                        font-size: 0.88rem;
                     }
                     .jobhub-site-footer__meta {
-                        font-size: 0.8rem;
+                        font-size: 0.78rem;
                     }
                 }
             </style>

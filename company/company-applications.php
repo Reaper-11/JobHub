@@ -5,13 +5,35 @@ require_once '../includes/application_status_helper.php';
 require_role('company');
 $cid = current_company_id() ?? 0;
 $job_id = isset($_GET['job_id']) ? (int)$_GET['job_id'] : 0;
+$jobStatusFilter = isset($_GET['job_status']) ? (string)$_GET['job_status'] : 'approved';
 
-$where = $job_id > 0 
-    ? "j.company_id = ? AND a.job_id = ?" 
-    : "j.company_id = ?";
+// Validate job_status filter
+$validStatuses = ['approved', 'pending', 'rejected', 'all'];
+if (!in_array($jobStatusFilter, $validStatuses, true)) {
+    $jobStatusFilter = 'approved';
+}
 
-$params = $job_id > 0 ? [$cid, $job_id] : [$cid];
-$types  = $job_id > 0 ? "ii" : "i";
+// Build WHERE clause for job status filtering
+$jobStatusWhere = match($jobStatusFilter) {
+    'approved' => 'j.is_approved = 1',
+    'pending' => 'j.is_approved = 0',
+    'rejected' => 'j.is_approved = -1',
+    'all' => '1=1',
+    default => 'j.is_approved = 1'
+};
+
+// Build WHERE clause for specific job if selected
+$where = "j.company_id = ? AND {$jobStatusWhere}";
+$params = [$cid];
+$types = "i";
+
+if ($job_id > 0) {
+    $where .= " AND a.job_id = ?";
+    $params[] = $job_id;
+    $types .= "i";
+}
+
+$where = "j.company_id = ? AND {$jobStatusWhere}" . ($job_id > 0 ? " AND a.job_id = ?" : "");
 
 $schemaResult = jobhub_application_ensure_status_columns();
 $responseMessageSelect = jobhub_application_has_column('response_message')
@@ -41,83 +63,181 @@ if (!empty($schemaResult['success']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
 $applications = db_query_all("
     SELECT a.id, a.status, {$responseMessageSelect} a.cover_letter, a.cv_path, a.applied_at,
            u.name AS user_name, u.email AS user_email, u.cv_path AS user_cv_path,
-           j.title AS job_title
+           j.id AS job_id_value, j.title AS job_title, j.is_approved AS job_approval_status
     FROM applications a
     JOIN users u ON u.id = a.user_id
     JOIN jobs j ON j.id = a.job_id
-    WHERE $where
-    ORDER BY a.applied_at DESC
+    WHERE {$where}
+    ORDER BY j.title ASC, a.applied_at DESC
 ", $types, $params);
+
+// Group applications by job title
+$groupedApplications = [];
+foreach ($applications as $app) {
+    $jobTitle = $app['job_title'];
+    if (!isset($groupedApplications[$jobTitle])) {
+        $groupedApplications[$jobTitle] = [
+            'job_id' => $app['job_id_value'],
+            'applications' => []
+        ];
+    }
+    $groupedApplications[$jobTitle]['applications'][] = $app;
+}
+
+// Fetch jobs by status for filter dropdown
+$approvedJobs = db_query_all("
+    SELECT DISTINCT j.id, j.title
+    FROM jobs j
+    WHERE j.company_id = ? AND j.is_approved = 1
+    ORDER BY j.title ASC
+", "i", [$cid]);
+
+$pendingJobs = db_query_all("
+    SELECT DISTINCT j.id, j.title
+    FROM jobs j
+    WHERE j.company_id = ? AND j.is_approved = 0
+    ORDER BY j.title ASC
+", "i", [$cid]);
+
+$rejectedJobs = db_query_all("
+    SELECT DISTINCT j.id, j.title
+    FROM jobs j
+    WHERE j.company_id = ? AND j.is_approved = -1
+    ORDER BY j.title ASC
+", "i", [$cid]);
+
+// Get status counts
+$approvedCount = count($approvedJobs);
+$pendingCount = count($pendingJobs);
+$rejectedCount = count($rejectedJobs);
 ?>
 
 <?php require 'company-header.php'; ?>
 
-<h1 class="mb-4">
-    <?= $job_id > 0 ? 'Applications for Job #' . $job_id : 'All Received Applications' ?>
-</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="mb-0">Applications</h1>
+    <div class="filter-group d-flex gap-3 align-items-center">
+        <!-- Job Status Filter -->
+        <div>
+            <form method="get" id="jobStatusForm" class="d-inline">
+                <div class="btn-group" role="group" aria-label="Job Status Filter">
+                    <a href="?job_status=approved" class="btn btn-sm <?= $jobStatusFilter === 'approved' ? 'btn-primary' : 'btn-outline-primary' ?>">
+                        Active <?= $approvedCount > 0 ? "({$approvedCount})" : '' ?>
+                    </a>
+                    <a href="?job_status=pending" class="btn btn-sm <?= $jobStatusFilter === 'pending' ? 'btn-warning text-dark' : 'btn-outline-warning' ?>">
+                        Pending <?= $pendingCount > 0 ? "({$pendingCount})" : '' ?>
+                    </a>
+                    <a href="?job_status=rejected" class="btn btn-sm <?= $jobStatusFilter === 'rejected' ? 'btn-danger' : 'btn-outline-danger' ?>">
+                        Rejected <?= $rejectedCount > 0 ? "({$rejectedCount})" : '' ?>
+                    </a>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Job Selection Filter -->
+        <?php if (!empty($approvedJobs) || !empty($pendingJobs) || !empty($rejectedJobs)): ?>
+            <div>
+                <form method="get" class="d-flex gap-2 align-items-center">
+                    <input type="hidden" name="job_status" value="<?= htmlspecialchars($jobStatusFilter) ?>">
+                    <label for="filterJobId" class="form-label mb-0 text-muted small">Job:</label>
+                    <select id="filterJobId" name="job_id" class="form-select form-select-sm" style="max-width: 200px;" onchange="this.form.submit()">
+                        <option value="">All <?= ucfirst($jobStatusFilter) ?> Jobs</option>
+                        <?php 
+                        $jobsToShow = match($jobStatusFilter) {
+                            'pending' => $pendingJobs,
+                            'rejected' => $rejectedJobs,
+                            default => $approvedJobs
+                        };
+                        foreach ($jobsToShow as $job): 
+                        ?>
+                            <option value="<?= (int)$job['id'] ?>" <?= $job_id === (int)$job['id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($job['title']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
 
 <?php if ($msg): ?>
     <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
 <?php endif; ?>
 
 <?php if (empty($applications)): ?>
-    <div class="alert alert-info">No applications received yet.</div>
-<?php else: ?>
-    <div class="table-responsive">
-        <table class="table table-hover align-middle">
-            <thead class="table-light">
-                <tr>
-                    <th>Applicant</th>
-                    <th>Email</th>
-                    <th>CV</th>
-                    <th>Job Title</th>
-                    <th>Status</th>
-                    <th>Applied</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-            <?php foreach ($applications as $app): ?>
-                <tr>
-                    <td><?= htmlspecialchars($app['user_name']) ?></td>
-                    <td><?= htmlspecialchars($app['user_email']) ?></td>
-                    <td>
-                        <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
-                        <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle me-2">Attached</span>
-                            <a class="btn btn-sm btn-outline-secondary" href="../cv-download.php?scope=application&id=<?= (int) $app['id'] ?>" target="_blank" rel="noopener">View CV</a>
-                        <?php else: ?>
-                            <span class="text-muted">N/A</span>
-                        <?php endif; ?>
-                    </td>
-                    <td><?= htmlspecialchars($app['job_title']) ?></td>
-                    <td>
-                        <span class="badge <?= match(strtolower($app['status'] ?? 'pending')) {
-                            'shortlisted' => 'bg-primary',
-                            'interview'   => 'bg-info',
-                            'approved'    => 'bg-success',
-                            'rejected'    => 'bg-danger',
-                            default       => 'bg-warning'
-                        } ?>">
-                            <?= ucfirst($app['status'] ?? 'Pending') ?>
-                        </span>
-                    </td>
-                    <td><?= date('M d, Y', strtotime($app['applied_at'])) ?></td>
-                    <td>
-                        <a class="btn btn-sm btn-outline-secondary me-2" href="company-application-details.php?id=<?= $app['id'] ?>">
-                            View Details
-                        </a>
-                        <button class="btn btn-sm btn-outline-primary"
-                                data-bs-toggle="modal" 
-                                data-bs-target="#statusModal<?= $app['id'] ?>">
-                            Update Status
-                        </button>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        No applications found for <?= ucfirst($jobStatusFilter) ?> jobs.
     </div>
+<?php else: ?>
+    <?php foreach ($groupedApplications as $jobTitle => $jobData): ?>
+        <div class="card mt-4 first:mt-0">
+            <div class="card-header bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-briefcase me-2 text-muted"></i><?= htmlspecialchars($jobTitle) ?>
+                    </h5>
+                    <span class="badge bg-secondary"><?= count($jobData['applications']) ?> application<?= count($jobData['applications']) !== 1 ? 's' : '' ?></span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Applicant</th>
+                                <th>Email</th>
+                                <th>CV</th>
+                                <th>Status</th>
+                                <th>Applied</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        <?php foreach ($jobData['applications'] as $app): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($app['user_name']) ?></td>
+                                <td><?= htmlspecialchars($app['user_email']) ?></td>
+                                <td>
+                                    <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
+                                    <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle me-2">Attached</span>
+                                        <a class="btn btn-sm btn-outline-secondary" href="../cv-download.php?scope=application&id=<?= (int) $app['id'] ?>" target="_blank" rel="noopener">View CV</a>
+                                    <?php else: ?>
+                                        <span class="text-muted">N/A</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <span class="badge <?= match(strtolower($app['status'] ?? 'pending')) {
+                                        'shortlisted' => 'bg-primary',
+                                        'interview'   => 'bg-info',
+                                        'approved'    => 'bg-success',
+                                        'rejected'    => 'bg-danger',
+                                        default       => 'bg-warning'
+                                    } ?>">
+                                        <?= ucfirst($app['status'] ?? 'Pending') ?>
+                                    </span>
+                                </td>
+                                <td><?= date('M d, Y', strtotime($app['applied_at'])) ?></td>
+                                <td>
+                                    <a class="btn btn-sm btn-outline-secondary me-2" href="company-application-details.php?id=<?= $app['id'] ?>">
+                                        View Details
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" 
+                                            data-bs-target="#statusModal<?= $app['id'] ?>">
+                                        Update Status
+                                    </button>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
 
     <?php foreach ($applications as $app): ?>
         <!-- Status Update Modal -->
@@ -131,6 +251,10 @@ $applications = db_query_all("
                     <div class="modal-body">
                         <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                         <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
+                        
+                        <div class="mb-3 text-muted small">
+                            <strong><?= htmlspecialchars($app['user_name']) ?></strong> - <?= htmlspecialchars($app['job_title']) ?>
+                        </div>
 
                         <div class="mb-3">
                             <label class="form-label">New Status</label>

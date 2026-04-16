@@ -74,8 +74,10 @@ require 'header.php';
                                 class="form-control"
                                 maxlength="120"
                                 required
+                                readonly
                                 value="<?= htmlspecialchars($form['sender_email'] ?? '') ?>"
                             >
+                            <small class="text-muted d-block mt-1">This email is linked to your account and cannot be changed.</small>
                         </div>
 
                         <div class="col-md-6">

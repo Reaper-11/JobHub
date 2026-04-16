@@ -210,7 +210,7 @@ function user_status_label(string $status): string
 function job_approval_badge_class(int $approvalValue): string
 {
     return match ($approvalValue) {
-        1 => 'bg-success',
+        1 => 'bg-primary',
         -1 => 'bg-danger',
         default => 'bg-warning text-dark',
     };

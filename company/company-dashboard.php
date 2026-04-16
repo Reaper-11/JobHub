@@ -84,14 +84,14 @@ $recentJobs = db_query_all("
     </div>
 <?php endif; ?>
 
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4" style="max-width: 1000px;">
     <div class="col-md-4">
         <div class="stat-card">
             <div class="stat-card-icon blue"><i class="fas fa-briefcase"></i></div>
             <div class="stat-card-body">
                 <div class="stat-label">Total Jobs Posted</div>
                 <div class="stat-value"><?= number_format($jobsCount) ?></div>
-                <div class="stat-sub">All time</div>
+                <div class="stat-sub" style="color: #cbd5e1; font-size: 12px; opacity: 0.8;">All time</div>
             </div>
         </div>
     </div>
@@ -101,7 +101,7 @@ $recentJobs = db_query_all("
             <div class="stat-card-body">
                 <div class="stat-label">Active Jobs</div>
                 <div class="stat-value"><?= number_format($activeJobs) ?></div>
-                <div class="stat-sub">Currently live</div>
+                <div class="stat-sub" style="color: #cbd5e1; font-size: 12px; opacity: 0.8;">Currently live</div>
             </div>
         </div>
     </div>
@@ -109,22 +109,45 @@ $recentJobs = db_query_all("
         <div class="stat-card">
             <div class="stat-card-icon purple"><i class="fas fa-file-alt"></i></div>
             <div class="stat-card-body">
-                <div class="stat-label">Received Applications</div>
+                <div class="stat-label">Total Applications Received</div>
                 <div class="stat-value"><?= number_format($applicationsCount) ?></div>
-                <div class="stat-sub">All jobs</div>
+                <div class="stat-sub" style="color: #cbd5e1; font-size: 12px; opacity: 0.8;">All jobs</div>
             </div>
         </div>
     </div>
 </div>
 
 <div class="card mt-2">
-    <div class="card-header">
+    <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-clock me-2 text-muted"></i>Recent Jobs</h5>
+        <a href="company-add-job.php" class="btn btn-primary btn-sm <?= $canPostJobs ? '' : 'disabled' ?>">
+            <i class="fas fa-plus me-1"></i>Post a New Job
+        </a>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table mb-0 table-hover align-middle">
-                <thead class="table-light">
+            <table class="table mb-0 align-middle company-dashboard-table">
+                <style>
+                    .company-dashboard-table thead th {
+                        background-color: rgba(17, 24, 39, 0.6);
+                        border-bottom: 2px solid #243041;
+                        font-weight: 600;
+                        color: #cbd5e1;
+                        text-transform: uppercase;
+                        font-size: 12px;
+                        letter-spacing: 0.04em;
+                        padding: 14px 12px;
+                    }
+                    .company-dashboard-table tbody tr {
+                        border-bottom: 1px solid #243041;
+                        transition: background-color 0.15s ease;
+                    }
+                    .company-dashboard-table tbody tr:hover {
+                        background-color: rgba(255, 255, 255, 0.04);
+                        cursor: pointer;
+                    }
+                </style>
+                <thead>
                     <tr>
                         <th>Title</th>
                         <th>Location</th>
@@ -156,7 +179,7 @@ $recentJobs = db_query_all("
                             <td><?= date('M d, Y', strtotime($job['created_at'])) ?></td>
                             <td>
                                 <a href="company-edit-job.php?id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
-                                <a href="company-applications.php?job_id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-info">Applications</a>
+                                <a href="company-applications.php?job_id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-outline-info">View Applications</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -167,13 +190,10 @@ $recentJobs = db_query_all("
     </div>
 </div>
 
-<div class="text-center mt-4">
-    <a href="company-add-job.php" class="btn btn-lg btn-primary <?= $canPostJobs ? '' : 'disabled' ?>">
-        Post a New Job
-    </a>
-    <?php if (!$canPostJobs): ?>
-        <div class="small text-muted mt-2">Job posting is disabled until your company account is approved, verified, and active.</div>
-    <?php endif; ?>
-</div>
+<?php if (!$canPostJobs): ?>
+    <div class="text-center mt-4">
+        <div class="small text-muted">Job posting is disabled until your company account is approved, verified, and active.</div>
+    </div>
+<?php endif; ?>
 
 <?php require '../footer.php'; ?>

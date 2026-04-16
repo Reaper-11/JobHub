@@ -9,15 +9,21 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $context = support_require_contact_access($conn);
 
+// Determine redirect URL based on user role
+$redirectUrl = 'contact-support.php';
+if ($context['sender_role'] === 'company') {
+    $redirectUrl = 'company/company-contact-support.php';
+}
+
 if (!support_table_exists($conn)) {
     support_set_flash('public', 'warning', 'Support module database table is missing. Run the support SQL first.');
-    header('Location: contact-support.php');
+    header('Location: ' . $redirectUrl);
     exit;
 }
 
 if (!validate_csrf_token($_POST['csrf_token'] ?? '')) {
     support_set_flash('public', 'danger', 'Invalid request. Please try again.');
-    header('Location: contact-support.php');
+    header('Location: ' . $redirectUrl);
     exit;
 }
 
@@ -34,7 +40,7 @@ if (!empty($errors)) {
         'message' => $data['message'],
     ]);
     support_set_flash('public', 'danger', $errors[0]);
-    header('Location: contact-support.php');
+    header('Location: ' . $redirectUrl);
     exit;
 }
 
@@ -48,10 +54,10 @@ if ($messageId <= 0) {
         'message' => $data['message'],
     ]);
     support_set_flash('public', 'danger', 'Could not submit your support message. Please try again.');
-    header('Location: contact-support.php');
+    header('Location: ' . $redirectUrl);
     exit;
 }
 
 support_set_flash('public', 'success', 'Your support message has been submitted successfully.');
-header('Location: contact-support.php');
+header('Location: ' . $redirectUrl);
 exit;

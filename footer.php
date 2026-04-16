@@ -2,12 +2,14 @@
 </main>
 <?php if (!empty($hasSidebarLayout)) : ?>
     <?php if (empty($hideSharedFooter)) : ?>
+        <?php require_once __DIR__ . '/includes/shared_footer.php'; ?>
         <?php jobhub_render_site_footer(); ?>
     <?php endif; ?>
     </div>
 </div>
 <?php else: ?>
     <?php if (empty($hideSharedFooter)) : ?>
+        <?php require_once __DIR__ . '/includes/shared_footer.php'; ?>
         <?php jobhub_render_site_footer(); ?>
     <?php endif; ?>
 <?php endif; ?>

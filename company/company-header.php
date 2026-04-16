@@ -71,23 +71,18 @@ $isVerified = is_company_verified($company);
 $canPostJobs = jobhub_company_can_post_jobs($company);
 $authFlash = jobhub_take_auth_flash();
 
-$approvalBadge = $isApproved
-    ? '<span class="badge bg-success">Approved</span>'
-    : ($isRejected ? '<span class="badge bg-danger">Rejected</span>' : '<span class="badge bg-warning text-dark">Pending</span>');
+// Build status badges for the info box (clean display)
+$infoBadges = '';
 
-$stateBadge = match ($operationalState) {
-    'on_hold' => '<span class="badge bg-warning text-dark">On Hold</span>',
-    'suspended' => '<span class="badge bg-danger">Suspended</span>',
-    default => '<span class="badge ' . company_final_status_badge_class($finalCompanyStatus) . '">' . company_final_status_label($finalCompanyStatus) . '</span>',
-};
-
-if ($finalCompanyStatus !== 'active') {
-    $stateBadge = '<span class="badge ' . company_final_status_badge_class($finalCompanyStatus) . '">' . company_final_status_label($finalCompanyStatus) . '</span>';
+// Show "Active" if company is active
+if ($finalCompanyStatus === 'active') {
+    $infoBadges .= '<span class="badge bg-success" title="Company Status">Active</span>';
 }
 
-$verificationBadge = '<span class="badge ' . company_verification_badge_class($verificationStatus) . '">' .
-    company_verification_label($verificationStatus) .
-    '</span>';
+// Show "Verified" if verification is complete
+if ($isVerified) {
+    $infoBadges .= '<span class="badge bg-primary" title="Verification Status">Verified</span>';
+}
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
@@ -129,15 +124,16 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
         .sidebar-brand .brand-sub  { font-size: 11px; color: rgba(255,255,255,0.45); display: block; }
         .company-info-box {
             margin: 12px 10px;
-            background: rgba(255,255,255,0.06);
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.06);
             border-radius: 10px;
-            padding: 12px;
+            padding: 10px 12px;
         }
         .company-info-box .co-name {
-            font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 6px;
+            font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 8px;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .company-info-box .badge { font-size: 10px; padding: 3px 7px; border-radius: 6px; }
+        .company-info-box .badge { font-size: 11px; padding: 4px 8px; border-radius: 5px; margin-right: 4px; }
         .sidebar-section-label {
             font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.3);
             letter-spacing: 0.08em; text-transform: uppercase; padding: 10px 10px 5px;
@@ -263,10 +259,8 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
         </div>
         <div class="company-info-box">
             <div class="co-name"><?= htmlspecialchars($company['name']) ?></div>
-            <div class="d-flex flex-wrap gap-1">
-                <?= $approvalBadge ?>
-                <?= $verificationBadge ?>
-                <?= $stateBadge ?>
+            <div class="d-flex flex-wrap gap-0">
+                <?= $infoBadges ?>
             </div>
         </div>
         <div class="sidebar-nav">
@@ -285,7 +279,7 @@ $verificationBadge = '<span class="badge ' . company_verification_badge_class($v
                         <?php endif; ?>
                     </a>
                 </li>
-                <li class="nav-item"><a class="nav-link" href="../contact-support.php"><i class="fas fa-headset"></i> Contact Support</a></li>
+                <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-contact-support.php' ? 'active' : '' ?>" href="company-contact-support.php"><i class="fas fa-headset"></i> Contact Support</a></li>
                 <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'company-account.php' ? 'active' : '' ?>" href="company-account.php"><i class="fas fa-gear"></i> Account Settings</a></li>
             </ul>
         </div>

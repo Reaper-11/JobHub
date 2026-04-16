@@ -279,13 +279,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
             </div>
         </div>
     </div>
-    <!-- Profile Update -->
+    
+    <!-- Profile and Password Section with Equal Heights -->
     <div class="col-lg-6">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm h-100 d-flex flex-column">
             <div class="card-header bg-light">
                 <h5 class="mb-0">Company Profile</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body d-flex flex-column">
                 <?php if (!$isVerified): ?>
                     <div class="alert alert-warning">
                         Your company must be verified before posting new jobs.
@@ -297,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
                     <div class="alert alert-<?= $msg_type ?>"><?= htmlspecialchars($msg) ?></div>
                 <?php endif; ?>
 
-                <form method="post">
+                <form method="post" class="flex-grow-1 d-flex flex-column">
                     <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                     <input type="hidden" name="action" value="profile">
 
@@ -308,7 +309,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
 
                     <div class="mb-3">
                         <label class="form-label">Email *</label>
-                        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($companyProfile['email'] ?? '') ?>" required>
+                        <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($companyProfile['email'] ?? '') ?>" required readonly>
+                        <small class="text-muted d-block mt-1">This email is linked to your account and cannot be changed.</small>
                     </div>
 
                     <div class="mb-3">
@@ -316,12 +318,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
                         <input type="url" name="website" class="form-control" value="<?= htmlspecialchars($companyProfile['website'] ?? '') ?>">
                     </div>
 
-                    <div class="mb-4">
+                    <div class="mb-4 flex-grow-1">
                         <label class="form-label">Location</label>
                         <input type="text" name="location" class="form-control" value="<?= htmlspecialchars($companyProfile['location'] ?? '') ?>" required>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Update Profile</button>
+                    <button type="submit" class="btn btn-primary mt-auto">Update Profile</button>
                 </form>
             </div>
         </div>
@@ -329,16 +331,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
 
     <!-- Password Change -->
     <div class="col-lg-6">
-        <div class="card shadow-sm">
+        <div class="card shadow-sm h-100 d-flex flex-column">
             <div class="card-header bg-light">
                 <h5 class="mb-0">Change Password</h5>
             </div>
-            <div class="card-body">
+            <div class="card-body d-flex flex-column">
                 <?php if ($pass_msg): ?>
                     <div class="alert alert-<?= $pass_type ?>"><?= htmlspecialchars($pass_msg) ?></div>
                 <?php endif; ?>
 
-                <form method="post">
+                <form method="post" class="flex-grow-1 d-flex flex-column">
                     <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                     <input type="hidden" name="action" value="password">
 
@@ -367,8 +369,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-primary">Change Password</button>
+                    <button type="submit" class="btn btn-primary mt-auto">Change Password</button>
                 </form>
+                
+                <!-- Security Tips -->
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="mb-2 small">Security Tips</h6>
+                    <ul class="small mb-0 ps-3 text-muted">
+                        <li>Use a unique password for your account</li>
+                        <li>Avoid using personal information</li>
+                        <li>Change password periodically</li>
+                        <li>Never share your password</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
