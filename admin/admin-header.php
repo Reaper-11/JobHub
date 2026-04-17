@@ -30,6 +30,7 @@ $adminPageTitles = [
     'support-view.php'             => 'View Support Message',
     'admin-edit-job.php'           => 'Edit Job',
     'job-details.php'              => 'Job Details',
+    'job-view.php'                 => 'Job Review',
     'application-details.php'      => 'Application Details',
 ];
 $_adminCurrentFile = basename($_SERVER['PHP_SELF']);

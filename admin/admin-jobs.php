@@ -340,7 +340,7 @@ $pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFi
                     <td><?= (int)$job['id'] ?></td>
                     <td>
                         <div class="fw-semibold"><?= htmlspecialchars($job['title']) ?></div>
-                        <a href="job-details.php?id=<?= (int)$job['id'] ?>" class="small text-decoration-none">View details</a>
+                        <a href="job-view.php?id=<?= (int)$job['id'] ?>" class="small text-decoration-none">View details</a>
                     </td>
                     <td><?= htmlspecialchars($job['company_name'] ?: '-') ?></td>
                     <td><?= htmlspecialchars($job['category'] ?: '-') ?></td>
@@ -372,6 +372,7 @@ $pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFi
                     <?php endif; ?>
                     <td><?= htmlspecialchars($job['admin_remarks'] ?: '-') ?></td>
                     <td style="min-width: 160px;">
+                        <a href="job-view.php?id=<?= (int)$job['id'] ?>" class="btn btn-sm btn-primary w-100 mb-2">View Job</a>
                         <?php $isRejected = (int)$job['is_approved'] === -1; ?>
                         <!-- Approve form -->
                         <form method="post" class="d-grid gap-1 mb-1">
