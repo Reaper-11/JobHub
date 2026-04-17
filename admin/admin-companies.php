@@ -4,7 +4,7 @@ require '../db.php';
 
 require_role('admin');
 
-$companyAdminBaseUrl = 'companies.php';
+$companyAdminBaseUrl = 'admin-companies.php';
 $status = strtolower(trim((string)($_GET['status'] ?? 'all')));
 if (!in_array($status, ['all', 'pending', 'approved', 'rejected'], true)) {
     $status = 'all';
@@ -22,15 +22,6 @@ if ($status !== 'approved') {
     $state = 'all';
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && basename($_SERVER['PHP_SELF']) === 'admin-companies.php') {
-    $redirectQuery = 'status=' . urlencode($status) . '&page=' . $page;
-    if ($status === 'approved' && $state !== 'all') {
-        $redirectQuery .= '&state=' . urlencode($state);
-    }
-
-    header('Location: ' . $companyAdminBaseUrl . '?' . $redirectQuery);
-    exit;
-}
 
 $whereClauses = [];
 $whereTypes = '';

@@ -15,7 +15,7 @@ if (job_has_post_date_column($conn)) {
     $jobListSelect .= ", j.post_date";
 }
 
-$jobApprovalBaseUrl = 'job-approval.php';
+$jobApprovalBaseUrl = 'admin-jobs.php';
 $statusFilter = strtolower(trim((string)($_GET['status'] ?? ($_GET['approval'] ?? 'all'))));
 if (!in_array($statusFilter, ['all', 'pending', 'approved', 'rejected'], true)) {
     $statusFilter = 'all';
@@ -24,20 +24,19 @@ $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = $statusFilter === 'all' ? 30 : 20;
 $offset = ($page - 1) * $limit;
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && basename($_SERVER['PHP_SELF']) === 'admin-jobs.php') {
-    header('Location: ' . $jobApprovalBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . $page);
-    exit;
-}
-
 $msg = $msg_type = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
-    $jobId = (int)($_POST['job_id'] ?? 0);
+    $jobId  = (int)($_POST['job_id'] ?? 0);
     $action = trim((string)($_POST['action'] ?? ''));
     $remarks = trim((string)($_POST['remarks'] ?? ''));
     $adminId = current_admin_id() ?? 0;
 
-    if ($jobId > 0 && in_array($action, ['approve', 'reject'], true)) {
+    // Rejection requires a reason.
+    if ($jobId > 0 && $action === 'reject' && $remarks === '') {
+        $msg      = 'A rejection reason is required.';
+        $msg_type = 'danger';
+    } elseif ($jobId > 0 && in_array($action, ['approve', 'reject'], true)) {
         $reviewSelect = "j.id, j.company_id, j.title, j.status, j.is_approved, j.created_at, j.application_duration";
         if ($deadlineColumn !== null) {
             $reviewSelect .= ", j.{$deadlineColumn}";
@@ -310,10 +309,10 @@ $pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFi
 </div>
 
 <ul class="nav nav-tabs mb-4">
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('all')) ?>">All</a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'pending' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('pending')) ?>">Pending</a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'approved' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('approved')) ?>">Approved</a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'rejected' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('rejected')) ?>">Rejected</a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('all')) ?>">All <span class="badge text-bg-secondary ms-1"><?= (int)$counts['all'] ?></span></a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'pending' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('pending')) ?>">Pending <span class="badge bg-warning text-dark ms-1"><?= (int)$counts['pending'] ?></span></a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'approved' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('approved')) ?>">Approved <span class="badge bg-success ms-1"><?= (int)$counts['approved'] ?></span></a></li>
+    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'rejected' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('rejected')) ?>">Rejected <span class="badge bg-danger ms-1"><?= (int)$counts['rejected'] ?></span></a></li>
 </ul>
 
 <div class="table-responsive">
@@ -327,6 +326,7 @@ $pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFi
                 <th>Job Status</th>
                 <th>Approval</th>
                 <th>Created</th>
+                <?php if ($deadlineColumn !== null): ?><th>Deadline</th><?php endif; ?>
                 <th>Remarks</th>
                 <th>Actions</th>
             </tr>
@@ -355,20 +355,62 @@ $pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFi
                         </span>
                     </td>
                     <td><?= date('Y-m-d', strtotime($job['created_at'])) ?></td>
+                    <?php if ($deadlineColumn !== null): ?>
+                        <td>
+                            <?php
+                            $deadlineVal = '-';
+                            if (!empty($job[$deadlineColumn])) {
+                                $deadlineVal = date('Y-m-d', strtotime($job[$deadlineColumn]));
+                                $isExpired = strtotime($job[$deadlineColumn]) < time();
+                                $deadlineVal = $isExpired
+                                    ? '<span class="text-danger">' . htmlspecialchars($deadlineVal) . ' <small>(Expired)</small></span>'
+                                    : htmlspecialchars($deadlineVal);
+                            }
+                            echo $deadlineVal;
+                            ?>
+                        </td>
+                    <?php endif; ?>
                     <td><?= htmlspecialchars($job['admin_remarks'] ?: '-') ?></td>
-                    <td style="min-width: 260px;">
+                    <td style="min-width: 160px;">
                         <?php $isRejected = (int)$job['is_approved'] === -1; ?>
-                        <form method="post" class="d-grid gap-2">
+                        <!-- Approve form -->
+                        <form method="post" class="d-grid gap-1 mb-1">
                             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
                             <input type="hidden" name="job_id" value="<?= (int)$job['id'] ?>">
                             <textarea name="remarks" class="form-control form-control-sm" rows="2" placeholder="Admin remarks (optional)"><?= htmlspecialchars($job['admin_remarks'] ?? '') ?></textarea>
-                            <div class="d-flex gap-2">
-                                <button type="submit" name="action" value="approve" class="btn btn-sm btn-success">Approve</button>
-                                <?php if (!$isRejected): ?>
-                                    <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger">Reject</button>
-                                <?php endif; ?>
-                            </div>
+                            <button type="submit" name="action" value="approve" class="btn btn-sm btn-success w-100">Approve</button>
                         </form>
+                        <!-- Reject (modal trigger) -->
+                        <?php if (!$isRejected): ?>
+                            <button type="button" class="btn btn-sm btn-danger w-100"
+                                    data-bs-toggle="modal" data-bs-target="#rejectJobModal<?= (int)$job['id'] ?>">
+                                Reject
+                            </button>
+                            <div class="modal fade" id="rejectJobModal<?= (int)$job['id'] ?>" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <form method="post" class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Reject Job</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                            <input type="hidden" name="job_id" value="<?= (int)$job['id'] ?>">
+                                            <input type="hidden" name="action" value="reject">
+                                            <p class="mb-3">Reject "<strong><?= htmlspecialchars($job['title']) ?></strong>"?</p>
+                                            <div class="mb-0">
+                                                <label class="form-label">Rejection Reason <span class="text-danger">*</span></label>
+                                                <textarea name="remarks" class="form-control" rows="3" required placeholder="Enter reason for rejection…"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="submit" class="btn btn-danger">Confirm Reject</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>

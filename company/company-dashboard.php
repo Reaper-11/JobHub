@@ -51,6 +51,10 @@ $recentJobs = db_query_all("
     <div class="alert alert-warning pending-banner">
         <strong>Your company account is awaiting approval.</strong><br>
         In the meantime, please submit your verification details in the <a href="company-verification.php">Company Verification</a> section to speed up the process and access all features.
+        <p class="mb-0 mt-2" style="color: #dc3545; font-weight: 700; font-size: 0.92rem;">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            If you do not submit your company verification details within 15 days, the admin will reject your account.
+        </p>
     </div>
 <?php elseif ($finalCompanyStatus === 'approved_incomplete'): ?>
     <div class="alert alert-warning pending-banner">

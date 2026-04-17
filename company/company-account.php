@@ -240,6 +240,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $msg === '' && $pass_msg === '' && 
 
 <?php require 'company-header.php'; ?>
 
+<?php
+// Initialize status variables safely
+$is_approved_val = (int)($company['is_approved'] ?? 0);
+$approval_status = $is_approved_val === 1 ? 'approved' : ($is_approved_val === -1 ? 'rejected' : 'pending');
+$verification_status = $company['verification_status'] ?? 'not_verified';
+$account_state = $company['operational_state'] ?? 'active';
+
+// Generate Approval Badge
+$approvalBadgeClass = match($approval_status) {
+    'approved' => 'bg-success',
+    'rejected' => 'bg-danger',
+    default    => 'bg-warning'
+};
+$approvalBadge = '<span class="badge ' . $approvalBadgeClass . '">' . ucfirst($approval_status) . '</span>';
+
+// Generate Verification Badge
+$verificationBadgeClass = match($verification_status) {
+    'approved', 'verified' => 'bg-success',
+    default    => 'bg-secondary'
+};
+$verificationBadgeText = in_array($verification_status, ['approved', 'verified']) ? 'Verified' : 'Not Verified';
+$verificationBadge = '<span class="badge ' . $verificationBadgeClass . '">' . $verificationBadgeText . '</span>';
+
+// Generate State Badge
+$stateBadgeClass = match($account_state) {
+    'inactive', 'on_hold', 'suspended' => 'bg-danger',
+    default    => 'bg-success'
+};
+$stateBadgeText = ucfirst(str_replace('_', ' ', $account_state));
+$stateBadge = '<span class="badge ' . $stateBadgeClass . '">' . $stateBadgeText . '</span>';
+?>
+
 <h1 class="mb-4">Company Account Settings</h1>
 
 <div class="row g-4">

@@ -4,7 +4,7 @@ require_once '../includes/company_verification_helper.php';
 
 require_role('admin');
 
-$verificationAdminBaseUrl = 'verifications.php';
+$verificationAdminBaseUrl = 'company-verifications.php';
 $status = strtolower(trim((string)($_GET['status'] ?? 'all')));
 if (!in_array($status, ['all', 'pending', 'approved', 'rejected'], true)) {
     $status = 'all';
@@ -13,11 +13,6 @@ if (!in_array($status, ['all', 'pending', 'approved', 'rejected'], true)) {
 $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = $status === 'all' ? 30 : 20;
 $offset = ($page - 1) * $limit;
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && basename($_SERVER['PHP_SELF']) === 'company-verifications.php') {
-    header('Location: ' . $verificationAdminBaseUrl . '?status=' . urlencode($status) . '&page=' . $page);
-    exit;
-}
 
 $whereClauses = ['verification_status IS NOT NULL'];
 $whereTypes = '';

@@ -3,9 +3,38 @@ require_once '../db.php';
 
 require_role('admin');
 
-$hasSidebarLayout = true;
-$hideSharedFooter = true;
-$authFlash = jobhub_take_auth_flash();
+$hasSidebarLayout   = true;
+$hideSharedFooter   = true;
+$authFlash          = jobhub_take_auth_flash();
+
+// Unread support-message badge shown in the sidebar nav.
+$adminNavUnreadSupport = 0;
+if (function_exists('jobhub_table_exists') && jobhub_table_exists($conn, 'support_messages')) {
+    $adminNavUnreadSupport = (int)db_query_value(
+        "SELECT COUNT(*) FROM support_messages WHERE is_read = 0 AND is_deleted = 0",
+        '', [], 0
+    );
+}
+
+// Human-readable page title map for the topbar.
+$adminPageTitles = [
+    'admin-dashboard.php'          => 'Dashboard',
+    'admin-users.php'              => 'Manage Users',
+    'admin-companies.php'          => 'Manage Companies',
+    'admin-jobs.php'               => 'Job Approval',
+    'company-verifications.php'    => 'Company Verifications',
+    'company-verification-view.php'=> 'Review Verification',
+    'admin-applications.php'       => 'Applications',
+    'activity-monitor.php'         => 'Activity Monitor',
+    'support-messages.php'         => 'Support Messages',
+    'support-view.php'             => 'View Support Message',
+    'admin-edit-job.php'           => 'Edit Job',
+    'job-details.php'              => 'Job Details',
+    'application-details.php'      => 'Application Details',
+];
+$_adminCurrentFile = basename($_SERVER['PHP_SELF']);
+$adminPageTitle    = $adminPageTitles[$_adminCurrentFile]
+    ?? ucwords(str_replace(['-', '.php'], [' ', ''], $_adminCurrentFile));
 ?>
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="dark">
@@ -198,17 +227,24 @@ $authFlash = jobhub_take_auth_flash();
         <div class="sidebar-nav">
             <div class="sidebar-section-label">Overview</div>
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-dashboard.php' ? 'active' : '' ?>" href="admin-dashboard.php"><i class="fas fa-gauge-high"></i> Dashboard</a></li>
-                <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'activity-monitor.php' ? 'active' : '' ?>" href="activity-monitor.php"><i class="fas fa-chart-line"></i> Activity Monitor</a></li>
+                <li class="nav-item"><a class="nav-link <?= $_adminCurrentFile === 'admin-dashboard.php' ? 'active' : '' ?>" href="admin-dashboard.php"><i class="fas fa-gauge-high"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link <?= $_adminCurrentFile === 'activity-monitor.php' ? 'active' : '' ?>" href="activity-monitor.php"><i class="fas fa-chart-line"></i> Activity Monitor</a></li>
             </ul>
             <div class="sidebar-section-label">Manage</div>
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['admin-jobs.php', 'job-approval.php'], true) ? 'active' : '' ?>" href="job-approval.php?status=all&page=1"><i class="fas fa-briefcase"></i> Job Approval</a></li>
-                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['admin-companies.php', 'companies.php'], true) ? 'active' : '' ?>" href="companies.php?status=all&page=1"><i class="fas fa-building"></i> Companies</a></li>
-                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['company-verifications.php', 'verifications.php', 'company-verification-view.php'], true) ? 'active' : '' ?>" href="verifications.php?status=all&page=1"><i class="fas fa-circle-check"></i> Verifications</a></li>
-                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['admin-users.php', 'users.php'], true) ? 'active' : '' ?>" href="users.php?status=all&page=1"><i class="fas fa-users"></i> Users</a></li>
-                <li class="nav-item"><a class="nav-link <?= basename($_SERVER['PHP_SELF']) === 'admin-applications.php' ? 'active' : '' ?>" href="admin-applications.php"><i class="fas fa-file-alt"></i> Applications</a></li>
-                <li class="nav-item"><a class="nav-link <?= in_array(basename($_SERVER['PHP_SELF']), ['support-messages.php', 'support-view.php'], true) ? 'active' : '' ?>" href="support-messages.php"><i class="fas fa-headset"></i> Support Messages</a></li>
+                <li class="nav-item"><a class="nav-link <?= $_adminCurrentFile === 'admin-jobs.php' ? 'active' : '' ?>" href="admin-jobs.php?status=all&page=1"><i class="fas fa-briefcase"></i> Job Approval</a></li>
+                <li class="nav-item"><a class="nav-link <?= $_adminCurrentFile === 'admin-companies.php' ? 'active' : '' ?>" href="admin-companies.php?status=all&page=1"><i class="fas fa-building"></i> Companies</a></li>
+                <li class="nav-item"><a class="nav-link <?= in_array($_adminCurrentFile, ['company-verifications.php', 'company-verification-view.php'], true) ? 'active' : '' ?>" href="company-verifications.php?status=all&page=1"><i class="fas fa-circle-check"></i> Verifications</a></li>
+                <li class="nav-item"><a class="nav-link <?= $_adminCurrentFile === 'admin-users.php' ? 'active' : '' ?>" href="admin-users.php?status=all&page=1"><i class="fas fa-users"></i> Users</a></li>
+                <li class="nav-item"><a class="nav-link <?= $_adminCurrentFile === 'admin-applications.php' ? 'active' : '' ?>" href="admin-applications.php"><i class="fas fa-file-alt"></i> Applications</a></li>
+                <li class="nav-item">
+                    <a class="nav-link <?= in_array($_adminCurrentFile, ['support-messages.php', 'support-view.php'], true) ? 'active' : '' ?>" href="support-messages.php">
+                        <i class="fas fa-headset"></i> Support Messages
+                        <?php if ($adminNavUnreadSupport > 0): ?>
+                            <span class="badge bg-danger ms-auto" style="font-size:10px;padding:2px 6px;"><?= (int)$adminNavUnreadSupport ?></span>
+                        <?php endif; ?>
+                    </a>
+                </li>
             </ul>
         </div>
         <div class="sidebar-footer">
@@ -220,7 +256,7 @@ $authFlash = jobhub_take_auth_flash();
 
     <div class="main-content flex-grow-1">
         <div class="page-topbar">
-            <h1><?= ucfirst(str_replace(['-', '.php'], [' ', ''], basename($_SERVER['PHP_SELF']))) ?></h1>
+            <h1><?= htmlspecialchars($adminPageTitle) ?></h1>
             <span class="topbar-meta"><?= date('D, M d Y') ?></span>
         </div>
         <main class="container-fluid py-4">

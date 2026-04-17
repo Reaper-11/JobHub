@@ -18,7 +18,7 @@ $app = db_query_all("
            j.type AS job_type, j.salary AS job_salary
     FROM applications a
     JOIN users u ON u.id = a.user_id
-    JOIN jobs j ON j.id = a.job_id
+    JOIN jobs  j ON j.id = a.job_id
     WHERE a.id = ?
     LIMIT 1
 ", "i", [$app_id])[0] ?? null;
@@ -28,51 +28,82 @@ if (!$app) {
     exit;
 }
 
-// Possible next statuses (you can expand logic later)
-$possible_statuses = [
-    'pending'      => ['shortlisted', 'rejected'],
-    'shortlisted'  => ['interview', 'rejected', 'approved'],
-    'interview'    => ['approved', 'rejected'],
+// Admin can move to any valid status from any non-terminal state.
+// Approved and Rejected are terminal — no further changes allowed.
+$adminStatusOptions = [
+    'pending'     => ['shortlisted', 'interview', 'approved', 'rejected'],
+    'shortlisted' => ['interview',   'approved',  'rejected'],
+    'interview'   => ['approved',    'rejected',  'shortlisted'],
 ];
 
 $current_status = strtolower($app['status'] ?? 'pending');
-$next_options = $possible_statuses[$current_status] ?? [];
+$next_options   = $adminStatusOptions[$current_status] ?? [];
+
+// Labels and badge classes used in both PHP and HTML.
+$statusMeta = [
+    'pending'     => ['label' => 'Pending',     'badge' => 'bg-warning text-dark'],
+    'shortlisted' => ['label' => 'Shortlisted', 'badge' => 'bg-primary'],
+    'interview'   => ['label' => 'Interview',   'badge' => 'bg-info text-dark'],
+    'approved'    => ['label' => 'Approved',    'badge' => 'bg-success'],
+    'rejected'    => ['label' => 'Rejected',    'badge' => 'bg-danger'],
+];
 
 $msg = $msg_type = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_token'] ?? '')) {
-    $new_status = trim($_POST['new_status'] ?? '');
-    if (in_array($new_status, $next_options)) {
-        if (strcasecmp((string)$app['status'], $new_status) === 0) {
-            $msg = "Application already has that status.";
-            $msg_type = 'info';
-        } else {
-            $stmt = $conn->prepare("UPDATE applications SET status = ?, updated_at = NOW() WHERE id = ?");
-            $stmt->bind_param("si", $new_status, $app_id);
-            if ($stmt->execute()) {
-                $statusLabel = notify_status_label($new_status);
-                $msg = "Application status updated to <strong>" . htmlspecialchars($statusLabel) . "</strong>.";
-                $msg_type = 'success';
-                $app['status'] = $new_status;
+    $new_status      = trim($_POST['new_status'] ?? '');
+    $responseMessage = trim($_POST['response_message'] ?? '');
 
-                notify_create(
-                    'user',
-                    (int)$app['user_id'],
-                    'Application Status Updated',
-                    'Your application for "' . ($app['job_title'] ?? 'Job') . '" at ' . ($app['job_company'] ?? 'the company') . ' has been updated to "' . $statusLabel . '".',
-                    'my-applications.php',
-                    notify_status_type($new_status),
-                    'application',
-                    $app_id
-                );
-            } else {
-                $msg = "Failed to update status.";
-                $msg_type = 'danger';
-            }
-            $stmt->close();
-        }
-    } else {
-        $msg = "Invalid status transition.";
+    if (!in_array($new_status, $next_options, true)) {
+        $msg      = 'Invalid status transition.';
         $msg_type = 'danger';
+    } elseif (strcasecmp((string)$app['status'], $new_status) === 0) {
+        $msg      = 'Application already has that status.';
+        $msg_type = 'info';
+    } else {
+        $stmt = $conn->prepare(
+            "UPDATE applications SET status = ?, response_message = ?, status_updated_at = NOW(), updated_at = NOW() WHERE id = ?"
+        );
+        $stmt->bind_param('ssi', $new_status, $responseMessage, $app_id);
+
+        if ($stmt->execute()) {
+            $statusLabel = $statusMeta[$new_status]['label'] ?? ucfirst($new_status);
+            $msg      = 'Application status updated to <strong>' . htmlspecialchars($statusLabel) . '</strong>.';
+            $msg_type = 'success';
+            $app['status'] = $new_status;
+            $current_status = $new_status;
+            $next_options   = $adminStatusOptions[$current_status] ?? [];
+
+            // Notify the applicant.
+            $notifyMsg = 'Your application for "' . ($app['job_title'] ?? 'Job') . '" has been updated to "' . $statusLabel . '".';
+            if ($responseMessage !== '') {
+                $notifyMsg .= ' Message from admin: ' . $responseMessage;
+            }
+            notify_create(
+                'user',
+                (int)$app['user_id'],
+                'Application Status Updated',
+                $notifyMsg,
+                'my-applications.php',
+                notify_status_type($new_status),
+                'application',
+                $app_id
+            );
+
+            // Log the admin action.
+            log_activity(
+                $conn,
+                current_admin_id(),
+                'admin',
+                'application_status_updated',
+                'Admin changed application #' . $app_id . ' status to ' . $statusLabel . ' for ' . ($app['user_name'] ?? 'user'),
+                'application',
+                $app_id
+            );
+        } else {
+            $msg      = 'Failed to update status.';
+            $msg_type = 'danger';
+        }
+        $stmt->close();
     }
 }
 ?>
@@ -150,40 +181,61 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 <h5 class="mb-0">Current Status</h5>
             </div>
             <div class="card-body">
+                <!-- Current status badge -->
                 <div class="mb-4">
-                    <span class="badge fs-6 p-2 <?= match(strtolower($app['status'] ?? 'pending')) {
-                        'pending'     => 'bg-warning text-dark',
-                        'shortlisted' => 'bg-primary',
-                        'interview'   => 'bg-info',
-                        'approved'    => 'bg-success',
-                        'rejected'    => 'bg-danger',
-                        default       => 'bg-secondary'
-                    } ?>">
-                        <?= ucfirst($app['status'] ?? 'Pending') ?>
-                    </span>
+                    <?php
+                    $badgeClass  = $statusMeta[$current_status]['badge']  ?? 'bg-secondary';
+                    $badgeLabel  = $statusMeta[$current_status]['label']  ?? ucfirst($current_status);
+                    ?>
+                    <span class="badge fs-6 p-2 <?= $badgeClass ?>"><?= htmlspecialchars($badgeLabel) ?></span>
                 </div>
 
+                <!-- Status change form -->
                 <?php if (!empty($next_options)): ?>
                     <form method="post">
                         <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
 
                         <div class="mb-3">
-                            <label class="form-label">Change Status to:</label>
-                            <select name="new_status" class="form-select">
-                                <option value="">Select new status...</option>
-                                <?php foreach ($next_options as $opt): ?>
-                                    <option value="<?= $opt ?>"><?= ucfirst(str_replace('_', ' ', $opt)) ?></option>
+                            <label class="form-label fw-semibold">Change Status to:</label>
+                            <select name="new_status" class="form-select" required>
+                                <option value="">Select new status…</option>
+                                <?php foreach ($next_options as $opt):
+                                    $optMeta  = $statusMeta[$opt] ?? ['label' => ucfirst($opt), 'badge' => 'bg-secondary'];
+                                ?>
+                                    <option value="<?= htmlspecialchars($opt) ?>">
+                                        <?= htmlspecialchars($optMeta['label']) ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Message to Applicant <span class="text-muted small fw-normal">(optional)</span></label>
+                            <textarea name="response_message" class="form-control" rows="3"
+                                      placeholder="e.g. Please attend an interview on Monday at 10am…"><?= htmlspecialchars($app['response_message'] ?? '') ?></textarea>
+                            <div class="form-text">This message will be included in the notification sent to the applicant.</div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary w-100">
-                            Update Status
+                            <i class="fas fa-check-circle me-1"></i> Update Status
                         </button>
                     </form>
                 <?php else: ?>
                     <div class="alert alert-info small mb-0">
-                        No further status changes available at this stage.
+                        <?php if (in_array($current_status, ['approved', 'rejected'], true)): ?>
+                            This application is <strong><?= htmlspecialchars($badgeLabel) ?></strong> — no further status changes are available.
+                        <?php else: ?>
+                            No further status changes available at this stage.
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Previous admin response message -->
+                <?php if (!empty($app['response_message'])): ?>
+                    <hr>
+                    <div class="mt-3">
+                        <div class="text-muted small fw-semibold mb-1">Last Admin Message</div>
+                        <div class="content-surface rounded p-3 small"><?= nl2br(htmlspecialchars($app['response_message'])) ?></div>
                     </div>
                 <?php endif; ?>
             </div>

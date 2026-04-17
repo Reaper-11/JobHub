@@ -3,21 +3,19 @@ require '../db.php';
 
 require_role('admin');
 
-$userAdminBaseUrl = 'users.php';
+$userAdminBaseUrl = 'admin-users.php';
 $statusFilter = strtolower(trim((string)($_GET['status'] ?? 'all')));
 $allowedStatusFilters = ['active', 'blocked', 'removed', 'all'];
 if (!in_array($statusFilter, $allowedStatusFilters, true)) {
     $statusFilter = 'all';
 }
 
+// Search term (name or email)
+$search = trim((string)($_GET['search'] ?? ''));
+
 $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = $statusFilter === 'all' ? 30 : 20;
 $offset = ($page - 1) * $limit;
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && basename($_SERVER['PHP_SELF']) === 'admin-users.php') {
-    header('Location: ' . $userAdminBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . $page);
-    exit;
-}
 
 $msg = $msg_type = '';
 
@@ -197,6 +195,19 @@ if ($statusFilter !== 'all') {
     $userParams[] = $statusFilter;
 }
 
+// Apply name/email search filter.
+if ($search !== '') {
+    $searchParam = '%' . $search . '%';
+    if ($userWhere === '') {
+        $userWhere = 'WHERE (name LIKE ? OR email LIKE ?)';
+    } else {
+        $userWhere .= ' AND (name LIKE ? OR email LIKE ?)';
+    }
+    $userTypes .= 'ss';
+    $userParams[] = $searchParam;
+    $userParams[] = $searchParam;
+}
+
 $totalUsers = (int)db_query_value(
     "SELECT COUNT(*) FROM users {$userWhere}",
     $userTypes,
@@ -220,12 +231,20 @@ $statusTabs = [
     'all' => 'All',
 ];
 
-$tabUrl = static function (string $targetStatus) use ($userAdminBaseUrl): string {
-    return $userAdminBaseUrl . '?status=' . urlencode($targetStatus) . '&page=1';
+$tabUrl = static function (string $targetStatus) use ($userAdminBaseUrl, $search): string {
+    $url = $userAdminBaseUrl . '?status=' . urlencode($targetStatus) . '&page=1';
+    if ($search !== '') {
+        $url .= '&search=' . urlencode($search);
+    }
+    return $url;
 };
 
-$pageUrl = static function (int $targetPage) use ($userAdminBaseUrl, $statusFilter): string {
-    return $userAdminBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . max(1, $targetPage);
+$pageUrl = static function (int $targetPage) use ($userAdminBaseUrl, $statusFilter, $search): string {
+    $url = $userAdminBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . max(1, $targetPage);
+    if ($search !== '') {
+        $url .= '&search=' . urlencode($search);
+    }
+    return $url;
 };
 
 $paginationStart = max(1, $page - 2);
@@ -251,6 +270,18 @@ $users = db_query_all("
 <div class="alert alert-secondary">
     Removed users are soft-deactivated to keep applications, bookmarks, and history safe. Reasons are required for block and remove actions.
 </div>
+
+<!-- Search + Status Tabs -->
+<form method="get" action="admin-users.php" class="mb-3">
+    <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
+    <div class="input-group" style="max-width:420px;">
+        <input type="text" name="search" class="form-control" placeholder="Search by name or email…" value="<?= htmlspecialchars($search) ?>">
+        <button class="btn btn-outline-secondary" type="submit"><i class="fas fa-search"></i> Search</button>
+        <?php if ($search !== ''): ?>
+            <a href="admin-users.php?status=<?= urlencode($statusFilter) ?>&page=1" class="btn btn-outline-danger"><i class="fas fa-times"></i></a>
+        <?php endif; ?>
+    </div>
+</form>
 
 <ul class="nav nav-tabs mb-4">
     <?php foreach ($statusTabs as $tabStatus => $tabLabel): ?>

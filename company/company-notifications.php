@@ -47,6 +47,52 @@ foreach ($notifications as $n) {
 
 <h1 class="mb-4">Notifications</h1>
 
+<style>
+    .notification-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    .notification-card {
+        background-color: rgba(17, 24, 39, 0.6); /* Dark background for read */
+        border: 1px solid #243041;
+        border-left: 4px solid var(--type-color);
+        border-radius: 0.5rem;
+        padding: 1.25rem;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    .notification-card:hover {
+        background-color: rgba(255, 255, 255, 0.04);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .notification-card.unread {
+        background-color: rgba(30, 41, 59, 0.9); /* Slightly lighter dark for unread */
+        border-color: #334155;
+        border-left-color: var(--type-color);
+        /* Subtle glow based on type color but transparent */
+        box-shadow: 0 0 15px color-mix(in srgb, var(--type-color) 20%, transparent);
+    }
+    .notification-card.unread::before {
+        content: '';
+        position: absolute;
+        left: -4px; /* Cover the left border */
+        top: -1px;
+        bottom: -1px;
+        width: 4px;
+        background-color: var(--type-color);
+        border-top-left-radius: 0.5rem;
+        border-bottom-left-radius: 0.5rem;
+        box-shadow: 0 0 8px var(--type-color);
+    }
+    .notification-message {
+        color: #cbd5e1; /* Light slate text */
+        line-height: 1.6;
+        font-size: 0.95rem;
+    }
+</style>
+
 <?php if ($msg): ?>
     <div class="alert alert-<?= htmlspecialchars($msg_type) ?>"><?= htmlspecialchars($msg) ?></div>
 <?php endif; ?>
@@ -61,7 +107,7 @@ foreach ($notifications as $n) {
         <form method="post" class="d-inline-block">
             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
             <button type="submit" name="mark_all" value="1" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-check-double me-1"></i>Mark all as read
+                Mark all as read
             </button>
         </form>
     </div>
@@ -72,7 +118,7 @@ foreach ($notifications as $n) {
                 <?= htmlspecialchars($groupLabel) ?>
             </h5>
 
-            <div class="list-group">
+            <div class="notification-stack">
                 <?php foreach ($groupNotifs as $n): ?>
                     <?php
                         $isRead = (int)($n['is_read'] ?? 0) === 1;
@@ -113,7 +159,7 @@ foreach ($notifications as $n) {
                             default => 'Info',
                         };
                     ?>
-                    <div class="list-group-item" style="border-left: 4px solid <?= $borderColor ?>; <?= $isRead ? '' : 'background-color: #f8f9fa;' ?> padding-left: 1rem;">
+                    <div class="notification-card <?= !$isRead ? 'unread' : '' ?>" style="--type-color: <?= $borderColor ?>;">
                         <div class="d-flex justify-content-between align-items-start">
                             <div class="flex-grow-1">
                                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
@@ -139,7 +185,7 @@ foreach ($notifications as $n) {
                                     <i class="fas fa-clock me-1"></i><?= date('M d, Y H:i', strtotime((string)$n['created_at'])) ?>
                                 </div>
                                 
-                                <div style="color: #495057; line-height: 1.5;">
+                                <div class="notification-message">
                                     <?= nl2br(htmlspecialchars($n['message'])) ?>
                                 </div>
                                 
