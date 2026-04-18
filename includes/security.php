@@ -205,23 +205,3 @@ function jobhub_company_session_status(mysqli $conn, int $companyId): string
 
     return 'active';
 }
-
-function enforce_company_session_status(mysqli $conn): void
-{
-    if (empty($_SESSION['company_id'])) {
-        return;
-    }
-
-    $status = jobhub_company_session_status($conn, (int)$_SESSION['company_id']);
-    if ($status === 'active') {
-        return;
-    }
-
-    jobhub_clear_auth_session();
-    $_SESSION['company_auth_error'] = $status === 'rejected'
-        ? 'Your company account has been rejected by admin.'
-        : 'Your company account is inactive. Please contact admin.';
-
-    header('Location: ' . JOBHUB_APP_URL . 'login.php');
-    exit;
-}

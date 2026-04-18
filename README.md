@@ -62,8 +62,9 @@ JobHub/
 |-- includes/                      # Auth, security, notifications, helpers
 |-- uploads/                       # CVs and company verification files
 |-- database.sql                   # Fresh database setup
-|-- database_migration_unified_auth.sql
-|-- migrate_unified_auth.php
+|-- tools/
+|   |-- database_migration_unified_auth.sql
+|   `-- migrate_unified_auth.php
 ```
 
 ## Local Setup
@@ -161,13 +162,13 @@ Use [`database.sql`](database.sql).
 
 If you already have an older JobHub database and want to migrate it to unified auth:
 
-- Use [`database_migration_unified_auth.sql`](database_migration_unified_auth.sql) if old passwords are already hashed
-- Use [`migrate_unified_auth.php`](migrate_unified_auth.php) if old passwords may still be plain text
+- Use [`tools/database_migration_unified_auth.sql`](tools/database_migration_unified_auth.sql) if old passwords are already hashed
+- Use [`tools/migrate_unified_auth.php`](tools/migrate_unified_auth.php) if old passwords may still be plain text
 
 Example:
 
 ```bash
-php migrate_unified_auth.php
+php tools/migrate_unified_auth.php
 ```
 
 ## Recommendation Engine

@@ -189,13 +189,6 @@ if (!function_exists('logout_user')) {
     }
 }
 
-if (!function_exists('jobhub_destroy_session')) {
-    function jobhub_destroy_session(): void
-    {
-        logout_user();
-    }
-}
-
 if (!function_exists('jobhub_sync_session_from_account')) {
     function jobhub_sync_session_from_account(array $account): void
     {
@@ -615,32 +608,6 @@ if (!function_exists('jobhub_attempt_login')) {
     }
 }
 
-if (!function_exists('current_account')) {
-    function current_account(bool $forceRefresh = false): ?array
-    {
-        global $conn;
-
-        static $cachedAccountId = null;
-        static $cachedAccount = null;
-
-        $accountId = current_account_id();
-        if ($accountId === null || !($conn instanceof mysqli)) {
-            $cachedAccountId = null;
-            $cachedAccount = null;
-            return null;
-        }
-
-        if (!$forceRefresh && $cachedAccountId === $accountId && is_array($cachedAccount)) {
-            return $cachedAccount;
-        }
-
-        $cachedAccountId = $accountId;
-        $cachedAccount = jobhub_fetch_account_by_id($conn, $accountId);
-
-        return $cachedAccount;
-    }
-}
-
 if (!function_exists('jobhub_restore_legacy_session')) {
     function jobhub_restore_legacy_session(mysqli $conn): void
     {
@@ -730,26 +697,6 @@ if (!function_exists('require_role')) {
             jobhub_set_auth_flash('warning', 'Unauthorized access.');
             jobhub_redirect(jobhub_role_home());
         }
-    }
-}
-
-if (!function_exists('require_roles')) {
-    function require_roles(array $roles): void
-    {
-        require_login();
-
-        $normalizedRoles = array_values(array_filter(array_map('jobhub_role_alias', $roles)));
-        if (empty($normalizedRoles) || !in_array(current_role(), $normalizedRoles, true)) {
-            jobhub_set_auth_flash('warning', 'Unauthorized access.');
-            jobhub_redirect(jobhub_role_home());
-        }
-    }
-}
-
-if (!function_exists('require_admin')) {
-    function require_admin(): void
-    {
-        require_role('admin');
     }
 }
 

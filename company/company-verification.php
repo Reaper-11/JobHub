@@ -149,6 +149,153 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
 
 <?php require 'company-header.php'; ?>
 
+<style>
+    .verification-form-card {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(6px);
+        border: 1px solid #1e293b;
+        border-radius: 12px;
+        box-shadow: 0 20px 45px rgba(2, 6, 23, 0.28);
+        overflow: hidden;
+    }
+
+    .verification-form-card .card-header {
+        background: rgba(2, 6, 23, 0.72);
+        border-bottom: 1px solid #1e293b;
+        color: #e2e8f0;
+    }
+
+    .verification-form-card .card-body {
+        color: #cbd5e1;
+    }
+
+    .verification-form .form-label {
+        color: #e2e8f0;
+    }
+
+    .verification-form .form-control {
+        background-color: #0f172a;
+        color: #e2e8f0;
+        border: 1px solid #1e293b;
+        border-radius: 8px;
+        padding: 10px 12px;
+        box-shadow: none;
+    }
+
+    .verification-form .form-control::placeholder {
+        color: #64748b;
+        opacity: 1;
+    }
+
+    .verification-form .form-control:focus {
+        background-color: #0f172a;
+        color: #e2e8f0;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+        outline: none;
+    }
+
+    .verification-form .form-control[readonly],
+    .verification-form .form-control:disabled {
+        background-color: #020617;
+        color: #94a3b8;
+        border: 1px dashed #1e293b;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
+    .verification-form textarea.form-control {
+        min-height: 120px;
+        resize: vertical;
+    }
+
+    .verification-form input[type="file"].form-control {
+        background-color: #0f172a;
+        color: #cbd5e1;
+        padding: 8px 10px;
+    }
+
+    .verification-form input[type="file"].form-control::file-selector-button {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 6px;
+        padding: 8px 12px;
+        margin-right: 12px;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .verification-form input[type="file"].form-control:hover::file-selector-button {
+        background: #334155;
+        border-color: #475569;
+    }
+
+    .verification-form .form-text,
+    .verification-form .text-muted,
+    .verification-form .verification-lock-text {
+        color: #94a3b8 !important;
+    }
+
+    .verification-document-card {
+        background-color: #020617;
+        border: 1px solid #1e293b;
+        border-radius: 10px;
+    }
+
+    .verification-document-card .card-body {
+        padding: 12px;
+    }
+
+    .verification-document-row {
+        --bs-gutter-x: 0;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .verification-document-row > [class*='col'] {
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    .verification-document-label {
+        color: #64748b;
+    }
+
+    .verification-document-name {
+        color: #e2e8f0;
+        font-weight: 500;
+    }
+
+    .verification-document-icon {
+        color: #38bdf8;
+        font-size: 1.5rem;
+    }
+
+    .verification-status-note {
+        background-color: #0f172a;
+        border-radius: 10px;
+        color: #cbd5e1;
+    }
+
+    .verification-status-note.alert-warning {
+        border: 1px solid rgba(245, 158, 11, 0.35);
+    }
+
+    .verification-status-note.alert-success {
+        border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+
+    .verification-status-note.alert-danger {
+        border: 1px solid rgba(248, 113, 113, 0.4);
+    }
+
+    .verification-form-actions {
+        margin-top: 10px;
+    }
+</style>
+
 <h1 class="mb-4">Company Verification</h1>
 
 <div class="card shadow-sm mb-4">
@@ -214,7 +361,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
     </div>
 <?php endif; ?>
 
-<div class="card shadow-sm">
+<div class="card shadow-sm verification-form-card">
     <div class="card-header">
         <h5 class="mb-0">
             <i class="fas fa-file-upload me-2"></i>
@@ -222,53 +369,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
         </h5>
     </div>
     <div class="card-body">
-        <form method="post" enctype="multipart/form-data">
+        <form method="post" enctype="multipart/form-data" class="verification-form">
             <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
 
             <div class="mb-3">
                 <label class="form-label">Company Legal Name <span class="text-danger">*</span></label>
-                <input type="text" name="company_name" class="form-control <?= ($status === 'approved' || $status === 'pending') ? 'bg-light' : '' ?>" required
+                <input type="text" name="company_name" class="form-control" required
                        value="<?= htmlspecialchars($form['company_name']) ?>"
                        <?= ($status === 'approved' || $status === 'pending') ? 'readonly' : '' ?>
-                       placeholder="Enter your company legal name"
-                       style="<?= ($status === 'approved' || $status === 'pending') ? 'color: #495057; background-color: #e9ecef;' : '' ?>">
+                       placeholder="Enter your company legal name">
                 <?php if ($status === 'approved' || $status === 'pending'): ?>
-                    <small class="text-muted d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
+                    <small class="verification-lock-text d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
                 <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Registration / License Number <span class="text-danger">*</span></label>
-                <input type="text" name="registration_number" class="form-control <?= ($status === 'approved' || $status === 'pending') ? 'bg-light' : '' ?>" required
+                <input type="text" name="registration_number" class="form-control" required
                        value="<?= htmlspecialchars($form['registration_number']) ?>"
                        <?= ($status === 'approved' || $status === 'pending') ? 'readonly' : '' ?>
-                       placeholder="Enter your registration or license number"
-                       style="<?= ($status === 'approved' || $status === 'pending') ? 'color: #495057; background-color: #e9ecef;' : '' ?>">
+                       placeholder="Enter your registration or license number">
                 <?php if ($status === 'approved' || $status === 'pending'): ?>
-                    <small class="text-muted d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
+                    <small class="verification-lock-text d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
                 <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Company Address <span class="text-danger">*</span></label>
-                <textarea name="address" class="form-control <?= ($status === 'approved' || $status === 'pending') ? 'bg-light' : '' ?>" rows="3" required 
+                <textarea name="address" class="form-control" rows="3" required
                           <?= ($status === 'approved' || $status === 'pending') ? 'readonly' : '' ?>
-                          placeholder="Enter your complete company address"
-                          style="<?= ($status === 'approved' || $status === 'pending') ? 'color: #495057; background-color: #e9ecef;' : '' ?>"><?= htmlspecialchars($form['address']) ?></textarea>
+                          placeholder="Enter your complete company address"><?= htmlspecialchars($form['address']) ?></textarea>
                 <?php if ($status === 'approved' || $status === 'pending'): ?>
-                    <small class="text-muted d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
+                    <small class="verification-lock-text d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
                 <?php endif; ?>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">Contact Phone <span class="text-danger">*</span></label>
-                <input type="text" name="phone" class="form-control <?= ($status === 'approved' || $status === 'pending') ? 'bg-light' : '' ?>" required
+                <input type="text" name="phone" class="form-control" required
                        value="<?= htmlspecialchars($form['phone']) ?>"
                        <?= ($status === 'approved' || $status === 'pending') ? 'readonly' : '' ?>
-                       placeholder="Enter your contact phone number"
-                       style="<?= ($status === 'approved' || $status === 'pending') ? 'color: #495057; background-color: #e9ecef;' : '' ?>">
+                       placeholder="Enter your contact phone number">
                 <?php if ($status === 'approved' || $status === 'pending'): ?>
-                    <small class="text-muted d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
+                    <small class="verification-lock-text d-block mt-1"><i class="fas fa-lock me-1"></i>This field is locked</small>
                 <?php endif; ?>
             </div>
 
@@ -277,15 +420,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
                 
                 <?php if (!empty($record['verification_document_path'])): ?>
                     <!-- Submitted Document Card -->
-                    <div class="card card-sm mb-3 border" style="background-color: #f8f9fa;">
-                        <div class="card-body p-3">
-                            <div class="row align-items-center">
+                    <div class="card card-sm mb-3 verification-document-card">
+                        <div class="card-body">
+                            <div class="row verification-document-row">
                                 <div class="col-auto">
-                                    <i class="fas fa-file-pdf me-2" style="color: #dc3545; font-size: 1.5rem;"></i>
+                                    <i class="fas fa-file-pdf me-2 verification-document-icon"></i>
                                 </div>
                                 <div class="col">
-                                    <div class="small" style="color: #6c757d;">Your Uploaded Document</div>
-                                    <div class="text-break" style="color: #212529; font-weight: 500;">
+                                    <div class="small verification-document-label">Your Uploaded Document</div>
+                                    <div class="text-break verification-document-name">
                                         <?= htmlspecialchars(basename($record['verification_document_path'])) ?>
                                     </div>
                                 </div>
@@ -301,17 +444,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
                 
                 <!-- Status-Based Messages and Upload Section -->
                 <?php if ($status === 'pending'): ?>
-                    <div class="alert alert-warning mb-3" style="background-color: #fff3cd; border: 1px solid #ffc107;">
+                    <div class="alert alert-warning verification-status-note mb-3">
                         <i class="fas fa-hourglass-half me-2"></i>
                         <strong>Under Review</strong> Your document is currently under review. You cannot upload a new file right now.
                     </div>
                 <?php elseif ($status === 'approved'): ?>
-                    <div class="alert alert-success mb-3" style="background-color: #d4edda; border: 1px solid #28a745;">
+                    <div class="alert alert-success verification-status-note mb-3">
                         <i class="fas fa-check-circle me-2"></i>
                         <strong>Document Approved</strong> Your document has been approved. No further upload is required.
                     </div>
                 <?php elseif ($status === 'rejected'): ?>
-                    <div class="alert alert-danger mb-3" style="background-color: #f8d7da; border: 1px solid #dc3545;">
+                    <div class="alert alert-danger verification-status-note mb-3">
                         <i class="fas fa-exclamation-circle me-2"></i>
                         <strong>Document Rejected</strong> Your document was rejected. Please upload a new valid document below.
                     </div>
@@ -333,7 +476,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
                 <?php endif; ?>
             </div>
 
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 verification-form-actions">
                 <button type="submit" class="btn btn-primary" <?= ($status === 'approved' || $status === 'pending') ? 'disabled' : '' ?>>
                     <i class="fas fa-paper-plane me-2"></i>
                     <?= $status === 'rejected' ? 'Resubmit Verification' : 'Submit Verification' ?>

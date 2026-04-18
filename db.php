@@ -206,13 +206,6 @@ function is_job_expired($job): bool
     return $expires !== null && time() > $expires;
 }
 
-if (!function_exists('isJobExpired')) {
-    function isJobExpired($job): bool
-    {
-        return is_job_expired($job);
-    }
-}
-
 function is_job_closed($job): bool
 {
     return strtolower(trim((string)($job['status'] ?? ''))) === 'closed';
@@ -374,14 +367,6 @@ function update_expired_jobs(mysqli $conn, ?int $companyId = null, ?int $jobId =
     $updateStmt->close();
 
     return $updatedCount;
-}
-
-if (!function_exists('updateExpiredJobs')) {
-    function updateExpiredJobs(?int $companyId = null, ?int $jobId = null): int
-    {
-        global $conn;
-        return update_expired_jobs($conn, $companyId, $jobId);
-    }
 }
 
 function jobhub_job_filter_options(): array

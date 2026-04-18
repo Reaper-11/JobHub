@@ -28,8 +28,6 @@ $adminPageTitles = [
     'activity-monitor.php'         => 'Activity Monitor',
     'support-messages.php'         => 'Support Messages',
     'support-view.php'             => 'View Support Message',
-    'admin-edit-job.php'           => 'Edit Job',
-    'job-details.php'              => 'Job Details',
     'job-view.php'                 => 'Job Review',
     'application-details.php'      => 'Application Details',
 ];

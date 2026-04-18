@@ -1,12 +1,7 @@
 <?php
 // includes/functions.php
-require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/job_salary_helper.php';
 require_once __DIR__ . '/mailer.php';
-
-function is_job_seeker() {
-    return current_role() === 'jobseeker';
-}
 
 if (!function_exists('get_category_card_icon')) {
     function get_category_card_icon($category): string
@@ -27,56 +22,4 @@ if (!function_exists('get_category_card_icon')) {
             default => "\u{1F4BC}",
         };
     }
-}
-
-function is_company() {
-    return current_role() === 'company';
-}
-
-function redirect_if_not_logged_in($role = null) {
-    if (!is_logged_in()) {
-        $_SESSION['auth_error'] = 'Please log in to continue.';
-        jobhub_redirect('login.php');
-    }
-
-    $role = jobhub_role_alias($role);
-    if ($role !== null && current_role() !== $role) {
-        jobhub_set_auth_flash('warning', 'Unauthorized access.');
-        jobhub_redirect(jobhub_role_home());
-    }
-}
-
-function safe_file_upload($file, $allowed = ['pdf'], $max_size = 5*1024*1024, $dest_folder = 'uploads/resumes/') {
-    if ($file['error'] !== UPLOAD_ERR_OK) return false;
-    if ($file['size'] > $max_size) return false;
-    
-    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-    if (!in_array($ext, $allowed)) return false;
-    
-    $new_name = uniqid() . '.' . $ext;
-    $dest = $dest_folder . $new_name;
-    
-    if (move_uploaded_file($file['tmp_name'], $dest)) {
-        return $dest;
-    }
-    return false;
-}
-
-function send_email($to, $subject, $body) {
-    if (defined('JOBHUB_EMAIL_ENABLED') && !JOBHUB_EMAIL_ENABLED) {
-        return false;
-    }
-
-    $body = (string) $body;
-    $isHtml = $body !== strip_tags($body);
-    $result = jobhub_send_email_message([
-        'to_email' => $to,
-        'subject' => (string) $subject,
-        'from_email' => JOBHUB_SUPPORT_FROM_EMAIL,
-        'from_name' => JOBHUB_SUPPORT_FROM_NAME,
-        'html_body' => $isHtml ? $body : '',
-        'text_body' => $isHtml ? jobhub_mail_html_to_text($body) : $body,
-    ]);
-
-    return !empty($result['success']);
 }

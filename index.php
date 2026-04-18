@@ -852,7 +852,7 @@ $basePath = '';
                 ];
             } elseif ($isAdmin) {
                 $navLinks = [
-                    ['href' => $basePath . 'admin/dashboard.php', 'label' => 'Admin Panel'],
+                    ['href' => $basePath . 'admin/admin-dashboard.php', 'label' => 'Admin Panel'],
                     ['href' => $basePath . 'logout.php', 'label' => 'Logout'],
                 ];
             } else {

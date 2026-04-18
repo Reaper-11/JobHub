@@ -165,30 +165,6 @@ function get_user_account_status(mysqli $conn, int $userId): string
     return ((int)($row['is_active'] ?? 1) === 1) ? 'active' : 'blocked';
 }
 
-function enforce_user_session_status(mysqli $conn): void
-{
-    if (empty($_SESSION['user_id'])) {
-        return;
-    }
-
-    $status = get_user_account_status($conn, (int)$_SESSION['user_id']);
-    if ($status === 'active') {
-        return;
-    }
-
-    unset($_SESSION['user_id'], $_SESSION['user_name'], $_SESSION['role']);
-
-    if ($status === 'blocked') {
-        $_SESSION['auth_error'] = 'Your account has been blocked by admin.';
-        header('Location: ' . JOBHUB_APP_URL . 'login.php?blocked=1');
-        exit;
-    }
-
-    $_SESSION['auth_error'] = 'Your account is no longer available.';
-    header('Location: ' . JOBHUB_APP_URL . 'login.php?removed=1');
-    exit;
-}
-
 function user_status_badge_class(string $status): string
 {
     return match ($status) {

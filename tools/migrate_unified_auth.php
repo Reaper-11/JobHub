@@ -1,11 +1,11 @@
 <?php
-require __DIR__ . '/db.php';
+require __DIR__ . '/../db.php';
 
 if (PHP_SAPI !== 'cli' && (string) ($_GET['run'] ?? '') !== '1') {
     header('Content-Type: text/plain; charset=UTF-8');
     echo "Unified auth migration is ready.\n";
-    echo "Run from CLI: php migrate_unified_auth.php\n";
-    echo "Or from the browser: /JobHub/migrate_unified_auth.php?run=1\n";
+    echo "Run from CLI: php tools/migrate_unified_auth.php\n";
+    echo "Or from the browser: /JobHub/tools/migrate_unified_auth.php?run=1\n";
     exit;
 }
 

@@ -6,7 +6,7 @@ Run this on an existing JobHub database only once.
 If every legacy password is already hashed, this SQL can do the structural upgrade
 and the basic account-row migration.
 
-If any legacy table still stores plain-text passwords, use `php migrate_unified_auth.php`
+If any legacy table still stores plain-text passwords, use `php tools/migrate_unified_auth.php`
 instead of this SQL so those passwords are re-hashed with `password_hash()`.
 */
 
