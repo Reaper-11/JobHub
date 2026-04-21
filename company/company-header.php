@@ -103,6 +103,11 @@ if ($isVerified) {
             min-height: 100vh;
             width: 240px;
             flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            align-self: flex-start;
+            height: 100vh;
+            overflow-y: auto;
             background: #0d1b2a;
             color: white;
             display: flex;

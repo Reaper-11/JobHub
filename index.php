@@ -1487,20 +1487,15 @@ $basePath = '';
             </p>
             
             <!-- Footer Links -->
-            <div class="flex flex-wrap justify-center items-center gap-6 text-center pt-8">
-                <a href="<?= htmlspecialchars($basePath . 'terms-policies.php') ?>" 
-                    class="text-sm text-slate-300 hover:text-white transition-colors duration-200 hover:underline decoration-offset-2">
-                    Terms & Conditions
-                </a>
-                <span class="text-slate-600">•</span>
-                <a href="<?= htmlspecialchars($basePath . 'terms-policies.php') ?>" 
-                    class="text-sm text-slate-300 hover:text-white transition-colors duration-200 hover:underline decoration-offset-2">
-                    Privacy Policy
-                </a>
-                <span class="text-slate-600">•</span>
-                <a href="<?= htmlspecialchars($basePath . 'contact-support.php') ?>" 
-                    class="text-sm text-slate-300 hover:text-white transition-colors duration-200 hover:underline decoration-offset-2">
-                    Contact Support
+            <div class="pt-8 flex justify-center">
+                <a href="<?= htmlspecialchars($basePath . 'terms-policies.php') ?>" class="inline-flex items-center justify-center gap-3 min-h-[3.5rem] px-8 py-3 rounded-full bg-slate-800/90 border border-sky-400/25 text-white font-semibold no-underline shadow-[0_18px_38px_rgba(2,6,23,0.28)] transition duration-150 hover:-translate-y-0.5 hover:text-white hover:border-sky-300/40 hover:bg-slate-700/90">
+                    <span class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/10 border border-white/10" aria-hidden="true">
+                        <svg class="w-[1.05rem] h-[1.05rem]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 3l7 3v5c0 5-3.2 8.4-7 10-3.8-1.6-7-5-7-10V6l7-3z"></path>
+                            <path d="M9.5 12l1.7 1.7L14.8 10"></path>
+                        </svg>
+                    </span>
+                    <span>Terms &amp; Conditions</span>
                 </a>
             </div>
         </div>
