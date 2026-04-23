@@ -80,6 +80,7 @@ $activityTypeLabels = [
     'job_rejected'                    => 'Job Rejected',
     'user_blocked'                    => 'User Blocked',
     'user_unblocked'                  => 'User Unblocked',
+    'user_deleted'                    => 'User Deleted',
     'user_removed'                    => 'User Removed',
     'user_restored'                   => 'User Restored',
     'company_verification_approved'   => 'Verification Approved',

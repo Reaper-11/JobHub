@@ -2353,9 +2353,27 @@ button:focus-visible,
   min-height: 56px;
   border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(6, 12, 24, 0.92);
+  background: rgba(6, 12, 24, 0.58);
   color: #edf2ff;
+  color-scheme: dark;
   font-size: 0.96rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.browse-jobs-page .form-select option {
+  background-color: #07101f;
+  color: #edf2ff;
+}
+
+.browse-jobs-page .form-select option:checked {
+  background-color: #24305f;
+  color: #ffffff;
+}
+
+.browse-jobs-page .form-select option:disabled {
+  background-color: #07101f;
+  color: #64748b;
 }
 
 .browse-jobs-page .form-control::placeholder {
@@ -2460,7 +2478,9 @@ button:focus-visible,
   padding: 0 18px;
   border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.18);
-  background: rgba(6, 12, 24, 0.92);
+  background: rgba(6, 12, 24, 0.48);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
@@ -2523,6 +2543,7 @@ button:focus-visible,
 .jobs-sort-btn .form-select {
   padding-right: 28px;
   cursor: pointer;
+  color-scheme: dark;
 }
 
 .jobs-results-summary {

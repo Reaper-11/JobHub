@@ -26,6 +26,37 @@ function get_company_verification_record(mysqli $conn, int $companyId): ?array
     return $record;
 }
 
+function company_verification_registration_number_exists(
+    mysqli $conn,
+    string $registrationNumber,
+    ?int $exceptCompanyId = null
+): bool {
+    $normalizedRegistrationNumber = trim($registrationNumber);
+    if ($normalizedRegistrationNumber === '') {
+        return false;
+    }
+
+    $excludedCompanyId = $exceptCompanyId ?? 0;
+    $stmt = $conn->prepare("
+        SELECT id
+        FROM companies
+        WHERE LOWER(TRIM(COALESCE(verification_registration_number, ''))) = LOWER(TRIM(?))
+          AND id <> ?
+        LIMIT 1
+    ");
+
+    if (!$stmt) {
+        return false;
+    }
+
+    $stmt->bind_param('si', $normalizedRegistrationNumber, $excludedCompanyId);
+    $stmt->execute();
+    $exists = (bool) ($stmt->get_result()->fetch_assoc());
+    $stmt->close();
+
+    return $exists;
+}
+
 function get_company_verification_status(?array $record): string
 {
     if (!$record) {

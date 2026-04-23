@@ -20,6 +20,7 @@ $statusFilter = strtolower(trim((string)($_GET['status'] ?? ($_GET['approval'] ?
 if (!in_array($statusFilter, ['all', 'pending', 'approved', 'rejected'], true)) {
     $statusFilter = 'all';
 }
+$companySearch = trim((string)($_GET['company'] ?? ''));
 $page = max(1, (int)($_GET['page'] ?? 1));
 $limit = $statusFilter === 'all' ? 30 : 20;
 $offset = ($page - 1) * $limit;
@@ -238,6 +239,14 @@ if ($statusFilter === 'pending') {
     $conditions[] = "j.is_approved = -1";
 }
 
+$filterTypes = '';
+$filterParams = [];
+if ($companySearch !== '') {
+    $conditions[] = "c.name LIKE ?";
+    $filterTypes .= 's';
+    $filterParams[] = '%' . $companySearch . '%';
+}
+
 $where = empty($conditions) ? '1=1' : implode(' AND ', $conditions);
 
 $counts = [
@@ -247,7 +256,12 @@ $counts = [
     'rejected' => (int)db_query_value("SELECT COUNT(*) FROM jobs WHERE is_approved = -1", '', [], 0),
 ];
 
-$totalJobs = (int)($counts[$statusFilter] ?? $counts['all']);
+$totalJobs = (int)db_query_value("
+    SELECT COUNT(*)
+    FROM jobs j
+    LEFT JOIN companies c ON j.company_id = c.id
+    WHERE {$where}
+", $filterTypes, $filterParams, 0);
 $totalPages = $totalJobs > 0 ? (int)ceil($totalJobs / $limit) : 1;
 
 if ($page > $totalPages) {
@@ -262,15 +276,30 @@ $jobs = db_query_all("
     WHERE {$where}
     ORDER BY j.created_at DESC
     LIMIT ? OFFSET ?
-", "ii", [$limit, $offset]);
+ ", $filterTypes . "ii", array_merge($filterParams, [$limit, $offset]));
 
-$tabUrl = static function (string $status) use ($jobApprovalBaseUrl): string {
-    return $jobApprovalBaseUrl . '?status=' . urlencode($status) . '&page=1';
+$buildJobApprovalUrl = static function (string $status, int $targetPage, string $companyTerm = '') use ($jobApprovalBaseUrl): string {
+    $params = [
+        'status' => $status,
+        'page' => max(1, $targetPage),
+    ];
+
+    if ($companyTerm !== '') {
+        $params['company'] = $companyTerm;
+    }
+
+    return $jobApprovalBaseUrl . '?' . http_build_query($params);
 };
 
-$pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFilter): string {
-    return $jobApprovalBaseUrl . '?status=' . urlencode($statusFilter) . '&page=' . max(1, $targetPage);
+$tabUrl = static function (string $status) use ($buildJobApprovalUrl, $companySearch): string {
+    return $buildJobApprovalUrl($status, 1, $companySearch);
 };
+
+$pageUrl = static function (int $targetPage) use ($buildJobApprovalUrl, $statusFilter, $companySearch): string {
+    return $buildJobApprovalUrl($statusFilter, $targetPage, $companySearch);
+};
+
+$clearSearchUrl = $buildJobApprovalUrl($statusFilter, 1);
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -308,12 +337,37 @@ $pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFi
     </div>
 </div>
 
-<ul class="nav nav-tabs mb-4">
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('all')) ?>">All <span class="badge text-bg-secondary ms-1"><?= (int)$counts['all'] ?></span></a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'pending' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('pending')) ?>">Pending <span class="badge bg-warning text-dark ms-1"><?= (int)$counts['pending'] ?></span></a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'approved' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('approved')) ?>">Approved <span class="badge bg-success ms-1"><?= (int)$counts['approved'] ?></span></a></li>
-    <li class="nav-item"><a class="nav-link <?= $statusFilter === 'rejected' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('rejected')) ?>">Rejected <span class="badge bg-danger ms-1"><?= (int)$counts['rejected'] ?></span></a></li>
-</ul>
+<div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 mb-4">
+    <ul class="nav nav-tabs mb-0 flex-wrap">
+        <li class="nav-item"><a class="nav-link <?= $statusFilter === 'all' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('all')) ?>">All <span class="badge text-bg-secondary ms-1"><?= (int)$counts['all'] ?></span></a></li>
+        <li class="nav-item"><a class="nav-link <?= $statusFilter === 'pending' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('pending')) ?>">Pending <span class="badge bg-warning text-dark ms-1"><?= (int)$counts['pending'] ?></span></a></li>
+        <li class="nav-item"><a class="nav-link <?= $statusFilter === 'approved' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('approved')) ?>">Approved <span class="badge bg-success ms-1"><?= (int)$counts['approved'] ?></span></a></li>
+        <li class="nav-item"><a class="nav-link <?= $statusFilter === 'rejected' ? 'active' : '' ?>" href="<?= htmlspecialchars($tabUrl('rejected')) ?>">Rejected <span class="badge bg-danger ms-1"><?= (int)$counts['rejected'] ?></span></a></li>
+    </ul>
+
+    <form method="get" class="d-flex align-items-center gap-2 flex-wrap">
+        <input type="hidden" name="status" value="<?= htmlspecialchars($statusFilter) ?>">
+        <input type="hidden" name="page" value="1">
+        <input
+            type="search"
+            name="company"
+            class="form-control form-control-sm"
+            placeholder="Search company"
+            value="<?= htmlspecialchars($companySearch) ?>"
+            style="width: 220px;"
+        >
+        <button type="submit" class="btn btn-sm btn-outline-primary">Search</button>
+        <?php if ($companySearch !== ''): ?>
+            <a href="<?= htmlspecialchars($clearSearchUrl) ?>" class="btn btn-sm btn-outline-secondary">Clear</a>
+        <?php endif; ?>
+    </form>
+</div>
+
+<?php if ($companySearch !== ''): ?>
+    <div class="small text-muted mb-3">
+        Showing <?= (int)$totalJobs ?> matching job<?= $totalJobs === 1 ? '' : 's' ?> for company "<span class="text-light"><?= htmlspecialchars($companySearch) ?></span>".
+    </div>
+<?php endif; ?>
 
 <div class="table-responsive">
     <table class="table table-hover table-striped align-middle">
@@ -333,7 +387,7 @@ $pageUrl = static function (int $targetPage) use ($jobApprovalBaseUrl, $statusFi
         </thead>
         <tbody>
         <?php if (empty($jobs)): ?>
-            <tr><td colspan="9" class="text-center py-4">No jobs found.</td></tr>
+            <tr><td colspan="<?= $deadlineColumn !== null ? 10 : 9 ?>" class="text-center py-4">No jobs found.</td></tr>
         <?php else: ?>
             <?php foreach ($jobs as $job): ?>
                 <tr>

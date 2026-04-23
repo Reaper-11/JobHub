@@ -40,6 +40,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !validate_csrf_token($_POST['csrf_t
         if ($form['registration_number'] === '') {
             $errors[] = "Registration or license number is required.";
         }
+        if (
+            $form['registration_number'] !== ''
+            && company_verification_registration_number_exists($conn, $form['registration_number'], $cid)
+        ) {
+            $errors[] = "The Registration / License Number already exist. Please use Another Registration / License Number.";
+        }
         if ($form['address'] === '') {
             $errors[] = "Address is required.";
         }

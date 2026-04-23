@@ -30,8 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         $reasonForLog = substr($reasonForLog, 0, 160);
     }
 
-    if ($uid > 0 && in_array($action, ['block', 'unblock', 'remove', 'restore'], true)) {
-        $stmt = $conn->prepare("SELECT id, name, email, account_id FROM users WHERE id = ? LIMIT 1");
+    if ($uid > 0 && in_array($action, ['block', 'unblock', 'remove'], true)) {
+        $stmt = $conn->prepare("SELECT id, name, email, account_id, cv_path FROM users WHERE id = ? LIMIT 1");
         $stmt->bind_param("i", $uid);
         $stmt->execute();
         $user = $stmt->get_result()->fetch_assoc();
@@ -43,9 +43,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         } elseif (in_array($action, ['block', 'remove'], true) && $reason === '') {
             $msg = $action === 'block'
                 ? "A reason is required to block a user."
-                : "A reason is required to remove a user.";
+                : "A reason is required to delete a user.";
             $msg_type = 'danger';
         } else {
+            $stmt = null;
+            $accountStatus = null;
+
             if ($action === 'block') {
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'blocked', is_active = 0, updated_at = NOW() WHERE id = ?");
                 $accountStatus = 'blocked';
@@ -60,31 +63,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                 $description = "Admin unblocked user {$user['name']}";
                 $successMessage = "User unblocked successfully.";
                 $failureMessage = "Failed to unblock user.";
-            } elseif ($action === 'remove') {
-                $stmt = $conn->prepare("UPDATE users SET account_status = 'removed', is_active = 0, updated_at = NOW() WHERE id = ?");
-                $accountStatus = 'inactive';
-                $activityType = 'user_removed';
-                $description = "Admin removed user {$user['name']}. Reason: {$reasonForLog}";
-                $successMessage = "User removed safely.";
-                $failureMessage = "Failed to remove user.";
             } else {
-                $stmt = $conn->prepare("UPDATE users SET account_status = 'active', is_active = 1, updated_at = NOW() WHERE id = ?");
-                $accountStatus = 'active';
-                $activityType = 'user_restored';
-                $description = "Admin restored user {$user['name']}";
-                $successMessage = "User restored successfully.";
-                $failureMessage = "Failed to restore user.";
+                $activityType = 'user_deleted';
+                $description = "Admin deleted user {$user['name']} permanently. Reason: {$reasonForLog}";
+                $successMessage = "User account deleted permanently.";
+                $failureMessage = "Failed to delete user account.";
             }
 
-            if ($stmt) {
+            if ($action === 'remove' || $stmt) {
                 $conn->begin_transaction();
+                $ok = false;
 
-                $stmt->bind_param("i", $uid);
-                $ok = $stmt->execute();
-                $stmt->close();
+                if ($action === 'remove') {
+                    $ok = !empty($user['account_id']) && jobhub_delete_account($conn, (int) $user['account_id']);
+                } else {
+                    $stmt->bind_param("i", $uid);
+                    $ok = $stmt->execute();
+                    $stmt->close();
 
-                if ($ok && !empty($user['account_id'])) {
-                    $ok = jobhub_update_account_status($conn, (int) $user['account_id'], $accountStatus);
+                    if ($ok && !empty($user['account_id'])) {
+                        $ok = jobhub_update_account_status($conn, (int) $user['account_id'], $accountStatus);
+                    }
                 }
 
                 if ($ok) {
@@ -101,17 +100,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                             'Your JobHub account has been blocked by admin. Reason: ' . $reason,
                             'notifications.php',
                             'warning',
-                            'user',
-                            $uid
-                        );
-                    } elseif ($action === 'remove') {
-                        notify_create(
-                            'user',
-                            $uid,
-                            'Account Removed',
-                            'Your JobHub account has been removed by admin. Reason: ' . $reason,
-                            'notifications.php',
-                            'danger',
                             'user',
                             $uid
                         );
@@ -164,6 +152,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                                 'account-removed',
                                 'Job seeker removal email threw an exception for ' . $userEmail . ': ' . $mailException->getMessage()
                             );
+                        }
+                    }
+
+                    if ($action === 'remove') {
+                        $cvPath = trim((string) ($user['cv_path'] ?? ''));
+                        $absoluteCvPath = jobhub_cv_absolute_path($cvPath);
+                        if (
+                            $cvPath !== ''
+                            && $absoluteCvPath !== null
+                            && db_query_value("SELECT COUNT(*) FROM applications WHERE cv_path = ?", 's', [$cvPath], 0) == 0
+                            && is_file($absoluteCvPath)
+                        ) {
+                            @unlink($absoluteCvPath);
                         }
                     }
                 } else {
@@ -227,7 +228,7 @@ $userQueryParams = array_merge($userParams, [$limit, $offset]);
 $statusTabs = [
     'active' => 'Active',
     'blocked' => 'Blocked',
-    'removed' => 'Removed',
+    'removed' => 'Removed (Legacy)',
     'all' => 'All',
 ];
 
@@ -268,7 +269,7 @@ $users = db_query_all("
 <?php endif; ?>
 
 <div class="alert alert-secondary">
-    Removed users are soft-deactivated to keep applications, bookmarks, and history safe. Reasons are required for block and remove actions.
+    Admin deletes are permanent. Removed users shown here are legacy records that can only be deleted permanently. Reasons are required for block and delete actions.
 </div>
 
 <!-- Search + Status Tabs -->
@@ -344,20 +345,11 @@ $users = db_query_all("
                                     <input type="hidden" name="action" value="unblock">
                                     <button type="submit" class="btn btn-sm btn-outline-success">Unblock</button>
                                 </form>
-                            <?php elseif ($status === 'removed'): ?>
-                                <form method="post" class="d-inline">
-                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-                                    <input type="hidden" name="action" value="restore">
-                                    <button type="submit" class="btn btn-sm btn-outline-success">Restore</button>
-                                </form>
                             <?php endif; ?>
 
-                            <?php if ($status !== 'removed'): ?>
-                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeUserModal<?= (int)$u['id'] ?>">
-                                    Remove
-                                </button>
-                            <?php endif; ?>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#removeUserModal<?= (int)$u['id'] ?>">
+                                <?= $status === 'removed' ? 'Delete Permanently' : 'Delete' ?>
+                            </button>
                         </div>
 
                         <?php if ($status === 'active'): ?>
@@ -387,32 +379,35 @@ $users = db_query_all("
                             </div>
                         <?php endif; ?>
 
-                        <?php if ($status !== 'removed'): ?>
-                            <div class="modal fade" id="removeUserModal<?= (int)$u['id'] ?>" tabindex="-1" aria-hidden="true">
-                                <div class="modal-dialog">
-                                    <form method="post" class="modal-content">
-                                        <div class="modal-header">
-                                            <h5 class="modal-title">Remove User</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <div class="modal fade" id="removeUserModal<?= (int)$u['id'] ?>" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <form method="post" class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title"><?= $status === 'removed' ? 'Delete User Permanently' : 'Delete User' ?></h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                        <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                        <input type="hidden" name="action" value="remove">
+                                        <p class="mb-3">
+                                            <?= $status === 'removed'
+                                                ? 'This account is a legacy removed record. Deleting it now will permanently erase the account and remaining related data for ' . htmlspecialchars($u['name']) . '.'
+                                                : 'Explain why ' . htmlspecialchars($u['name']) . ' is being deleted permanently. Their account and related job seeker data will be erased.'
+                                            ?>
+                                        </p>
+                                        <div class="mb-0">
+                                            <label class="form-label">Reason <span class="text-danger">*</span></label>
+                                            <textarea name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
                                         </div>
-                                        <div class="modal-body">
-                                            <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
-                                            <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-                                            <input type="hidden" name="action" value="remove">
-                                            <p class="mb-3">Explain why <?= htmlspecialchars($u['name']) ?> is being removed. Related records will stay preserved.</p>
-                                            <div class="mb-0">
-                                                <label class="form-label">Reason <span class="text-danger">*</span></label>
-                                                <textarea name="reason" class="form-control" rows="3" maxlength="500" required></textarea>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="submit" class="btn btn-danger">Confirm Remove</button>
-                                        </div>
-                                    </form>
-                                </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-danger"><?= $status === 'removed' ? 'Confirm Permanent Delete' : 'Confirm Delete' ?></button>
+                                    </div>
+                                </form>
                             </div>
-                        <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

@@ -402,6 +402,29 @@ $basePath = '';
             background: linear-gradient(135deg, #0f172a 0%, #172554 100%) !important;
         }
 
+        .jobhub-empty-panel {
+            background: rgba(15, 23, 42, 0.26) !important;
+            border-color: rgba(148, 163, 184, 0.24) !important;
+            box-shadow: 0 24px 54px rgba(2, 6, 23, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            --empty-panel-accent: rgba(147, 197, 253, 0.58);
+        }
+
+        .jobhub-empty-panel--warm {
+            --empty-panel-accent: rgba(251, 191, 36, 0.62);
+        }
+
+        .jobhub-empty-icon {
+            background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.1), rgba(15, 23, 42, 0.3) 56%, rgba(15, 23, 42, 0.16)) !important;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 42px rgba(2, 6, 23, 0.22) !important;
+        }
+
+        .jobhub-empty-icon i {
+            color: var(--empty-panel-accent) !important;
+        }
+
         .text-gray-900 {
             color: #f8fafc !important;
         }
@@ -1077,8 +1100,8 @@ $basePath = '';
                     <?php endforeach; ?>
                 </div>
             <?php else: ?>
-                <div class="text-center py-12 md:py-20 bg-gradient-to-br from-white to-blue-50 rounded-2xl border-2 border-dashed border-[#1a237e]/20 shadow-lg">
-                    <div class="w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-[#1a237e]/10 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                <div class="jobhub-empty-panel text-center py-12 md:py-20 bg-gradient-to-br from-white to-blue-50 rounded-2xl border-2 border-dashed border-[#1a237e]/20 shadow-lg">
+                    <div class="jobhub-empty-icon w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-[#1a237e]/10 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                         <i class="fas fa-briefcase text-6xl md:text-8xl text-[#1a237e]/30"></i>
                     </div>
                     <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
@@ -1204,8 +1227,8 @@ $basePath = '';
                         <?php endforeach; ?>
                     </div>
                 <?php else: ?>
-                    <div class="text-center py-12 md:py-20 bg-gradient-to-br from-white to-orange-50 rounded-2xl border-2 border-dashed border-[#ff9800]/20 shadow-lg">
-                        <div class="w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-[#ff9800]/10 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                    <div class="jobhub-empty-panel jobhub-empty-panel--warm text-center py-12 md:py-20 bg-gradient-to-br from-white to-orange-50 rounded-2xl border-2 border-dashed border-[#ff9800]/20 shadow-lg">
+                        <div class="jobhub-empty-icon w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-[#ff9800]/10 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                             <i class="fas fa-user-check text-6xl md:text-8xl text-[#ff9800]/30"></i>
                         </div>
                         <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
@@ -1246,8 +1269,8 @@ $basePath = '';
             </div>
 
             <?php if (empty($jobs)): ?>
-                <div class="text-center py-12 md:py-20 bg-gradient-to-br from-white to-blue-50 rounded-2xl border-2 border-dashed border-[#1a237e]/20 shadow-lg">
-                    <div class="w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-[#1a237e]/10 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
+                <div class="jobhub-empty-panel text-center py-12 md:py-20 bg-gradient-to-br from-white to-blue-50 rounded-2xl border-2 border-dashed border-[#1a237e]/20 shadow-lg">
+                    <div class="jobhub-empty-icon w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-[#1a237e]/10 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-inner">
                         <i class="fas fa-search text-6xl md:text-8xl text-[#1a237e]/30"></i>
                     </div>
                     <h3 class="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
