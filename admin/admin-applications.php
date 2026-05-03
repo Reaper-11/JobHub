@@ -174,6 +174,13 @@ $paginationEnd   = min($totalPages, $page + 2);
                             'rejected'    => 'bg-danger',
                             default       => 'bg-secondary',
                         };
+                        $applicationCvs = jobhub_application_cv_list(
+                            $conn,
+                            (int) $app['id'],
+                            (string) ($app['cv_path'] ?: ($app['user_cv_path'] ?? '')),
+                            null
+                        );
+                        $firstCv = $applicationCvs[0] ?? null;
                         ?>
                         <tr>
                             <td><?= (int)$app['id'] ?></td>
@@ -181,9 +188,19 @@ $paginationEnd   = min($totalPages, $page + 2);
                             <td><?= htmlspecialchars($app['user_name']) ?></td>
                             <td><?= htmlspecialchars($app['user_email']) ?></td>
                             <td>
-                                <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
-                                <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
-                                    <a href="../cv-download.php?scope=application&id=<?= (int)$app['id'] ?>" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">View CV</a>
+                                <?php if (!empty($applicationCvs)): ?>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle me-2"><?= count($applicationCvs) ?> attached</span>
+                                    <?php if ($firstCv): ?>
+                                        <?php
+                                        $downloadUrl = '../cv-download.php?scope=application&id=' . (int) $app['id'];
+                                        if (!empty($firstCv['id'])) {
+                                            $downloadUrl .= '&attachment_id=' . (int) $firstCv['id'];
+                                        }
+                                        ?>
+                                        <a href="<?= htmlspecialchars($downloadUrl) ?>" class="btn btn-sm btn-outline-secondary" target="_blank" rel="noopener">
+                                            <?= count($applicationCvs) === 1 ? 'View CV' : 'View First CV' ?>
+                                        </a>
+                                    <?php endif; ?>
                                 <?php else: ?>
                                     <span class="text-muted">N/A</span>
                                 <?php endif; ?>

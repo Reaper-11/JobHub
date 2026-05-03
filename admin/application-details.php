@@ -106,6 +106,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         $stmt->close();
     }
 }
+
+$applicationCvs = jobhub_application_cv_list(
+    $conn,
+    $app_id,
+    (string) ($app['cv_path'] ?: ($app['user_cv_path'] ?? '')),
+    null
+);
 ?>
 
 <?php require 'admin-header.php'; ?>
@@ -148,9 +155,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
             <p><strong>Email:</strong> <?= htmlspecialchars($app['user_email']) ?></p>
             <p><strong>Phone:</strong> <?= htmlspecialchars($app['user_phone'] ?: 'Not provided') ?></p>
             <p><strong>Applied:</strong> <?= date('Y-m-d H:i', strtotime($app['applied_at'])) ?></p>
-            <?php $cvPath = $app['cv_path'] ?: ($app['user_cv_path'] ?? ''); ?>
-            <?php if (!empty($cvPath) && jobhub_cv_is_stored_path($cvPath)): ?>
-                <p><strong>CV:</strong> <a href="../cv-download.php?scope=application&id=<?= (int) $app['id'] ?>" target="_blank" rel="noopener">View CV</a></p>
+            <?php if (!empty($applicationCvs)): ?>
+                <p>
+                    <strong>CV<?= count($applicationCvs) === 1 ? '' : 's' ?>:</strong>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle"><?= count($applicationCvs) ?> attached</span>
+                </p>
+                <div class="d-flex flex-column gap-2">
+                    <?php foreach ($applicationCvs as $attachedCv): ?>
+                        <?php
+                        $downloadUrl = '../cv-download.php?scope=application&id=' . (int) $app['id'];
+                        if (!empty($attachedCv['id'])) {
+                            $downloadUrl .= '&attachment_id=' . (int) $attachedCv['id'];
+                        }
+                        ?>
+                        <a href="<?= htmlspecialchars($downloadUrl) ?>" target="_blank" rel="noopener">
+                            <?= htmlspecialchars($attachedCv['display_name'] ?? jobhub_cv_file_name($attachedCv['cv_path'] ?? '')) ?>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
             <?php else: ?>
                 <p><strong>CV:</strong> <span class="text-muted">Not provided</span></p>
             <?php endif; ?>

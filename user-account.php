@@ -56,6 +56,17 @@ if ($userStmt) {
     $userStmt->close();
 }
 
+$cvSchemaResult = jobhub_cv_ensure_library_schema($conn);
+$userCvLibrary = !empty($cvSchemaResult['success'])
+    ? jobhub_user_cv_list($conn, $uid)
+    : [];
+$defaultUserCv = !empty($cvSchemaResult['success'])
+    ? jobhub_user_default_cv($conn, $uid)
+    : null;
+if (is_array($defaultUserCv) && !empty($defaultUserCv['cv_path'])) {
+    $user['cv_path'] = (string) $defaultUserCv['cv_path'];
+}
+
 $preferenceProfile = function_exists('get_user_preferences') ? get_user_preferences($conn, $uid) : [];
 if (!empty($preferenceProfile['preferred_category'])) {
     $user['preferred_category'] = $preferenceProfile['preferred_category'];
@@ -70,6 +81,7 @@ $recommendedJobs = recommendJobs($conn, $uid, 10);
 $debugUpload = isset($_GET['debug_upload']) || isset($_POST['debug_upload']);
 $profileDebug = [];
 $uploadError = '';
+$uploadedCvEntries = [];
 $cvMoved = null;
 $dbPrepareOk = null;
 $dbExecuteOk = null;
@@ -101,7 +113,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    if ($action === 'profile' && $profileType === '') {
+    if ($action === 'delete_cv' && $profileType === '') {
+        if (empty($cvSchemaResult['success'])) {
+            $profileMsg = (string) ($cvSchemaResult['message'] ?? 'CV storage could not be prepared.');
+            $profileType = "alert-danger";
+        } else {
+            $cvId = (int) ($_POST['cv_id'] ?? 0);
+            $deleteCvError = '';
+            if (jobhub_user_cv_remove($conn, $uid, $cvId, $deleteCvError)) {
+                $profileMsg = "CV deleted successfully.";
+                $profileType = "alert-success";
+                $userCvLibrary = jobhub_user_cv_list($conn, $uid);
+                $defaultUserCv = jobhub_user_default_cv($conn, $uid);
+                $user['cv_path'] = $defaultUserCv['cv_path'] ?? '';
+            } else {
+                $profileMsg = $deleteCvError !== '' ? $deleteCvError : "Could not delete the selected CV.";
+                $profileType = "alert-danger";
+            }
+        }
+    } elseif ($action === 'profile' && $profileType === '') {
         $existingUser = $user;
         $name = trim($_POST['name'] ?? '');
         $email = strtolower(trim($_POST['email'] ?? ''));
@@ -157,13 +187,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Upload (only if validation passed)
         if ($profileMsg === '') {
-            if (isset($_FILES['cv_file']) && $_FILES['cv_file']['error'] !== UPLOAD_ERR_NO_FILE) {
-                $uploadedCvPath = jobhub_cv_upload($_FILES['cv_file'], $uid, $uploadError);
-                if ($uploadedCvPath !== null) {
-                    $newCvPath = $uploadedCvPath;
+            $cvUploads = [];
+            if (isset($_FILES['cv_files'])) {
+                $cvUploads = jobhub_cv_normalize_uploads($_FILES['cv_files']);
+            } elseif (isset($_FILES['cv_file'])) {
+                $cvUploads = jobhub_cv_normalize_uploads($_FILES['cv_file']);
+            }
+
+            $hasCvUpload = false;
+            foreach ($cvUploads as $cvUpload) {
+                if ((int) ($cvUpload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
+                    $hasCvUpload = true;
+                    break;
+                }
+            }
+
+            if ($hasCvUpload && empty($cvSchemaResult['success'])) {
+                $profileMsg = (string) ($cvSchemaResult['message'] ?? 'CV storage could not be prepared.');
+                $profileType = "alert-danger";
+            } elseif ($hasCvUpload) {
+                foreach ($cvUploads as $cvUpload) {
+                    if ((int) ($cvUpload['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+                        continue;
+                    }
+
+                    $uploadedCvEntry = jobhub_cv_upload_details($cvUpload, $uid, $uploadError);
+                    if ($uploadedCvEntry === null) {
+                        $cvMoved = false;
+                        break;
+                    }
+
+                    $uploadedCvEntries[] = $uploadedCvEntry;
+                }
+
+                if (!empty($uploadedCvEntries)) {
+                    $newCvPath = (string) ($uploadedCvEntries[count($uploadedCvEntries) - 1]['path'] ?? $currentCv);
+                    $uploadedCvPath = $newCvPath;
                     $cvMoved = true;
-                } else {
-                    $cvMoved = false;
                 }
             }
         }
@@ -228,6 +288,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
 
+                        if (!empty($uploadedCvEntries)) {
+                            $cvInsertStmt = $conn->prepare("
+                                INSERT INTO user_cvs (user_id, cv_path, original_name, created_at, updated_at)
+                                VALUES (?, ?, ?, NOW(), NOW())
+                            ");
+                            if (!$cvInsertStmt) {
+                                throw new RuntimeException('Could not save uploaded CV details.');
+                            }
+
+                            foreach ($uploadedCvEntries as $uploadedCvEntry) {
+                                $cvPathToInsert = (string) ($uploadedCvEntry['path'] ?? '');
+                                $cvOriginalName = jobhub_cv_display_name(
+                                    (string) ($uploadedCvEntry['original_name'] ?? ''),
+                                    $cvPathToInsert
+                                );
+                                $cvInsertStmt->bind_param("iss", $uid, $cvPathToInsert, $cvOriginalName);
+                                if (!$cvInsertStmt->execute()) {
+                                    $error = $cvInsertStmt->error;
+                                    $cvInsertStmt->close();
+                                    throw new RuntimeException($error !== '' ? $error : 'Could not save uploaded CV details.');
+                                }
+                            }
+
+                            $cvInsertStmt->close();
+                        }
+
                         $conn->commit();
 
                         $phoneDisplay = $phone === '' ? '' : $phone;
@@ -235,7 +321,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             && $experience_level !== (string) ($existingUser['experience_level'] ?? '');
                         $skillsChanged = $hasSkillsColumn
                             && $skills !== (string) ($existingUser['skills'] ?? '');
-                        $cvChanged = $newCvPath !== $currentCv;
+                        $uploadedCvCount = count($uploadedCvEntries);
+                        $cvChanged = $uploadedCvCount > 0;
                         $profileFieldsChanged = (
                             $name !== (string) ($existingUser['name'] ?? '')
                             || $email !== strtolower((string) ($existingUser['email'] ?? ''))
@@ -245,13 +332,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
 
                         if ($cvChanged && $skillsChanged && !$profileFieldsChanged) {
-                            $profileMsg = "Skills and CV updated successfully.";
+                            $profileMsg = $uploadedCvCount === 1
+                                ? "Skills and CV updated successfully."
+                                : "Skills and {$uploadedCvCount} CVs updated successfully.";
                         } elseif ($cvChanged && !$profileFieldsChanged && !$skillsChanged) {
-                            $profileMsg = "CV uploaded successfully.";
+                            $profileMsg = $uploadedCvCount === 1
+                                ? "CV uploaded successfully."
+                                : "{$uploadedCvCount} CVs uploaded successfully.";
                         } elseif ($skillsChanged && !$profileFieldsChanged && !$cvChanged) {
                             $profileMsg = "Skills updated successfully.";
                         } elseif (!$profileFieldsChanged && !$skillsChanged && !$cvChanged) {
                             $profileMsg = "No profile changes were made.";
+                        } elseif ($cvChanged) {
+                            $profileMsg = $uploadedCvCount === 1
+                                ? "Profile updated successfully and 1 CV was uploaded."
+                                : "Profile updated successfully and {$uploadedCvCount} CVs were uploaded.";
                         } else {
                             $profileMsg = "Profile updated successfully.";
                         }
@@ -269,6 +364,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $user['skills'] = $skills;
                         }
                         $user['cv_path'] = $newCvPath;
+                        $userCvLibrary = jobhub_user_cv_list($conn, $uid);
+                        $defaultUserCv = jobhub_user_default_cv($conn, $uid);
                     } catch (Throwable $e) {
                         $conn->rollback();
                         $dbStmtError = $e->getMessage();
@@ -288,10 +385,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // If the upload succeeded but the profile update did not, remove the
         // new file so the database and filesystem do not drift apart.
-        if ($profileType === 'alert-danger' && $uploadedCvPath !== null && jobhub_cv_is_stored_path($uploadedCvPath)) {
-            $uploadedAbsolutePath = jobhub_cv_absolute_path($uploadedCvPath);
-            if ($uploadedAbsolutePath !== null && is_file($uploadedAbsolutePath)) {
-                @unlink($uploadedAbsolutePath);
+        if ($profileType === 'alert-danger' && !empty($uploadedCvEntries)) {
+            foreach ($uploadedCvEntries as $uploadedCvEntry) {
+                $uploadedCvPathToRemove = (string) ($uploadedCvEntry['path'] ?? '');
+                if (!jobhub_cv_is_stored_path($uploadedCvPathToRemove)) {
+                    continue;
+                }
+
+                $uploadedAbsolutePath = jobhub_cv_absolute_path($uploadedCvPathToRemove);
+                if ($uploadedAbsolutePath !== null && is_file($uploadedAbsolutePath)) {
+                    @unlink($uploadedAbsolutePath);
+                }
             }
         }
 
@@ -404,7 +508,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $deleteType = "alert-danger";
             } else {
                 $deleteUserId = (int) $uid;
-                $cvPath = $user['cv_path'] ?? '';
+                $cvPathsForCleanup = jobhub_collect_user_cv_paths($conn, $uid);
                 $deleteRecipientEmail = strtolower(trim((string) ($user['email'] ?? '')));
                 $deleteRecipientName = trim((string) ($user['name'] ?? ''));
                 $conn->begin_transaction();
@@ -452,10 +556,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         );
                     }
 
-                    $absoluteCvPath = jobhub_cv_absolute_path((string) $cvPath);
-                    if ($absoluteCvPath !== null && db_query_value("SELECT COUNT(*) FROM applications WHERE cv_path = ?", 's', [$cvPath], 0) == 0 && is_file($absoluteCvPath)) {
-                        @unlink($absoluteCvPath);
-                    }
+                    jobhub_cleanup_cv_paths($conn, $cvPathsForCleanup);
 
                     logout_user();
                     header("Location: index.php");
@@ -489,8 +590,15 @@ require 'header.php';
                 $uploadDir = JOBHUB_CV_DIR;
                 $tmpDir = ini_get('upload_tmp_dir');
                 $tmpDir = $tmpDir !== '' ? $tmpDir : sys_get_temp_dir();
-                $fileInfo = $_FILES['cv_file'] ?? null;
-                $fileError = $fileInfo['error'] ?? null;
+                $debugCvFiles = [];
+                if (isset($_FILES['cv_files'])) {
+                    $debugCvFiles = jobhub_cv_normalize_uploads($_FILES['cv_files']);
+                } elseif (isset($_FILES['cv_file'])) {
+                    $debugCvFiles = jobhub_cv_normalize_uploads($_FILES['cv_file']);
+                }
+                $debugCvFiles = array_values(array_filter($debugCvFiles, static function (array $file): bool {
+                    return (int) ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+                }));
             ?>
             <div class="alert alert-secondary small">
                 <div>Debug upload: enabled</div>
@@ -502,12 +610,12 @@ require 'header.php';
                 <div>cv upload dir: <?php echo htmlspecialchars($uploadDir); ?></div>
                 <div>cv dir exists: <?php echo is_dir($uploadDir) ? 'yes' : 'no'; ?></div>
                 <div>cv dir writable: <?php echo is_writable($uploadDir) ? 'yes' : 'no'; ?></div>
-                <div>cv_file present: <?php echo $fileInfo ? 'yes' : 'no'; ?></div>
-                <?php if ($fileInfo): ?>
-                    <div>cv_file name: <?php echo htmlspecialchars($fileInfo['name'] ?? ''); ?></div>
-                    <div>cv_file size: <?php echo (int) ($fileInfo['size'] ?? 0); ?></div>
-                    <div>cv_file error: <?php echo $fileError === null ? 'n/a' : (int) $fileError; ?></div>
-                <?php endif; ?>
+                <div>cv_files selected: <?php echo count($debugCvFiles); ?></div>
+                <?php foreach ($debugCvFiles as $debugCvIndex => $debugCvFile): ?>
+                    <div>cv_file_<?php echo $debugCvIndex + 1; ?> name: <?php echo htmlspecialchars($debugCvFile['name'] ?? ''); ?></div>
+                    <div>cv_file_<?php echo $debugCvIndex + 1; ?> size: <?php echo (int) ($debugCvFile['size'] ?? 0); ?></div>
+                    <div>cv_file_<?php echo $debugCvIndex + 1; ?> error: <?php echo (int) ($debugCvFile['error'] ?? UPLOAD_ERR_NO_FILE); ?></div>
+                <?php endforeach; ?>
                 <?php if (!empty($profileDebug)): ?>
                     <div>action: <?php echo htmlspecialchars($profileDebug['action'] ?? ''); ?></div>
                     <div>name: <?php echo htmlspecialchars($profileDebug['name'] ?? ''); ?></div>
@@ -599,16 +707,19 @@ require 'header.php';
 
             <div class="mb-3">
                 <label class="form-label">CV / Resume</label>
-                <input type="file" class="form-control" name="cv_file" accept=".pdf,.doc,.docx">
-                <div class="form-text">Allowed: PDF, DOC, DOCX. Maximum size: 5MB.</div>
-                <?php if (!empty($user['cv_path']) && jobhub_cv_is_stored_path($user['cv_path'])): ?>
+                <input type="file" class="form-control" name="cv_files[]" accept=".pdf,.doc,.docx" multiple>
+                <div class="form-text">Upload one or more CVs. Allowed: PDF, DOC, DOCX. Maximum size: 5MB each. You can choose specific CVs while applying for a job.</div>
+                <?php if (!empty($userCvLibrary)): ?>
                     <div class="mt-2">
-                        <span class="badge bg-success-subtle text-success border border-success-subtle">CV uploaded</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle"><?= count($userCvLibrary) ?> CV<?= count($userCvLibrary) === 1 ? '' : 's' ?> saved</span>
                     </div>
-                    <div class="form-text">
-                        Current CV: <?php echo htmlspecialchars(jobhub_cv_file_name($user['cv_path'])); ?>
-                        <a class="link-primary text-decoration-none ms-1" href="cv-download.php?scope=profile" target="_blank" rel="noopener">View</a>
-                    </div>
+                    <?php if ($defaultUserCv): ?>
+                        <div class="form-text">
+                            Default CV:
+                            <?php echo htmlspecialchars($defaultUserCv['display_name'] ?? jobhub_cv_file_name($defaultUserCv['cv_path'] ?? '')); ?>
+                            <a class="link-primary text-decoration-none ms-1" href="cv-download.php?scope=profile&cv_id=<?= (int) ($defaultUserCv['id'] ?? 0) ?>" target="_blank" rel="noopener">View</a>
+                        </div>
+                    <?php endif; ?>
                 <?php else: ?>
                     <div class="form-text text-warning">No CV uploaded yet.</div>
                 <?php endif; ?>
@@ -616,6 +727,38 @@ require 'header.php';
 
             <button type="submit" class="btn btn-primary">Save Profile</button>
         </form>
+
+        <?php if (!empty($userCvLibrary)): ?>
+            <div class="mt-4">
+                <h3 class="h6 mb-3">Saved CVs</h3>
+                <div class="list-group">
+                    <?php foreach ($userCvLibrary as $savedCv): ?>
+                        <div class="list-group-item d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                            <div>
+                                <div class="fw-semibold">
+                                    <?= htmlspecialchars($savedCv['display_name'] ?? jobhub_cv_file_name($savedCv['cv_path'] ?? '')) ?>
+                                    <?php if (!empty($savedCv['is_default'])): ?>
+                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">Default</span>
+                                    <?php endif; ?>
+                                </div>
+                                <div class="small text-muted">
+                                    Uploaded <?= !empty($savedCv['created_at']) ? htmlspecialchars(date('M d, Y H:i', strtotime((string) $savedCv['created_at']))) : 'recently' ?>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a class="btn btn-sm btn-outline-secondary" href="cv-download.php?scope=profile&cv_id=<?= (int) ($savedCv['id'] ?? 0) ?>" target="_blank" rel="noopener">View</a>
+                                <form method="post" class="d-inline" onsubmit="return confirm('Delete this CV from your account?');">
+                                    <input type="hidden" name="action" value="delete_cv">
+                                    <input type="hidden" name="csrf_token" value="<?= generate_csrf_token() ?>">
+                                    <input type="hidden" name="cv_id" value="<?= (int) ($savedCv['id'] ?? 0) ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 

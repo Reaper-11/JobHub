@@ -10,7 +10,9 @@ DROP TABLE IF EXISTS notifications;
 DROP TABLE IF EXISTS job_view_logs;
 DROP TABLE IF EXISTS job_search_logs;
 DROP TABLE IF EXISTS saved_jobs;
+DROP TABLE IF EXISTS application_cvs;
 DROP TABLE IF EXISTS applications;
+DROP TABLE IF EXISTS user_cvs;
 DROP TABLE IF EXISTS user_skills;
 DROP TABLE IF EXISTS job_skills;
 DROP TABLE IF EXISTS jobs;
@@ -116,6 +118,18 @@ CREATE TABLE users (
     CONSTRAINT fk_users_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
 );
 
+CREATE TABLE user_cvs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    cv_path VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_user_cvs_user_path (user_id, cv_path),
+    KEY idx_user_cvs_user_created (user_id, created_at),
+    CONSTRAINT fk_user_cvs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE jobs (
     id INT AUTO_INCREMENT PRIMARY KEY,
     company_id INT NULL,
@@ -174,6 +188,17 @@ CREATE TABLE applications (
     updated_at DATETIME NULL,
     CONSTRAINT fk_applications_user FOREIGN KEY (user_id) REFERENCES users(id),
     CONSTRAINT fk_applications_job FOREIGN KEY (job_id) REFERENCES jobs(id)
+);
+
+CREATE TABLE application_cvs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    application_id INT NOT NULL,
+    cv_path VARCHAR(255) NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_application_cvs_application_path (application_id, cv_path),
+    KEY idx_application_cvs_application (application_id, created_at),
+    CONSTRAINT fk_application_cvs_application FOREIGN KEY (application_id) REFERENCES applications(id) ON DELETE CASCADE
 );
 
 CREATE TABLE notifications (

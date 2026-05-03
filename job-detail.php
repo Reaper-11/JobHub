@@ -43,6 +43,10 @@ $already_applied = false;
 $already_bookmarked = false;
 $user_id = current_user_id();
 $user_cv_path = null;
+$available_user_cvs = [];
+$selected_apply_cv_ids = [];
+$cover_letter_draft = '';
+$cv_schema_result = jobhub_cv_ensure_library_schema($conn);
 
 if ($user_id) {
     // Check if already applied
@@ -59,7 +63,13 @@ if ($user_id) {
     $already_bookmarked = $stmt->get_result()->num_rows > 0;
     $stmt->close();
 
-    $user_cv_path = db_query_value("SELECT cv_path FROM users WHERE id = ?", "i", [$user_id], null);
+    if (!empty($cv_schema_result['success'])) {
+        $available_user_cvs = jobhub_user_cv_list($conn, $user_id);
+        $default_user_cv = jobhub_user_default_cv($conn, $user_id);
+        $user_cv_path = $default_user_cv['cv_path'] ?? null;
+    } else {
+        $user_cv_path = db_query_value("SELECT cv_path FROM users WHERE id = ?", "i", [$user_id], null);
+    }
 
     // Log job view (if tracking table exists)
     $check = $conn->query("SHOW TABLES LIKE 'job_view_logs'");
@@ -83,40 +93,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $user_id) {
         $alert_type = 'danger';
     } else {
         if (isset($_POST['apply'])) {
+            $cover_letter_draft = trim($_POST['cover_letter'] ?? '');
+            $selected_apply_cv_ids = array_values(array_unique(array_filter(
+                array_map(static fn($cvId): int => (int) $cvId, (array) ($_POST['cv_ids'] ?? [])),
+                static fn(int $cvId): bool => $cvId > 0
+            )));
+
             if ($already_applied) {
                 $alert = "You have already applied for this job.";
                 $alert_type = 'warning';
             } elseif ($is_inactive) {
                 $alert = "This job is no longer accepting applications.";
                 $alert_type = 'warning';
-            } elseif (empty($user_cv_path)) {
-                $alert = "Please upload your CV in your account before applying.";
+            } elseif (empty($cv_schema_result['success'])) {
+                $alert = (string) ($cv_schema_result['message'] ?? 'CV storage could not be prepared.');
+                $alert_type = 'warning';
+            } elseif (empty($available_user_cvs)) {
+                $alert = "Please upload at least one CV in your account before applying.";
+                $alert_type = 'warning';
+            } elseif (empty($selected_apply_cv_ids)) {
+                $alert = "Please select at least one CV for this application.";
                 $alert_type = 'warning';
             } else {
-                $cover = trim($_POST['cover_letter'] ?? '');
-                $stmt = $conn->prepare("
-                    INSERT INTO applications (user_id, job_id, cover_letter, cv_path, applied_at)
-                    VALUES (?, ?, ?, ?, NOW())
-                ");
-                $stmt->bind_param("iiss", $user_id, $job_id, $cover, $user_cv_path);
-                if ($stmt->execute()) {
-                    $alert = "Application submitted successfully with your CV attached.";
-                    $already_applied = true;
-                    log_activity(
-                        $conn,
-                        $user_id,
-                        'seeker',
-                        'job_application_submitted',
-                        "User applied for job: {$job['title']}",
-                        'application',
-                        (int)$conn->insert_id
-                    );
-                    // Optional: increment application_count
+                $selected_user_cvs = jobhub_user_cv_find_many($conn, (int) $user_id, $selected_apply_cv_ids);
+                if (count($selected_user_cvs) !== count($selected_apply_cv_ids)) {
+                    $alert = "Please select valid CVs from your account.";
+                    $alert_type = 'warning';
                 } else {
-                    $alert = "Failed to submit application. Please try again.";
-                    $alert_type = 'danger';
+                    $primary_cv_path = (string) ($selected_user_cvs[0]['cv_path'] ?? '');
+                    $cover = $cover_letter_draft;
+                    $conn->begin_transaction();
+
+                    try {
+                        $stmt = $conn->prepare("
+                            INSERT INTO applications (user_id, job_id, cover_letter, cv_path, applied_at)
+                            VALUES (?, ?, ?, ?, NOW())
+                        ");
+                        if (!$stmt) {
+                            throw new RuntimeException('Could not prepare the application.');
+                        }
+
+                        $stmt->bind_param("iiss", $user_id, $job_id, $cover, $primary_cv_path);
+                        if (!$stmt->execute()) {
+                            $error = $stmt->error;
+                            $stmt->close();
+                            throw new RuntimeException($error !== '' ? $error : 'Could not save the application.');
+                        }
+
+                        $application_id = (int) $conn->insert_id;
+                        $stmt->close();
+
+                        if (!jobhub_application_attach_cvs($conn, $application_id, $selected_user_cvs)) {
+                            throw new RuntimeException('Could not attach the selected CVs.');
+                        }
+
+                        $conn->commit();
+                        $alert = count($selected_user_cvs) === 1
+                            ? "Application submitted successfully with 1 CV attached."
+                            : "Application submitted successfully with " . count($selected_user_cvs) . " CVs attached.";
+                        $already_applied = true;
+                        $cover_letter_draft = '';
+                        $selected_apply_cv_ids = [];
+                        log_activity(
+                            $conn,
+                            $user_id,
+                            'seeker',
+                            'job_application_submitted',
+                            "User applied for job: {$job['title']}",
+                            'application',
+                            $application_id
+                        );
+                    } catch (Throwable $e) {
+                        $conn->rollback();
+                        $alert = "Failed to submit application. Please try again.";
+                        $alert_type = 'danger';
+                    }
                 }
-                $stmt->close();
             }
         }
 
@@ -355,7 +407,7 @@ require 'header.php';
                         <a href="login.php" class="btn btn-primary job-apply-btn">Sign In</a>
                         <a href="register.php" class="job-secondary-btn">Create Account</a>
                     </div>
-                <?php elseif (empty($user_cv_path)): ?>
+                <?php elseif (empty($available_user_cvs)): ?>
                     <div class="alert alert-warning mb-3">
                         Please upload your CV in <a href="user-account.php" class="alert-link">your account</a> before applying.
                     </div>
@@ -366,7 +418,58 @@ require 'header.php';
                         <input type="hidden" name="apply" value="1">
 
                         <div class="job-cv-note">
-                            Your saved CV will be attached automatically to this application.
+                            Select one or more saved CVs to attach to this application.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="job-form-label d-block">Choose CV(s)</label>
+                            <div class="job-cv-picker">
+                                <?php foreach ($available_user_cvs as $saved_cv): ?>
+                                    <?php
+                                    $savedCvId = (int) ($saved_cv['id'] ?? 0);
+                                    $isChecked = in_array($savedCvId, $selected_apply_cv_ids, true)
+                                        || (empty($selected_apply_cv_ids) && !empty($saved_cv['is_default']));
+                                    $savedCvInputId = 'apply_cv_' . $savedCvId;
+                                    ?>
+                                    <div class="job-cv-option">
+                                        <input
+                                            type="checkbox"
+                                            name="cv_ids[]"
+                                            value="<?= $savedCvId ?>"
+                                            id="<?= htmlspecialchars($savedCvInputId) ?>"
+                                            class="job-cv-checkbox"
+                                            <?= $isChecked ? 'checked' : '' ?>
+                                        >
+                                        <div class="job-cv-option-shell">
+                                            <label for="<?= htmlspecialchars($savedCvInputId) ?>" class="job-cv-card">
+                                                <span class="job-cv-card-top">
+                                                    <span class="job-cv-checkmark" aria-hidden="true"></span>
+                                                    <span class="job-cv-file-block">
+                                                        <span class="job-cv-file-name"><?= htmlspecialchars($saved_cv['display_name'] ?? jobhub_cv_file_name($saved_cv['cv_path'] ?? '')) ?></span>
+                                                        <span class="job-cv-badges">
+                                                            <?php if (!empty($saved_cv['is_default'])): ?>
+                                                                <span class="job-cv-badge job-cv-badge--default">Default</span>
+                                                            <?php endif; ?>
+                                                        </span>
+                                                    </span>
+                                                </span>
+                                                <span class="job-cv-card-meta">
+                                                    Uploaded <?= !empty($saved_cv['created_at']) ? htmlspecialchars(date('M d, Y H:i', strtotime((string) $saved_cv['created_at']))) : 'recently' ?>
+                                                </span>
+                                            </label>
+                                            <a
+                                                href="cv-download.php?scope=profile&cv_id=<?= $savedCvId ?>"
+                                                class="job-cv-view-link"
+                                                target="_blank"
+                                                rel="noopener"
+                                            >View</a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            <div class="job-cv-helper">
+                                Choose the CV version that best fits this role. You can attach multiple CVs if the employer needs more than one version.
+                            </div>
                         </div>
 
                         <label for="cover_letter" class="job-form-label">Cover Letter</label>
@@ -375,7 +478,7 @@ require 'header.php';
                             name="cover_letter"
                             class="form-control job-cover-letter"
                             rows="5"
-                            placeholder="Highlight your relevant experience and interest in this role."></textarea>
+                            placeholder="Highlight your relevant experience and interest in this role."><?= htmlspecialchars($cover_letter_draft) ?></textarea>
 
                         <button type="submit" class="btn btn-primary job-apply-btn">
                             Submit Application

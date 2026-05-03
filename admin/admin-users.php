@@ -48,6 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
         } else {
             $stmt = null;
             $accountStatus = null;
+            $cvPathsForCleanup = $action === 'remove'
+                ? jobhub_collect_user_cv_paths($conn, $uid)
+                : [];
 
             if ($action === 'block') {
                 $stmt = $conn->prepare("UPDATE users SET account_status = 'blocked', is_active = 0, updated_at = NOW() WHERE id = ?");
@@ -156,16 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && validate_csrf_token($_POST['csrf_to
                     }
 
                     if ($action === 'remove') {
-                        $cvPath = trim((string) ($user['cv_path'] ?? ''));
-                        $absoluteCvPath = jobhub_cv_absolute_path($cvPath);
-                        if (
-                            $cvPath !== ''
-                            && $absoluteCvPath !== null
-                            && db_query_value("SELECT COUNT(*) FROM applications WHERE cv_path = ?", 's', [$cvPath], 0) == 0
-                            && is_file($absoluteCvPath)
-                        ) {
-                            @unlink($absoluteCvPath);
-                        }
+                        jobhub_cleanup_cv_paths($conn, $cvPathsForCleanup);
                     }
                 } else {
                     $conn->rollback();

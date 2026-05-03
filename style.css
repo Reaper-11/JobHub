@@ -1566,6 +1566,179 @@ button:focus-visible,
   line-height: 1.55;
 }
 
+.job-cv-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.job-cv-option {
+  position: relative;
+}
+
+.job-cv-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.job-cv-option-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(9, 14, 29, 0.98) 0%, rgba(5, 10, 22, 0.94) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.job-cv-option:hover .job-cv-option-shell {
+  border-color: rgba(96, 165, 250, 0.26);
+  transform: translateY(-1px);
+}
+
+.job-cv-checkbox:focus-visible + .job-cv-option-shell {
+  outline: 2px solid rgba(96, 165, 250, 0.55);
+  outline-offset: 2px;
+}
+
+.job-cv-checkbox:checked + .job-cv-option-shell {
+  border-color: rgba(96, 165, 250, 0.54);
+  background: linear-gradient(180deg, rgba(13, 25, 50, 0.98) 0%, rgba(8, 18, 36, 0.96) 100%);
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.18);
+}
+
+.job-cv-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.job-cv-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.job-cv-checkmark {
+  position: relative;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  border-radius: 7px;
+  border: 1px solid rgba(96, 165, 250, 0.34);
+  background: rgba(15, 23, 42, 0.92);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.job-cv-checkbox:checked + .job-cv-option-shell .job-cv-checkmark {
+  border-color: rgba(96, 165, 250, 0.76);
+  background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
+  box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+}
+
+.job-cv-checkbox:checked + .job-cv-option-shell .job-cv-checkmark::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 3px;
+  width: 5px;
+  height: 10px;
+  border-right: 2px solid #eff6ff;
+  border-bottom: 2px solid #eff6ff;
+  transform: rotate(42deg);
+}
+
+.job-cv-file-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  min-width: 0;
+}
+
+.job-cv-file-name {
+  color: #f8fafc;
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.job-cv-badges {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.job-cv-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.job-cv-badge--default {
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  background: rgba(37, 99, 235, 0.16);
+  color: #93c5fd;
+}
+
+.job-cv-card-meta {
+  padding-left: 34px;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.job-cv-view-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 86px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(96, 165, 250, 0.26);
+  background: linear-gradient(135deg, rgba(96, 165, 250, 0.94) 0%, rgba(59, 130, 246, 0.88) 100%);
+  color: #eff6ff;
+  font-size: 0.92rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 14px 24px rgba(37, 99, 235, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.job-cv-view-link:hover,
+.job-cv-view-link:focus {
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 18px 28px rgba(37, 99, 235, 0.26);
+  filter: brightness(1.04);
+}
+
+.job-cv-helper {
+  margin-top: 10px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
 .job-cover-letter {
   min-height: 132px;
   border-radius: 16px !important;
@@ -1759,6 +1932,19 @@ button:focus-visible,
 
   .job-hero-copy h1 {
     font-size: 1.75rem;
+  }
+
+  .job-cv-option-shell {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .job-cv-view-link {
+    width: 100%;
+  }
+
+  .job-cv-card-meta {
+    padding-left: 34px;
   }
 
   .job-meta-row {

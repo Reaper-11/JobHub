@@ -1,6 +1,6 @@
 <?php
 // includes/recommendation.php
-// Content-based job recommendation logic (deterministic, transparent, and viva-friendly)
+// Content-based job recommendation logic
 
 $RECOMMENDATION_CONFIG = [
     'weights' => [
